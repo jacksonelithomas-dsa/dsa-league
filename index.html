@@ -457,6 +457,7 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
   </section>
   <section id="tab-trades" hidden>
     <div class="panel" style="margin-bottom:14px"><h2>Offers <span>Trades sent to you and by you. Every team in a trade has to accept.</span></h2><div id="trOffers"></div></div>
+    <div id="tbkBox"></div>
     <div class="panel" style="margin-bottom:14px"><h2>Trade finder <span>Swaps that help you and that the other team would likely take</span></h2><div id="trFinder"></div></div>
     <div class="panel"><h2>Build a trade <span>Keepers, S6 picks, drafted players and S7 picks. Up to three teams.</span></h2>
       <div id="trBuilder"></div>
@@ -4104,13 +4105,13 @@ async function liveDraft(id, how) {
   if (!ok) toast('That pick did not go through (someone else may have just picked).', 'bad');
 }
 function queueFirst(team) {
-  const tk = taken();
-  for (const id of LV.queue) { if (tk.has(id)) continue; if (captainForced(team, S.picks) && !P[id].cap) continue; if (captainBlocked(team, S.picks) && P[id].cap) continue; return P[id]; }
+  const tk = taken(), ids = team === LV.team ? LV.queue : ((LV.queues && LV.queues[team]) || []);
+  for (const id of ids) { if (tk.has(id)) continue; if (captainForced(team, S.picks) && !P[id].cap) continue; if (captainBlocked(team, S.picks) && P[id].cap) continue; return P[id]; }
   return null;
 }
 async function autoPick(team, how) {
   let p = null;
-  if (team === LV.team) p = queueFirst(team);
+  p = queueFirst(team); // the team's own queue first, always (also when someone else covers for a coach who is away, or the team has no coach)
   if (!p) { try { if (team === S.myTeam) { computeRecs(); p = recOrder()[0] && recOrder()[0].p; } } catch (e) {} }
   if (!p) p = aiChoose(team, S.picks, false, randFor(team));
   if (!p) return;
@@ -4271,6 +4272,7 @@ async function tick() {
       if (!claimed && LV.cfg.autoUnclaimed !== false && now - startOf >= 3500) { LV.busy = true; await autoPick(o.team, 'cpu'); }
       else if (claimed && expired && now >= d.at + 8000) { LV.busy = true; await autoPick(o.team, 'auto'); }
     } else if (LV.owner && mine && expired && now >= d.at + 8000) { LV.busy = true; await autoPick(o.team, 'auto'); }
+    else if (!LV.owner && !mine && LV.team && !isSpec() && expired && now >= d.at + 20000) { LV.busy = true; await autoPick(o.team, 'auto'); } // safety net: any coach online covers a team whose coach and the commissioner are both away
   } finally { LV.busy = false; }
 }
 
@@ -4281,7 +4283,7 @@ async function livePushCfg(reset) {
   const cfg = { board: JSON.parse(JSON.stringify(S.board)), keepers: S.keepers.map(k => ({ team: k.team, pid: k.pid, round: k.round ?? null })), clockSec: old.clockSec ?? 90, autoUnclaimed: old.autoUnclaimed ?? true, phase: reset ? 'setup' : (old.phase || 'setup'), queueReset: reset ? Date.now() : (old.queueReset || 0), v: Date.now() };
   try {
     if (reset) {
-      await wipeDocs(['picks', 'trades']);
+      await wipeDocs(['picks', 'trades', 'queues']);
       // pre-draft trades (made before pick 1) always stay; mid-draft trades go only when asked
       const tl = await LV.db.collection('tradelog').get(); const kept = new Set();
       for (const d of tl.docs) { const x = d.data(); if (x && !(x.at > 0) ) { kept.add(tradeKey(x)); continue; } if (reset === 'clear') { try { await LV.db.doc('tradelog/' + d.id).delete(); } catch (e) { dbErr(e); } } else kept.add(tradeKey(x)); }
@@ -4347,7 +4349,7 @@ function renderCommish() {
   const pf = LV.profiles;
   el.innerHTML = `<div class="form"><label><span>Pick clock (seconds, 0 = none)</span><input type="number" id="cmClock" min="0" max="900" value="${c.clockSec ?? 90}"></label>
     <label class="togrow" style="align-self:end"><input type="checkbox" id="cmAuto" ${c.autoUnclaimed === false ? '' : 'checked'}><span>Computer drafts for teams nobody has joined</span></label>
-    <label>&nbsp;<button id="cmSave" class="primary">Save clock settings</button></label></div>
+    <label>&nbsp;<button id="cmSave" class="primary">Save clock settings</button></label><label>&nbsp;<button data-hb="backup" title="Downloads every pick, trade, score, lineup and setting as one file">Download backup</button></label></div>
     <div class="tbl-wrap" style="max-height:none"><table><thead><tr><th class="l">Team</th><th class="l">Coach</th><th></th></tr></thead><tbody>${TEAMS.map(t => { const x = cl[t]; return `<tr class="${t === S.myTeam ? 'me' : ''}"><td class="l"><span class="tdot" style="background:${TCOL[t]}"></span>${esc(t)}</td><td class="l">${x ? esc((pf[x.uid] && pf[x.uid].name) || 'Joined') : '<span style="color:var(--muted)">Not joined</span>'}</td><td>${x ? `<button data-reset="${TEAMS.indexOf(t)}">Free this team</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>
     <div class="form"><label><span>Team icons (image files named after the player, e.g. Wario.png)</span><input type="file" id="icoFiles" accept="image/*" multiple></label><label>&nbsp;<span id="icoNote" style="font-size:12px;color:var(--muted)">${Object.keys(LV.icons).length} of ${P.length} icons loaded</span></label></div>
     <div id="icoReview"></div>
@@ -4395,7 +4397,71 @@ async function uploadIcons() {
 
 // ---------- queue (private to each coach) ----------
 let queueSaveT = null;
-function saveQueue() { clearTimeout(queueSaveT); queueSaveT = setTimeout(() => { if (LV.db && LV.uid) LV.db.doc('data/users/' + LV.uid + '/queue').set({ ids: LV.queue, ep: LV.queueEp || 0 }).catch(dbErr); }, 500); }
+function saveQueue() { clearTimeout(queueSaveT); queueSaveT = setTimeout(() => { if (LV.db && LV.uid) LV.db.doc('data/users/' + LV.uid + '/queue').set({ ids: LV.queue, ep: LV.queueEp || 0 }).catch(dbErr); if (LV.db && LV.team && !isSpec()) LV.db.doc('queues/' + LV.team).set({ ids: LV.queue, ep: LV.queueEp || 0, t: Date.now() }).catch(dbErr); }, 500); }
+
+
+// ---------- trade block and wishlist (shown only in the Trades tabs, draft and season) ----------
+const TBK_MAX = 6;
+const tbkIds = t => { try { return (done() && typeof hbRoster === 'function') ? hbRoster(t).slice() : rosterOf(t).map(q => q.id); } catch (e) { return []; } };
+const tbkOwner = id => TEAMS.find(t => tbkIds(t).includes(id)) || null;
+const tbkDoc = t => (LV.tblock && LV.tblock[t]) || { block: [], want: [], note: '' };
+function tbkMine() { return LV.team && !isSpec() ? LV.team : null; }
+async function tbkSave(team, patch) {
+  if (!LV.db || !team || team !== LV.team || isSpec()) return;
+  const cur = tbkDoc(team), next = { team, block: cur.block || [], want: cur.want || [], note: cur.note || '', ...patch, t: Date.now() };
+  LV.tblock = LV.tblock || {}; LV.tblock[team] = next; renderTbk();
+  try { await LV.db.doc('tblock/' + team).set(next); } catch (e) { dbErr(e); }
+}
+function tbkHtml() {
+  const me = tbkMine(), pn = id => esc(typeof hbSn === 'function' ? hbSn(id) : P[id].name);
+  const chip = (id, extra) => `<span class="chip">${ico(P[id], 16)}<span class="pclick" data-pid="${id}">${pn(id)}</span>${extra || ''}</span>`;
+  let mineH = '';
+  if (me) {
+    const d = tbkDoc(me), own = tbkIds(me), blk = new Set((d.block || []).filter(i => own.includes(i))), want = (d.want || []).filter(i => !own.includes(i));
+    const others = P.map(p => p.id).filter(id => !own.includes(id)).sort((a, b) => P[a].name.localeCompare(P[b].name));
+    mineH = `<div class="pad" style="display:grid;gap:10px;border-bottom:1px solid var(--line)"><b>${esc(me)}: your list</b>
+      <div><div class="note" style="margin-bottom:4px">On the block (tap a player to put him up or take him off, up to ${TBK_MAX})</div><div class="chips">${own.length ? own.map(id => `<button class="chip${blk.has(id) ? ' g' : ''}" data-tbk="blk" data-id="${id}" aria-pressed="${blk.has(id)}">${ico(P[id], 16)}${pn(id)}${blk.has(id) ? ' ✓' : ''}</button>`).join('') : '<span class="note">No players yet.</span>'}</div></div>
+      <div><div class="note" style="margin-bottom:4px">Looking for (up to ${TBK_MAX})</div><div class="chips">${want.map(id => `<span class="chip w">${ico(P[id], 16)}${pn(id)} <button data-tbk="unwant" data-id="${id}" aria-label="Remove ${esc(P[id].name)}" style="border:0;background:none;cursor:pointer">✕</button></span>`).join('') || '<span class="note">Nobody yet.</span>'}</div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><select id="tbkWant" aria-label="Add a player you want"><option value="">Add a player…</option>${others.map(id => `<option value="${id}">${esc(P[id].name)}${tbkOwner(id) ? ' (' + esc(tbkOwner(id)) + ')' : ' (free agent)'}</option>`).join('')}</select><button data-tbk="want">Add</button></div></div>
+      <label class="hb-f"><span class="note">Note to the league (optional)</span><input id="tbkNote" maxlength="90" value="${esc(d.note || '')}" placeholder="e.g. Open to picks for a power bat"></label></div>`;
+  }
+  const cards = TEAMS.map(t => {
+    const d = tbkDoc(t), own = tbkIds(t), blk = (d.block || []).filter(i => own.includes(i)), want = (d.want || []).filter(i => !own.includes(i));
+    if (!blk.length && !want.length && !d.note) return '';
+    const mineIds = me ? tbkIds(me) : [];
+    const wantsMine = me && t !== me ? want.filter(i => mineIds.includes(i)) : [];
+    return `<div class="hb-offer" style="display:grid;gap:6px"><div><b>${typeof hbLogo === 'function' ? hbLogo(t) : ''}<span class="tdot" style="background:${TCOL[t]}"></span>${esc(t)}</b>${d.note ? ` <span class="note">“${esc(d.note)}”</span>` : ''}</div>
+      ${blk.length ? `<div class="chips"><span class="note">On the block:</span>${blk.map(id => chip(id, me && t !== me ? ` <button data-tbk="offer" data-id="${id}" data-t="${esc(t)}" title="Start an offer for ${esc(P[id].name)}">Offer</button>` : '')).join('')}</div>` : ''}
+      ${want.length ? `<div class="chips"><span class="note">Looking for:</span>${want.map(id => chip(id, mineIds.includes(id) ? ' <b title="He is on your roster">yours</b>' : '')).join('')}</div>` : ''}
+      ${wantsMine.length ? `<div class="note">${esc(t)} is asking about ${wantsMine.map(i => esc(P[i].name)).join(', ')} from you.</div>` : ''}</div>`;
+  }).join('');
+  return `<div class="panel" style="margin-top:14px" id="tbkPanel"><h2>Trade block <span>Who is available and who each team wants. Only the coach can edit a team's list.</span></h2>${mineH}<div class="pad" style="display:grid;gap:8px">${cards || '<div class="note">Nobody has posted anything yet.</div>'}</div></div>`;
+}
+function renderTbk() {
+  const box = document.getElementById('tbkBox'); if (box && !document.getElementById('tab-trades').hidden && !(box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT')) box.innerHTML = tbkHtml();
+  try { if (typeof hbSched === 'function') hbSched(); } catch (e) {}
+}
+const _rtTbk = typeof renderTrades === 'function' ? renderTrades : null;
+if (_rtTbk) renderTrades = function () { const r = _rtTbk.apply(this, arguments); try { renderTbk(); } catch (e) {} return r; };
+function tbkOffer(id, owner) {
+  const me = tbkMine(); if (!me || !owner) return;
+  if (document.getElementById('tab-trades') && !document.getElementById('tab-trades').hidden) { // draft room builder
+    TB.p = [owner, null]; TB.sel = {}; TB.res = null; renderTradeBuilder();
+    for (const [k, a] of TB.assets) if (a.k === 'player' && a.pid === id) TB.sel[k] = S.myTeam;
+    renderTradeBuilder(); renderTradeResult(); const b = document.getElementById('trBuilder'); if (b) b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } else if (typeof HB !== 'undefined' && HB.trade) { // season hub
+    HB.trade.to = owner; HB.trade.get = new Set([id]); HB.trade.give = new Set(); HB.trade.giveS7 = new Set(); HB.trade.getS7 = new Set(); if (typeof renderHub === 'function') renderHub();
+  }
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-tbk]'); if (!b) return; const me = tbkMine(), a = b.dataset.tbk, id = +b.dataset.id;
+  if (!me) return;
+  if (a === 'blk') { const d = tbkDoc(me), s = new Set(d.block || []); if (s.has(id)) s.delete(id); else if (s.size >= TBK_MAX) { toast('Up to ' + TBK_MAX + ' players on the block.', 'bad'); return; } else s.add(id); tbkSave(me, { block: [...s] }); }
+  else if (a === 'unwant') tbkSave(me, { want: (tbkDoc(me).want || []).filter(x => x !== id) });
+  else if (a === 'want') { const sel = document.getElementById('tbkWant'), v = sel && sel.value !== '' ? +sel.value : null; if (v == null) return; const w = tbkDoc(me).want || []; if (w.includes(v)) return; if (w.length >= TBK_MAX) { toast('Up to ' + TBK_MAX + ' players on your wish list.', 'bad'); return; } tbkSave(me, { want: [...w, v] }); }
+  else if (a === 'offer') tbkOffer(id, b.dataset.t);
+});
+document.addEventListener('change', e => { if (e.target.id === 'tbkNote') { const me = tbkMine(); if (me) tbkSave(me, { note: e.target.value.trim().slice(0, 90) }); } });
 
 // ---------- trades between people ----------
 renderTradeResult = function () {
@@ -4700,6 +4766,8 @@ async function liveBoot() {
   db.collection('picks').onSnapshot(s => { LV.pickDocs = s.docs.map(d => d.data()).filter(x => x && x.pid != null); got('picks'); }, dbErr);
   db.collection('tradelog').onSnapshot(s => { LV.tlog = s.docs.map(d => d.data()).filter(x => x && x.legs); got('tlog'); }, dbErr);
   db.collection('tvotes').onSnapshot(s => { LV.votes = {}; s.docs.forEach(d => { const x = d.data(); if (x && x.key && x.tk) (LV.votes[x.key] = LV.votes[x.key] || {})[x.tk] = true; }); got('votes'); try { sched(); } catch (e) {} }, dbErr);
+  db.collection('tblock').onSnapshot(s => { LV.tblock = {}; s.docs.forEach(d => { const x = d.data(); if (x && x.team) LV.tblock[x.team] = x; }); renderTbk(); }, dbErr);
+  db.collection('queues').onSnapshot(s => { LV.queues = {}; s.docs.forEach(d => { const x = d.data(); if (x && Array.isArray(x.ids)) LV.queues[d.id] = x.ids; }); }, dbErr);
   db.collection('trades').onSnapshot(s => { LV.offers = s.docs.map(d => d.data()).filter(x => x && x.teams); got('offers'); }, dbErr);
   hubStart();
   if (LV.uid) db.doc('data/users/' + LV.uid + '/queue').onSnapshot(s => { if (!LV.queueLoaded) { LV.queue = Array.from((s.exists && s.data() && s.data().ids) || []); LV.queueEp = (s.exists && s.data() && s.data().ep) || 0; LV.queueLoaded = true; syncQueueEpoch(); renderQueue(); } }, dbErr);
@@ -4784,6 +4852,52 @@ function hbLineup(team, wk) {
 }
 function hbBuilt(team, lu, wk) { const r = hbProfs(hbRoster(team)); if (!r.length) return null; lu = lu || hbLineup(team, wk); return Core.buildTeam(r, lu ? { slots: lu.slots, pos: lu.pos } : undefined); }
 
+
+/* ---- playoff picture: clinch / elimination / magic numbers / projected seeds and Season 7 pick order ----
+   Assumptions (same as Season 5): 6 of 10 teams make the playoffs on win percentage, seeds 1-2 get byes. Ties are treated as still alive, so a team is only
+   marked clinched or eliminated when it is certain whatever tie-breaks decide, and the number can lag by a game. The Season 7 order is the lottery order already used in the Commish tab. */
+const HB_PO_TEAMS = 6, HB_PO_BYE = 2;
+function hbPlayoff(rows) {
+  const left = {}; TEAMS.forEach(t => left[t] = 0);
+  for (const g of HB_GAMES) { const s = HB.scores[g.gid]; if (s && s.status === 'final' && s.as != null && s.hs != null) continue; left[g.away]++; left[g.home]++; }
+  const R = rows.map(r => ({ t: r.t, w: r.w, l: r.l, left: left[r.t], max: r.w + left[r.t], pct: r.pct, diff: r.diff, gb: r.gb, rs: r.rs, ra: r.ra }));
+  const kth = (t, k, key) => { const o = R.filter(x => x.t !== t).map(x => x[key]).sort((a, b) => b - a); return o[k - 1] == null ? -1 : o[k - 1]; };
+  const outcome = (x, slots) => { // clinched / eliminated / magic wins for a top-N finish
+    const ahead = R.filter(o => o.t !== x.t && o.max >= x.w).length, behind = R.filter(o => o.t !== x.t && o.w > x.max).length;
+    const clinched = ahead < slots, out = behind >= slots;
+    const need = Math.max(0, kth(x.t, slots, 'max') - x.w + 1);
+    return { clinched, out, magic: clinched ? 0 : out ? null : need <= x.left ? need : null };
+  };
+  R.forEach(x => { x.po = outcome(x, HB_PO_TEAMS); x.bye = outcome(x, HB_PO_BYE); });
+  return R;
+}
+function hbPlayoffHtml(rows) {
+  const R = hbPlayoff(rows), played = rows.reduce((a, r) => a + r.gp, 0);
+  if (!played) return `<div class="panel" style="margin-top:14px"><h2>Playoff picture <span>Top ${HB_PO_TEAMS} make it, top ${HB_PO_BYE} get byes</span></h2><div class="pad note">Shows up once games are final: seeds, clinch and elimination status, magic numbers, and the Season 7 pick order.</div></div>`;
+  const st = x => x.bye.clinched ? '<span class="chip g">Clinched bye</span>' : x.po.clinched ? '<span class="chip g">Clinched playoffs</span>' : x.po.out ? '<span class="chip b">Eliminated</span>' : '<span class="chip w">In the hunt</span>';
+  const mg = x => x.po.clinched ? (x.bye.clinched ? '' : (x.bye.magic != null ? 'Bye magic ' + x.bye.magic : '')) : x.po.out ? '' : (x.po.magic != null ? 'Magic ' + x.po.magic : '');
+  const lastIn = R[Math.min(HB_PO_TEAMS, R.length) - 1], cutGB = x => { if (!lastIn || x === lastIn) return '–'; const d = ((x.w - lastIn.w) + (lastIn.l - x.l)) / 2; return (d > 0 ? '+' : '') + d.toFixed(1); };
+  const row = (x, i) => `<tr class="${hbMe() === x.t ? 'me' : ''}"><td>${i + 1}</td><td class="l">${hbLogo(x.t)}${esc(x.t)}</td><td class="num">${x.w}-${x.l}</td><td class="num">${x.left}</td><td class="num">${x.gb ? x.gb.toFixed(1) : '–'}</td><td class="num" style="color:${x.diff > 0 ? 'var(--good)' : x.diff < 0 ? 'var(--bad)' : 'inherit'}">${x.diff > 0 ? '+' : ''}${x.diff}</td><td class="num">${cutGB(x)}</td><td>${st(x)}</td><td class="num">${mg(x)}</td></tr>`;
+  const cut = HB_PO_TEAMS, ord = hbS7Order();
+  return `<div class="panel" style="margin-top:14px"><h2>Playoff picture <span>Top ${HB_PO_TEAMS} make it, top ${HB_PO_BYE} get byes · seeds if the season ended today</span></h2><div class="tbl-wrap"><table><thead><tr><th>Seed</th><th class="l">Team</th><th>Record</th><th>Left</th><th title="Games behind the leader">GB</th><th title="Run differential">Run diff</th><th title="Games ahead (+) or behind (-) of the last playoff spot">vs cut</th><th>Status</th><th title="Wins needed to lock the spot, counting every tie as lost">Magic</th></tr></thead><tbody>${R.map(row).join('')}</tbody></table></div>
+   <div class="pad note">Seeds ${cut + 1}-${R.length} are out of the playoffs if it ended today. Clinched and eliminated only show when it is certain, even with ties going against the team.</div>
+   <div class="pad"><b>Projected Season 7 round 1 order</b> <span class="note">${ord.lot ? 'lottery drawn for the bottom four' : 'bottom four enter the lottery for picks 1-4'}, then reverse record · before trades</span><div class="chips" style="margin-top:6px">${ord.r1.map((t, i) => `<span class="chip">${ord.lot || i >= 4 ? i + 1 + '. ' : '1-4. '}${hbLogo(t)}${esc(t)}${!ord.lot && i < 4 ? ' <span class="note">(lottery)</span>' : ''}</span>`).join('')}</div></div></div>`;
+}
+
+/* ---- commissioner backup: one JSON file with every shared league document ---- */
+const HB_BACKUP_COLS = ['league', 'claims', 'picks', 'queues', 'tradelog', 'tvotes', 'trades', 'season', 'smaps', 'sscores', 'slineups', 'ssnap', 'sstlog', 'sstrades', 'sstveto', 'tblock'];
+async function hbBackup() {
+  if (!(LV.owner && LV.unlocked)) { toast('Unlock commissioner mode first.', 'bad'); return; }
+  toast('Collecting the league data…');
+  const out = { app: 'DSA league', exported: new Date().toISOString(), collections: {} }; let n = 0;
+  try {
+    for (const c of HB_BACKUP_COLS) { const snap = await LV.db.collection(c).get(); const m = {}; snap.docs.forEach(d => { m[d.id] = d.data(); n++; }); out.collections[c] = m; }
+    const blob = new Blob([JSON.stringify(out)], { type: 'application/json' }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'dsa-backup-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.json';
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    toast('Backup saved: ' + n + ' documents.', 'good');
+  } catch (e) { dbErr(e); toast('The backup did not finish. Try again.', 'bad'); }
+}
 /* ---- standings ---- */
 function hbStandings() {
   const rec = {}; TEAMS.forEach(t => rec[t] = { t, w: 0, l: 0, rs: 0, ra: 0, cw: 0, cl: 0, hist: [] });
@@ -4882,6 +4996,7 @@ function hbStandingsView() {
   const era = x => (x.er * 9 / x.ip).toFixed(2), whip = x => ((x.h + x.bb) / x.ip).toFixed(2);
   return `${hbStTable(rows, 'Overall standings', rows.reduce((a, r) => a + r.gp, 0) / 2 + ' games played')}
   <div class="hb-two" style="margin-top:14px">${Object.keys(HB_CONF).map(c => hbStTable(rows.filter(r => HB_CONF[c].includes(r.t)), c)).join('')}</div>
+  ${hbPlayoffHtml(rows)}
   <h2 class="hb-h2">Offensive leaders</h2><div class="hb-lbs">${lead('Home runs', top(ld.bat, 'hr'), x => x.hr)}${lead('Hits', top(ld.bat, 'h'), x => x.h)}${lead('RBI', top(ld.bat, 'rbi'), x => x.rbi)}${lead('Doubles', top(ld.bat, 'b2'), x => x.b2)}
    ${lead('Batting average (10+ AB)', qual.slice().sort((a, b) => b.h / b.ab - a.h / a.ab).slice(0, 5), x => (x.h / x.ab).toFixed(3).replace(/^0/, ''))}${lead('Walks', top(ld.bat, 'bb'), x => x.bb)}${lead('Game MVPs', top(ld.bat.concat(ld.pit.filter(p => !ld.bat.some(b => b.p === p.p && b.t === p.t))), 'mvp'), x => x.mvp)}</div>
   <h2 class="hb-h2">Defensive leaders</h2><div class="hb-lbs">${lead('Strikeouts', top(ld.pit, 'so'), x => x.so)}${lead('ERA (3+ IP)', pq.slice().sort((a, b) => a.er / a.ip - b.er / b.ip).slice(0, 5), era)}${lead('WHIP (3+ IP)', pq.slice().sort((a, b) => (a.h + a.bb) / a.ip - (b.h + b.bb) / b.ip).slice(0, 5), whip)}${lead('Innings pitched', top(ld.pit, 'ip'), x => (+x.ip).toFixed(1))}${lead('Wins', top(ld.pit, 'w'), x => x.w)}${lead('Saves', top(ld.pit, 'sv'), x => x.sv)}${lead('Sexy plays', top(ld.bat, 'sx'), x => x.sx)}${lead('Buddy catches', top(ld.bat, 'bc'), x => x.bc)}${lead('Outs contributed', top(ld.bat, 'outs'), x => x.outs)}${lead('Errors (most)', top(ld.bat, 'e'), x => x.e)}</div>`;
@@ -5040,7 +5155,7 @@ function hbTrades() {
      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="primary" data-hb="send" ${T.give.size || T.get.size || T.giveS7.size || T.getS7.size ? '' : 'disabled'}>Send offer</button><span class="note">Each team keeps at least ${HB_MIN_ROSTER} players and a captain. Season 7 picks can be traded too.</span></div></div></div>`; }
   return `${inc.length ? `<div class="panel" style="margin-bottom:14px"><h2>Offers for you</h2>${inc.map(o => hbOffer(o, 'in')).join('')}</div>` : ''}
    ${out.length ? `<div class="panel" style="margin-bottom:14px"><h2>Your open offers</h2>${out.map(o => hbOffer(o, 'out')).join('')}</div>` : ''}
-   ${compose}${hbS7Panel()}<div class="panel" style="margin-top:14px"><h2>Completed season trades</h2>${log.length ? log.map(l => `<div class="hb-offer"><div><b>${esc((l.teams || []).join(' and '))}</b> <span class="note">week ${l.wk || '?'}</span> </div>
+   ${compose}${tbkHtml()}${hbS7Panel()}<div class="panel" style="margin-top:14px"><h2>Completed season trades</h2>${log.length ? log.map(l => `<div class="hb-offer"><div><b>${esc((l.teams || []).join(' and '))}</b> <span class="note">week ${l.wk || '?'}</span> </div>
     ${voteRow(l.id)}<div class="chips">${(l.legs || []).map(g => g.s7 ? `<span class="chip pk">${esc('S7 ' + g.s7.o + ' Rd ' + g.s7.r)} → ${esc(g.to)}</span>` : `<span class="chip">${ico(P[g.pid], 16)}${esc(hbSn(g.pid))} → ${esc(g.to)}</span>`).join('')}</div></div>`).join('') : '<div class="pad note">No season trades yet.</div>'}</div>`;
 }
 
@@ -5068,6 +5183,7 @@ function hbCommishView() {
     <div class="note">Locking saves every team's lineup for the week and stops edits to that week. Later weeks stay open. Trades close automatically from week ${HB_DEADLINE_WEEK}.</div></div>
    <div style="display:grid;gap:10px"><b>Rosters</b><div class="note">Always live: every roster is the draft's roster (keepers, picks and in-draft trades) plus the season trades, so this app and the draft room can never disagree. ${n} players across the league.</div>
     <b>Season 7 lottery</b><div class="note">Bottom four now: ${ord.bottom.map(esc).join(', ')}. ${ord.lot ? 'Drawn order: ' + ord.lot.map(esc).join(', ') + '.' : 'Not drawn yet.'}</div>
+    <b>Backup</b><div class="note">Downloads every pick, trade, score, lineup, stadium pick and setting as one file. Do it before big changes and after each week.</div><div><button class="primary" data-hb="backup">Download backup</button></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" data-hb="lottery">Draw the lottery</button>${ord.lot ? '<button data-hb="clearlottery">Clear it</button>' : ''}</div></div></div>
    <div class="hb-two pad"><div style="display:grid;gap:10px"><b>Bot feed: paste box scores (any week)</b>
     ${hbBotSpec()}
@@ -5325,9 +5441,9 @@ function hubStart() {
   const on = (path, f, col) => (col ? db.collection(path) : db.doc(path)).onSnapshot(s => { f(s); hbSched(); }, dbErr);
   on('season/config', s => { HB.cfg = s.exists ? s.data() : null; HB.lottery = HB.cfg && HB.cfg.lottery || null; });
   on('season/rosters', s => HB.frozen = s.exists ? s.data() : null);
-  on('sstlog', s => HB.tlog = s.docs.map(d => d.data()).filter(x => x && x.legs), 1);
+  on('sstlog', s => { const n0 = HB.tlogLoaded ? HB.tlog.length : null; HB.tlogLoaded = true; HB.tlog = s.docs.map(d => d.data()).filter(x => x && x.legs); if (n0 != null && HB.tlog.length > n0 && typeof Snd !== 'undefined') { Snd.play('trade'); const t = HB.tlog.slice().sort((x, y) => (y.t || 0) - (x.t || 0))[0]; if (t && t.teams) toast('Trade complete: ' + t.teams.join(' / '), 'good'); } }, 1);
   on('tvotes', () => {}, 1);
-  on('sstrades', s => HB.offers = s.docs.map(d => d.data()).filter(x => x && x.from), 1);
+  on('sstrades', s => { const first = !HB.offersLoaded; HB.offers = s.docs.map(d => d.data()).filter(x => x && x.from); HB.offersLoaded = true; HB.seenO = HB.seenO || new Set(); const me = hbMe(), fresh = me ? HB.offers.filter(o => o.status === 'pending' && o.to === me && !HB.seenO.has(o.id)) : []; HB.offers.forEach(o => { if (o.status === 'pending' && o.to === me) HB.seenO.add(o.id); }); if (!first && fresh.length && typeof Snd !== 'undefined') { Snd.play('offer'); toast(fresh[0].from + ' sent you a trade offer', 'good'); } }, 1);
   on('slineups', s => { HB.lw = {}; s.docs.forEach(d => { const x = d.data(); if (x && x.team) (HB.lw[x.team] = HB.lw[x.team] || {})[x.wk == null ? 0 : x.wk] = x; }); if (!HE.dirty) HE.team = null; }, 1);
   on('smaps', s => { HB.maps = {}; s.docs.forEach(d => { const x = d.data(); if (x && x.gid) HB.maps[x.gid] = x; }); }, 1);
   on('sscores', s => { HB.scores = {}; s.docs.forEach(d => { const x = d.data(); if (x && x.gid) HB.scores[x.gid] = x; }); }, 1);
@@ -5354,6 +5470,7 @@ document.addEventListener('click', e => {
   else if (a === 'close') $('#hbModal').hidden = true;
   else if (a === 'send') hbSend(); else if (a === 'accept') hbAnswer(t.dataset.o, true); else if (a === 'decline') hbAnswer(t.dataset.o, false);
   else if (a === 'cancel') hbPut('sstrades/' + t.dataset.o, { status: 'cancelled', t2: Date.now() }, true);
+  else if (a === 'backup') hbBackup();
   else if (a === 'lock') hbLock();
   else if (a === 'cmunlock') hbUnlockGo();
   else if (a === 'hardreset') { const tx = $('#hbRstTxt'); if (!tx || tx.value.trim().toUpperCase() !== 'RESET') { toast('Type RESET first to confirm.', 'bad'); return; } hbHardReset(true); tx.value = ''; }
