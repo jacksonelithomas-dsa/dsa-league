@@ -2353,7 +2353,7 @@ const S7_ROUNDS = 9;
 const S7_BASE = [0.55, 0.38, 0.28, 0.22, 0.17, 0.13, 0.10, 0.07, 0.05]; // rating a future pick is worth by round (before the weak/strong-team adjustment)
 const TRADE_MARGIN = 0.05; // a computer team wants to come out at least this far ahead (rating runs per game)
 const s7Key = (r, o) => r + '|' + o;
-const S6_S7 = { '1|Jazz': 'Sluggin Heat', '2|Jazz': 'Sluggin Heat', '3|Jazz': 'Sluggin Heat', '4|Sluggin Heat': 'Jazz' }; // Trades sheet: Season 7 picks already moved
+const S6_S7 = { '1|Jazz': 'Sluggin Heat', '2|Jazz': 'Sluggin Heat', '3|Jazz': 'Sluggin Heat', '4|Sluggin Heat': 'Jazz', '2|Superstars': 'Golden Blocks' }; // Trades sheet: Season 7 picks already moved
 const s7Owner = (r, o) => S.s7[s7Key(r, o)] || S6_S7[s7Key(r, o)] || o;
 const pickIdx = n => ORDER.findIndex(o => o.n === n);
 const pLbl = n => `${Math.floor(n / 10) + 1}.${n % 10 + 1}`;
@@ -4253,18 +4253,26 @@ async function livePushCfg(reset) {
   const old = LV.cfg || {};
   const cfg = { board: JSON.parse(JSON.stringify(S.board)), keepers: S.keepers.map(k => ({ team: k.team, pid: k.pid, round: k.round ?? null })), clockSec: old.clockSec ?? 90, autoUnclaimed: old.autoUnclaimed ?? true, phase: reset ? 'setup' : (old.phase || 'setup'), queueReset: reset ? Date.now() : (old.queueReset || 0), v: Date.now() };
   try {
-    if (reset) { await wipeDocs(['picks', 'tradelog', 'trades', 'tvotes']); await LV.db.doc('league/clock').set({ i: 0, t: Date.now(), paused: false }); }
+    if (reset) {
+      await wipeDocs(['picks', 'trades']);
+      // pre-draft trades (made before pick 1) always stay; mid-draft trades go only when asked
+      const tl = await LV.db.collection('tradelog').get(); const kept = new Set();
+      for (const d of tl.docs) { const x = d.data(); if (x && !(x.at > 0) ) { kept.add(tradeKey(x)); continue; } if (reset === 'clear') { try { await LV.db.doc('tradelog/' + d.id).delete(); } catch (e) { dbErr(e); } } else kept.add(tradeKey(x)); }
+      if (reset === 'clear') { const tv = await LV.db.collection('tvotes').get(); for (const d of tv.docs) { const x = d.data(); if (!x || !kept.has(x.key)) { try { await LV.db.doc('tvotes/' + d.id).delete(); } catch (e) { dbErr(e); } } } }
+      await LV.db.doc('league/clock').set({ i: 0, t: Date.now(), paused: false });
+    }
     await LV.db.doc('league/config').set(cfg);
   } catch (e) { dbErr(e); toast('Could not save the league settings.', 'bad'); }
 }
-async function liveRestart(resetPre) {
+async function liveRestart(clearTrades) {
   if (!LV.db || !LV.owner) return;
   LV.rs = 0; LV.rsBusy = true; renderCommish();
   try {
-    if (resetPre) { S.board = s6Board(); S.keepers = s6Keepers().map(k => ({ team: k.team, pid: k.pid, round: k.round ?? null })); }
-    else { S.board = JSON.parse(JSON.stringify((LV.cfg && LV.cfg.board) || s6Board())); S.keepers = ((LV.cfg && LV.cfg.keepers) || s6Keepers()).map(k => ({ team: k.team, pid: k.pid, round: k.round ?? null })); }
-    await livePushCfg(true);
-    toast('Draft restarted. Picks, trades, offers and queues are cleared' + (resetPre ? ', and pre-draft trades are back to the original.' : '; pre-draft trades were kept.'), 'good');
+    // the board and keepers stay exactly as they are now, so every pre-draft trade (the preset's and the ones made in the app) is kept
+    S.board = JSON.parse(JSON.stringify((LV.cfg && LV.cfg.board) || s6Board())); S.keepers = ((LV.cfg && LV.cfg.keepers) || s6Keepers()).map(k => ({ team: k.team, pid: k.pid, round: k.round ?? null }));
+    await livePushCfg(clearTrades ? 'clear' : true);
+    if (clearTrades) await wipeDocs(['sstlog', 'sstrades', 'sstveto']);
+    toast('Draft restarted. Picks, the clock, queues and open offers are cleared. Pre-draft trades were kept' + (clearTrades ? ', and mid-draft and post-draft trades were cleared.' : ', along with mid-draft and post-draft trades.'), 'good');
   } catch (e) { dbErr(e); toast('The restart did not finish. Try again.', 'bad'); }
   LV.rsBusy = false; renderCommish();
 }
@@ -4282,6 +4290,7 @@ async function wipeDocs(cols) {
 async function setCfg(patch) { if (!LV.owner) return; try { await LV.db.doc('league/config').set({ ...(LV.cfg || {}), ...patch }); } catch (e) { dbErr(e); } }
 async function startDraft() {
   if (!LV.owner) return;
+  if (!LV.unlocked) { toast('Only the commissioner can start the draft. Unlock commissioner mode in Setup first.', 'bad'); return; }
   await setCfg({ phase: 'live' });
   await LV.db.doc('league/clock').set({ i: S.picks.length, t: Date.now(), paused: false });
   Snd.play('start');
@@ -4315,7 +4324,7 @@ function renderCommish() {
     <div class="tbl-wrap" style="max-height:none"><table><thead><tr><th class="l">Team</th><th class="l">Coach</th><th></th></tr></thead><tbody>${TEAMS.map(t => { const x = cl[t]; return `<tr class="${t === S.myTeam ? 'me' : ''}"><td class="l"><span class="tdot" style="background:${TCOL[t]}"></span>${esc(t)}</td><td class="l">${x ? esc((pf[x.uid] && pf[x.uid].name) || 'Joined') : '<span style="color:var(--muted)">Not joined</span>'}</td><td>${x ? `<button data-reset="${TEAMS.indexOf(t)}">Free this team</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>
     <div class="form"><label><span>Team icons (image files named after the player, e.g. Wario.png)</span><input type="file" id="icoFiles" accept="image/*" multiple></label><label>&nbsp;<span id="icoNote" style="font-size:12px;color:var(--muted)">${Object.keys(LV.icons).length} of ${P.length} icons loaded</span></label></div>
     <div id="icoReview"></div>
-    <div class="pad rsbox"><b>Restart the draft</b> <span style="color:var(--muted);font-size:12.5px">Starts over from pick 1 for everyone. Clears all picks, the clock, every coach's queue, completed in-draft trades and pending offers.</span><div style="margin-top:8px">${LV.rsBusy ? '<span style="color:var(--muted)">Restarting…</span>' : LV.rs === 1 ? `<div class="banner warn" style="margin:0 0 8px"><b>Also reset the pre-draft trades?</b> That puts the picks and keepers back to the original Season 6 setup. Choose No to keep the picks and keepers as they are now.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" data-rs="yes">Yes, reset them too</button><button data-rs="no">No, keep them</button><button data-rs="x">Cancel</button></div>` : '<button data-rs="ask">Restart the draft…</button>'}</div></div>`;
+    <div class="pad rsbox"><b>Restart the draft</b> <span style="color:var(--muted);font-size:12.5px">Starts over from pick 1 for everyone. Clears all picks, the clock, every coach's queue and pending offers. Pre-draft trades always stay.</span><div style="margin-top:8px">${LV.rsBusy ? '<span style="color:var(--muted)">Restarting…</span>' : LV.rs === 1 ? `<div class="banner warn" style="margin:0 0 8px"><b>Also clear mid-draft and post-draft trades?</b> Pre-draft trades stay either way. Choose No to keep every other trade as well.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" data-rs="yes">Yes, clear them</button><button data-rs="no">No, keep them</button><button data-rs="x">Cancel</button></div>` : '<button data-rs="ask">Restart the draft…</button>'}</div></div>`;
   if (ids.length && LV.user) LV.user.profiles(ids).then(ps => { let ch = false; for (const k in ps) { if (!LV.profiles[k] || LV.profiles[k].name !== ps[k].name) ch = true; LV.profiles[k] = ps[k]; } if (ch) renderCommish(); });
 }
 
@@ -5318,7 +5327,7 @@ document.addEventListener('click', e => {
   else if (a === 'cancel') hbPut('sstrades/' + t.dataset.o, { status: 'cancelled', t2: Date.now() }, true);
   else if (a === 'lock') hbLock();
   else if (a === 'cmunlock') hbUnlockGo();
-  else if (a === 'hardreset') { const tx = $('#hbRstTxt'); if (!tx || tx.value.trim().toUpperCase() !== 'RESET') { toast('Type RESET first to confirm.', 'bad'); return; } hbHardReset(!!($('#hbRstPre') || {}).checked); tx.value = ''; }
+  else if (a === 'hardreset') { const tx = $('#hbRstTxt'); if (!tx || tx.value.trim().toUpperCase() !== 'RESET') { toast('Type RESET first to confirm.', 'bad'); return; } hbHardReset(true); tx.value = ''; }
   else if (a === 'cmrecord') { if (hbAdmin()) hbRecordTrade(); }
   else if (a === 'bxedit') { if (g && hbBxCan(g.wk)) hbBoxEdit(t.dataset.g); } else if (a === 'bxsave') { if (g && hbBxCan(g.wk)) hbBoxSave(t.dataset.g); }
   else if (a === 'bxunlock') hbBxGo();
@@ -5398,7 +5407,7 @@ function histLive() {
 async function hbHardReset(resetPre) {
   if (!hbAdmin() || HB.resetBusy) return; HB.resetBusy = true; renderAdmin();
   try {
-    await liveRestart(!!resetPre);                       // picks, clock, queues, in-draft trades, offers, veto votes
+    await liveRestart(true);                             // picks, clock, queues, mid-draft trades, offers, veto votes (pre-draft trades stay)
     await wipeDocs(['sstlog', 'sstrades', 'slineups', 'ssnap', 'sstveto']);   // season trades, offers, saved lineups and stars
     try { await LV.db.doc('season/rosters').delete(); } catch (e) {}
     if (HB.cfg && HB.cfg.lottery) await hbPut('season/config', Object.assign({}, HB.cfg, { lottery: null }));
@@ -5409,8 +5418,7 @@ async function hbHardReset(resetPre) {
 function hbResetHtml() {
   if (!hbAdmin()) return '';
   return `<div class="panel" style="margin-top:14px;border-color:var(--bad)"><h2>Hard reset <span>Danger zone</span></h2><div class="pad" style="display:grid;gap:10px">
-   <div class="note">Restarts the draft from pick 1 and clears every in-draft and post-draft trade, open offer and veto vote, plus the season hub: rosters go back to the draft's keepers, and saved lineups, stars, lock snapshots and the Season 7 lottery are cleared. Box scores and stadium picks are kept.</div>
-   <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="hbRstPre"> <span>Also put the pre-draft trades and keepers back to the Season 6 preset</span></label>
+   <div class="note">Restarts the draft from pick 1 and clears every mid-draft and post-draft trade, open offer and veto vote (pre-draft trades always stay), plus the season hub: rosters go back to the draft's keepers, and saved lineups, stars, lock snapshots and the Season 7 lottery are cleared. Box scores and stadium picks are kept.</div>
    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="hbRstTxt" placeholder="Type RESET to confirm" autocomplete="off" style="min-width:180px"><button data-hb="hardreset" ${HB.resetBusy ? 'disabled' : ''} style="color:#fff;background:var(--bad);border-color:var(--bad)">${HB.resetBusy ? 'Resetting…' : 'Hard reset'}</button></div></div></div>`;
 }
 
