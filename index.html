@@ -4252,7 +4252,7 @@ renderTradeResult = function () {
       <div style="font-size:12.5px;margin-top:4px"><b>Gets:</b> ${r.gets.length ? esc(r.gets.map(aText).join(', ')) : 'nothing'}<br><b>Gives:</b> ${r.gives.length ? esc(r.gives.map(aText).join(', ')) : 'nothing'}</div><ul>${r.lines.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
   }
   h += '</div>';
-  if (res.ok) h += `<div class="pad" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="primary" id="tbOffer" ${phaseLive() && LV.team ? '' : 'disabled'}>${TB.counterOf ? 'Send counter to' : 'Send offer to'} ${esc(res.teams.filter(t => t !== S.myTeam).join(' and '))}</button><button id="tbCancel">Never mind</button><span style="font-size:12px;color:var(--muted)">The grades are the model's view. Each team decides for itself.</span></div>`;
+  if (res.ok) h += `<div class="pad" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="primary" id="tbOffer" ${LV.team ? '' : 'disabled'}>${TB.counterOf ? 'Send counter to' : 'Send offer to'} ${esc(res.teams.filter(t => t !== S.myTeam).join(' and '))}</button><button id="tbCancel">Never mind</button><span style="font-size:12px;color:var(--muted)">The grades are the model's view. Each team decides for itself.</span></div>`;
   else h += '<div class="pad"><span class="chip b">This trade breaks a league rule</span></div>';
   el.innerHTML = h;
 };
