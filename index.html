@@ -347,6 +347,7 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
 .hb-s7c.lot{background:var(--mine)}
 .hb-s7c b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hb-spec summary{cursor:pointer;font-weight:600;font-size:13px}
+.hb-chip.on{display:inline-block;border:1px solid var(--line);font-weight:700;opacity:.9}
 </style>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -391,7 +392,6 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
     <button class="tab" role="tab" data-tab="board" aria-selected="false">Draft Board</button>
     <button class="tab" role="tab" data-tab="rosters" aria-selected="false">Rosters</button>
     <button class="tab" role="tab" data-tab="trades" aria-selected="false">Trades</button>
-    <button class="tab" role="tab" data-tab="watch" aria-selected="false">Opponents</button>
     <button class="tab" role="tab" data-tab="season" aria-selected="false">Season Sim</button>
     <button class="tab" role="tab" data-tab="hub" aria-selected="false">Season Hub</button>
     <button class="tab" role="tab" data-tab="history" aria-selected="false">History</button>
@@ -1503,7 +1503,7 @@ function renderBanner() {
   if (done()) {
     const short = TEAMS.filter(t => rosterOf(t).length < 9);
     el.innerHTML = `<div class="banner info"><b>Draft complete.</b> ${short.length ? esc(short.join(', ')) + ' will fill open roster spots with the best undrafted players.' : ''} <button class="primary" id="goSeason">Simulate the season</button></div>`;
-    $('#goSeason').onclick = () => { showTab('season'); runSeason(); };
+    $('#goSeason').onclick = () => { if ($('#tab-hsim')) showTab('hsim'); else { showTab('season'); runSeason(); } };
     return;
   }
   const o = ORDER[c], mine = o.team === S.myTeam;
@@ -1849,7 +1849,7 @@ function renderRostersTab() {
   const mine = rosterOf(S.myTeam), cust = luFor(S.myTeam, mine) || autoLineup(mine), t = Core.buildTeam(mine, cust);
   const opt = (v, l, on) => `<option value="${v}"${on ? ' selected' : ''}>${l}</option>`;
   const row = (q, i) => `<tr class="${i < 0 ? 'bench' : ''}"><td><select data-id="${q.id}" data-k="slot" aria-label="Batting slot for ${esc(q.name)}">${[...Array(9)].map((_, n) => opt(n, n + 1, i === n)).join('')}${opt('B', 'Bench', i < 0)}</select></td>` +
-    `<td style="white-space:nowrap">${ico(q, 26)} <b>${esc(q.name)}</b>${q.cap ? ' <span class="chip cap">C</span>' : ''}${q.mii ? ' <span class="chip">Mii</span>' : ''}</td>` +
+    `<td style="white-space:nowrap">${ico(q, 26)} <b class="pclick" data-pid="${q.id}">${esc(q.name)}</b>${q.cap ? ' <span class="chip cap">C</span>' : ''}${q.mii ? ' <span class="chip">Mii</span>' : ''}</td>` +
     `<td>${i < 0 ? '—' : `<select data-id="${q.id}" data-k="pos" aria-label="Position for ${esc(q.name)}">${POSN.map(x => opt(x, x, cust.pos[q.id] === x)).join('')}${POSN.includes(cust.pos[q.id]) ? '' : opt('—', '—', true)}</select>`}</td>` +
     `<td>${itemCell(q, i, cust)}</td><td class="num">${fmt(q.AVG, 3).replace(/^0/, '')} AVG · ${q.HR} HR${q.IP >= 10 ? ' · ' + fmt(q.ERA, 2) + ' ERA' : ''}</td></tr>`;
   const byId = new Map(mine.map(q => [q.id, q]));
@@ -1869,8 +1869,8 @@ function renderRostersTab() {
     const r = rosterOf(tm), c = luFor(tm, r), tt = Core.buildTeam(r, c), pm = posMap(tt, c);
     const bn = r.filter(q => !tt.lineup.includes(q));
     return `<div class="rc${tm === S.myTeam ? ' me' : ''}${o && o.team === tm ? ' clock' : ''}"><h3><span><span class="tdot" style="background:${TCOL[tm]}"></span>${esc(tm)}</span><small>${r.length} players · ${(teamScoreFor(tm, r) >= 0 ? '+' : '') + fmt(teamScoreFor(tm, r), 2)}${tt.lineup.length >= 3 ? ' · ' + itemTxt(tt) + ' items' : ''}</small></h3>` +
-      (tt.batOrder.length ? `<ol>${tt.batOrder.map((q, i) => `<li><i>${i + 1}</i><i>${pm.get(q) || '—'}</i><span>${ico(q, 18)} ${esc(q.name)}${q.cap ? ' <span class="chip cap">C</span>' : ''}${tt.items.links[i] > 0 ? ' <span title="Next batter has chemistry with him: item">●</span>' : ''}</span></li>`).join('')}</ol>` : '<div class="bn">No picks yet</div>') +
-      (bn.length ? `<div class="bn">Bench: ${bn.map(q => esc(q.name)).join(', ')}</div>` : '') + '</div>';
+      (tt.batOrder.length ? `<ol>${tt.batOrder.map((q, i) => `<li><i>${i + 1}</i><i>${pm.get(q) || '—'}</i><span>${ico(q, 18)} <b class="pclick" data-pid="${q.id}">${esc(q.name)}</b>${q.cap ? ' <span class="chip cap">C</span>' : ''}${tt.items.links[i] > 0 ? ' <span title="Next batter has chemistry with him: item">●</span>' : ''}</span></li>`).join('')}</ol>` : '<div class="bn">No picks yet</div>') +
+      (bn.length ? `<div class="bn">Bench: ${bn.map(q => `<span class="pclick" data-pid="${q.id}">${esc(q.name)}</span>`).join(', ')}</div>` : '') + '</div>';
   }).join('');
 }
 $('#lineupEd').addEventListener('change', e => {
@@ -4814,9 +4814,10 @@ async function hbBan(g, name) {
 }
 async function hbUnban(g) {
   if (!hbCanAct(g.away)) return; const sc = HB.scores && HB.scores[g.gid]; if (sc && sc.status === 'final') return;
+  const m0 = HB.maps[g.gid]; if (m0 && m0.pick) { toast('The home team already picked a stadium, so the ban is final.', 'bad'); return; }
   if (await hbPut('smaps/' + g.gid, { gid: g.gid, wk: g.wk, away: g.away, home: g.home, t: Date.now() })) toast('Ban removed. Choose again.', 'good');
 }
-async function hbPick(g, name) { if (!hbCanAct(g.home)) return; const m = HB.maps[g.gid]; if (!m || !m.ban || m.pick || hbBanned(m).includes(name)) return; if (await hbPut('smaps/' + g.gid, { pick: name, pickBy: LV.uid || '', t2: Date.now() }, true)) toast('Playing at ' + name + '.', 'good'); }
+async function hbPick(g, name) { if (!hbCanAct(g.home)) return; const m = HB.maps[g.gid]; const sc = HB.scores && HB.scores[g.gid]; if (!m || !m.ban || hbBanned(m).includes(name) || m.pick === name || (sc && sc.status === 'final')) return; if (await hbPut('smaps/' + g.gid, { pick: name, pickBy: LV.uid || '', t2: Date.now() }, true)) toast('Playing at ' + name + '.', 'good'); }
 
 /* ---- matchups ---- */
 function hbProjHtml(g, k) { const ap = Math.round((1 - k.hw) * 100), hp = 100 - ap;
@@ -4831,7 +4832,7 @@ function hbStad(g, s) {
   const m = HB.maps[g.gid], fin = s && s.status === 'final';
   if (fin) return `<div class="hb-st"><span class="note">Stadium</span> <b>${esc(s.stadium || (m && m.pick) || '—')}</b></div>`;
   if (!m || !m.ban) {
-    if (hbCanAct(g.away)) return `<div class="hb-st"><div><b>Ban a stadium</b> <span class="note">${esc(g.away)} (away) gets one ban and it is final. Then ${esc(g.home)} picks from the rest. Banning Bowser Castle also bans Bowser Jr. Playroom, and the other way round.</span></div><div class="chips">${HB_STADS.map(n => `<button class="hb-chip" data-hb="ban" data-g="${g.gid}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`;
+    if (hbCanAct(g.away)) return `<div class="hb-st"><div><b>Ban a stadium</b> <span class="note">${esc(g.away)} (away) gets one ban. You can undo it until ${esc(g.home)} picks a stadium, then it is final. ${esc(g.home)} picks from the rest and can change the pick later. Banning Bowser Castle also bans Bowser Jr. Playroom, and the other way round.</span></div><div class="chips">${HB_STADS.map(n => `<button class="hb-chip" data-hb="ban" data-g="${g.gid}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`;
     return `<div class="hb-st"><span class="note">Stadium</span> Waiting for ${esc(g.away)} to ban one.</div>`;
   }
   const undo = hbCanAct(g.away) ? ` <button class="hb-chip" data-hb="unban" data-g="${g.gid}">Undo ban</button>` : '';
@@ -4839,7 +4840,8 @@ function hbStad(g, s) {
     if (hbCanAct(g.home)) return `<div class="hb-st"><div><b>Pick the stadium</b> <span class="note">${esc(g.away)} banned ${esc(hbBanned(m).join(' and '))}.</span></div><div class="chips">${HB_STADS.map(n => hbBanned(m).includes(n) ? `<span class="hb-chip banned">${esc(n)}</span>` : `<button class="hb-chip" data-hb="pick" data-g="${g.gid}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`;
     return `<div class="hb-st"><span class="note">Stadium</span> ${esc(g.away)} banned <b>${esc(hbBanned(m).join(' and '))}</b>. Waiting for ${esc(g.home)} to pick.${undo}</div>`;
   }
-  return `<div class="hb-st"><span class="note">Playing at</span> <b>${esc(m.pick)}</b> <span class="note">· ${esc(hbBanned(m).join(' and '))} banned</span>${undo ? undo.replace('Undo ban', 'Undo ban (home pick resets)') : ''}</div>`;
+  if (hbCanAct(g.home)) return `<div class="hb-st"><div><b>Playing at ${esc(m.pick)}</b> <span class="note">${esc(g.away)} banned ${esc(hbBanned(m).join(' and '))}. You can change the pick.</span></div><div class="chips">${HB_STADS.map(n => hbBanned(m).includes(n) ? `<span class="hb-chip banned">${esc(n)}</span>` : n === m.pick ? `<span class="hb-chip on">${esc(n)}</span>` : `<button class="hb-chip" data-hb="pick" data-g="${g.gid}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`;
+  return `<div class="hb-st"><span class="note">Playing at</span> <b>${esc(m.pick)}</b> <span class="note">· ${esc(hbBanned(m).join(' and '))} banned (final)</span></div>`;
 }
 function hbCard(g) {
   const s = HB.scores[g.gid], st = s ? s.status : 'scheduled';
@@ -5383,7 +5385,7 @@ document.addEventListener('change', e => {
 });
 
 /* ---- tab layout: before the draft ends the draft tabs stay; after it the season tabs replace them ---- */
-const HB_POST = ['hl', 'hm', 'hr', 'hs', 'ht', 'hsim', 'bx', 'history', 'board', 'cm', 'setup'], HB_PRE = ['draft', 'board', 'rosters', 'trades', 'watch', 'season', 'hub', 'history', 'setup'];
+const HB_POST = ['hl', 'hm', 'hr', 'hs', 'ht', 'hsim', 'bx', 'history', 'board', 'cm', 'setup'], HB_PRE = ['draft', 'board', 'rosters', 'trades', 'hub', 'history', 'setup'];
 let hbDoneWas = null;
 function hbLayout() {
   hbSetupTag();
@@ -5392,7 +5394,7 @@ function hbLayout() {
   const btn = n => bar.querySelector('.tab[data-tab=' + n + ']');
   if (hbDoneWas !== fin) {
     (fin ? HB_POST : HB_PRE).forEach(n => { const b = btn(n); if (b) bar.appendChild(b); });
-    [...HB_PRE, ...HB_POST].forEach(n => { const b = btn(n); if (b) b.hidden = !(fin ? HB_POST : HB_PRE).includes(n); });
+    [...HB_PRE, ...HB_POST, 'season', 'watch'].forEach(n => { const b = btn(n); if (b) b.hidden = !(fin ? HB_POST : HB_PRE).includes(n); });
     const first = hbDoneWas === null; hbDoneWas = fin;
     const cur = hbActiveTab();
     if (fin && (!cur || !HB_POST.includes(cur) || first && !location.hash.slice(1))) showTab('hl');
