@@ -2608,7 +2608,7 @@ function renderTradeResult() {
     const verdict = me ? `<span class="chip ${r.total >= 0 ? 'g' : 'w'}">${r.total >= TRADE_MARGIN ? 'Helps you' : r.total >= -0.04 ? 'About even for you' : 'Costs you'}</span>` : `<span class="chip ${r.accept ? 'g' : 'b'}">${r.accept ? 'Accepts' : 'Declines'}</span>`;
     let extra = '';
     if (!me && r.accept === false) {
-      extra = `<div style="margin-top:6px;font-size:12.5px"><b>Why not:</b> they would end up ${sgn(r.total)} against the ${fmt(TRADE_MARGIN)} they need.${r.counter ? ` They would say yes if you added ${esc(r.counter.map(aText).join(' and '))}. <button data-addcounter="${esc(r.counter.map(aKey).join(','))}" data-to="${esc(t)}" style="padding:2px 8px;font-size:12px">Add to offer</button>` : ' Adding S7 picks alone will not close the gap; ask for less or add a player or S6 pick.'}</div>`;
+      extra = `<div style="margin-top:6px;font-size:12.5px"><b>Why not:</b> ${r.pre ? 'they would end up ' + Math.round(r.total * 100) + '% on value and need to at least break even.' : 'they would end up ' + sgn(r.total) + ' against the ' + fmt(TRADE_MARGIN) + ' they need.'}${r.counter ? ` They would say yes if you added ${esc(r.counter.map(aText).join(' and '))}. <button data-addcounter="${esc(r.counter.map(aKey).join(','))}" data-to="${esc(t)}" style="padding:2px 8px;font-size:12px">Add to offer</button>` : ' Adding S7 picks alone will not close the gap; ask for less or add a player or S6 pick.'}</div>`;
     } else if (!me && r.total > 0.6) extra = '<div style="margin-top:6px;font-size:12.5px;color:var(--warn)">They would likely say yes to less than this.</div>';
     h += `<div class="vcard ${me ? '' : r.accept ? 'yes' : 'no'}"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b><span class="tdot" style="background:${TCOL[t]}"></span>${esc(t)}${me ? ' (you)' : ''}</b><span style="display:flex;gap:6px;align-items:center">${verdict}${grChip(r.grade)}</span></div>
       <div style="font-size:12.5px;margin-top:4px"><b>Gets:</b> ${r.gets.length ? esc(r.gets.map(aText).join(', ')) : 'nothing'}<br><b>Gives:</b> ${r.gives.length ? esc(r.gives.map(aText).join(', ')) : 'nothing'}</div>
@@ -3495,11 +3495,11 @@ function renderFinder() {
       if (r.state === 'ok') {
         h += `<p class="pad" style="margin:0;padding-bottom:0"><b>${esc(aText(r.ask))}</b> belongs to ${tdot(r.T)}<b>${esc(r.T)}</b>. He is valued at ${vTxt(r.value)}, and ${esc(r.T)} would ask for ${vTxt(r.price)} back, since stars cost more than the sum of their parts.${r.comps && r.comps.length ? '<br><span style="color:var(--muted)">From your trade sheets: ' + r.comps.map(c => esc(c.txt)).join(' ') + '</span>' : ''}</p><p class="pad" style="margin:0;padding-bottom:0">Offers they would take, best grade for you first (at a price close to what they ask):</p>`;
         const bestMe = Math.max(...r.list.map(x => x.res.per[S.myTeam].total));
-        if (bestMe < -0.04) h += `<p class="pad banner warn" style="margin:8px 14px 0"><b>Heads up:</b> ${esc(r.T)} would take these, but even the best of them costs your projected season ${sgn(bestMe)} runs/game (grade ${tradeGrade(bestMe)}). The price is fair on draft value, but he is not worth that much to your lineup. Only do it if you see something the projection does not.</p>`;
+        if (bestMe < -0.04) h += `<p class="pad banner warn" style="margin:8px 14px 0"><b>Heads up:</b> ${esc(r.T)} would take these, but even the best of them gives you ${r.list[0].res.pre ? Math.round(bestMe * 100) + '% less in value' : 'a projected ' + sgn(bestMe) + ' runs/game'} (grade ${tradeGrade(bestMe)}). ${r.list[0].res.pre ? 'The picks and players you would give are worth more than what you get on historical draft spots.' : 'The price is fair on draft value, but he is not worth that much to your lineup.'} Only do it if you see something the projection does not.</p>`;
         h += r.list.map((x, i) => {
           const pm = x.res.per[S.myTeam], pt = x.res.per[r.T], v = verdictMe(pm);
           return `<div class="tfcard"><h4>Give ${x.offer.map(a => esc(aText(a))).join(' + ')}</h4>
-            <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chip ${v[0]}" title="Your grade for this trade, the same one the trade builder shows">${v[1]} · grade ${pm.grade} · ${sgn(pm.total)} runs/game</span><span class="chip g">${esc(r.T)} accepts</span><span class="chip ${pt.total >= 0 ? '' : 'w'}" title="Their projected rating change. A team will take a small hit when the offer meets the market price.">${esc(r.T)} rating ${sgn(pt.total)}</span><span class="chip" title="Market value of what you give compared with what they would ask">Value ${x.over >= 1.5 ? 'generous' : x.over >= 1.2 ? 'a little over' : 'fair'} · ${Math.round(x.over * 100)}% of the ask</span></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chip ${v[0]}" title="Your grade for this trade, the same one the trade builder shows">${v[1]} · grade ${pm.grade} · ${x.res.pre ? Math.round(pm.total * 100) + '% value' : sgn(pm.total) + ' runs/game'}</span><span class="chip g">${esc(r.T)} accepts</span><span class="chip ${pt.total >= 0 ? '' : 'w'}" title="Their projected rating change. A team will take a small hit when the offer meets the market price.">${esc(r.T)} rating ${sgn(pt.total)}</span><span class="chip" title="Market value of what you give compared with what they would ask">Value ${x.over >= 1.5 ? 'generous' : x.over >= 1.2 ? 'a little over' : 'fair'} · ${Math.round(x.over * 100)}% of the ask</span></div>
             ${pm.lines && pm.lines.length ? `<ul>${pm.lines.slice(0, 3).map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
             <div><button data-askload="${i}">Open in the trade builder</button></div></div>`;
         }).join('');
@@ -3713,6 +3713,48 @@ const _renderDN = render;
 render = function () {
   _renderDN.apply(this, arguments);
   try { ckSetup(); seasonVis(); dnAuto(); const w = document.getElementById('tab-watch'); if (w && !w.hidden) renderWatch(); } catch (e) { console.warn('draft night', e); }
+};
+
+// ---------- pre-draft trades: graded on who the picks can realistically become, not on runs ----------
+// Before the draft nothing is decided, so a rating change is meaningless. A pick is worth the players who could realistically be taken at that slot
+// (players whose past draft spots say they are still there), a player is worth where he usually goes (blended with trade comps), and stars cost a premium.
+const PRE_SLACK = 6; // a player who usually goes more than this many picks earlier than the slot is probably gone
+const isPreDraft = () => S.picks.length === 0;
+function slotReal(nOverall) {
+  const taken0 = takenSet0();
+  const cand = P.filter(p => !taken0.has(p.id) && !(p.cap && false)).map(p => ({ p, n: playerPickN(p), v: playerV(p) })).filter(x => x.n >= nOverall - PRE_SLACK).sort((a, b) => b.v - a.v).slice(0, 3);
+  if (!cand.length) return { v: Vn(nOverall), list: [] };
+  const w = [0.5, 0.3, 0.2]; let tw = 0, sv = 0; cand.forEach((c, i) => { tw += w[i]; sv += w[i] * c.v; });
+  return { v: Math.min(sv / tw, Vn(Math.max(1, nOverall - PRE_SLACK))), list: cand.map(c => c.p) };
+}
+function takenSet0() { const s = new Set(S.keepers.map(k => k.pid)); S.picks.forEach(id => s.add(id)); return s; }
+const preV = a => a.k === 'pick' ? slotReal(a.n + 1).v : assetV(a);
+const preEff = v => v * (1 + MK_PREM * v);
+const _evalBase = evaluate;
+evaluate = function (legs) {
+  const res = _evalBase(legs);
+  if (!isPreDraft() || res.stale) return res;
+  res.pre = true;
+  const topGet = {}; for (const t of res.teams) { const r = res.per[t]; topGet[t] = r && r.gets ? Math.max(0, ...r.gets.map(preV)) : 0; }
+  const buyer = res.teams.slice().sort((x, y) => topGet[y] - topGet[x])[0];
+  for (const t of res.teams) {
+    const r = res.per[t]; if (!r || r.issues.length || r.skip) continue;
+    // same convention as the price finder: the team getting the most valuable single asset (the buyer) pays the asking price, which is the raw value of what it gets plus the star premium
+    const rawG = r.gets.reduce((s, a) => s + preV(a), 0), rawL = r.gives.reduce((s, a) => s + preV(a), 0);
+    const gv = buyer === t ? askPrice(rawG) : rawG, lv = buyer === t ? rawL : askPrice(rawL);
+    r.total = Math.max(-1.5, Math.min(1.5, (gv - lv) / Math.max(0.05, (gv + lv) / 2))); r.grade = tradeGrade(r.total);
+    r.dRating = 0; r.dS7 = 0; r.pre = true; r.counter = null; r.need = null;
+    r.accept = t === S.myTeam ? null : r.total >= 0;
+    const L = [`Before the draft, so this is graded on value: what ${t} receives is worth ${r.total >= 0 ? Math.round(r.total * 100) + '% more' : Math.round(-r.total * 100) + '% less'} than what it gives (historical draft spots, realistic picks; the team getting the best player pays a star premium).`];
+    for (const a of r.gives.concat(r.gets)) {
+      const mine = r.gives.includes(a);
+      if (a.k === 'pick') { const s = slotReal(a.n + 1); L.push(`${mine ? 'Gives up' : 'Gets'} ${aText(a)}: realistic targets there are ${s.list.length ? s.list.map(shortN).join(', ') : 'whoever is left'}.`); }
+      else if (a.k === 'player' || a.k === 'keeper') { const p = P[a.pid]; L.push(`${mine ? 'Gives up' : 'Gets'} ${shortN(p)}: ${p.adp != null ? 'usually goes around pick ' + Math.round(p.adp) + (p.adpN ? ` (${p.adpN} past draft${p.adpN > 1 ? 's' : ''})` : ' (color average)') : 'never drafted before'}.`); }
+    }
+    r.lines = L;
+  }
+  res.accepted = res.ok && res.teams.every(t => t === S.myTeam || (res.per[t].accept === true));
+  return res;
 };
 
 
