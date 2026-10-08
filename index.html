@@ -3451,18 +3451,22 @@ async function askCost(ask) {
   const add = (xs) => { const v = xs.reduce((t, x) => t + x.v, 0); if (v >= price * MK_MIN && v <= price * MK_MAX) combos.push({ xs, v, over: v / price }); };
   for (let i = 0; i < mine.length; i++) { add([mine[i]]); for (let j = i + 1; j < mine.length; j++) { add([mine[i], mine[j]]); for (let k = j + 1; k < mine.length; k++) add([mine[i], mine[j], mine[k]]); } }
   const cap = mine.reduce((t, x) => t + x.v, 0);
-  combos.sort((x, y) => (x.xs.length - y.xs.length) * 0.15 + (x.over - y.over) || x.over - y.over);
+  // try the packages that cost your lineup the least first (picks and bench players before starters), so the ones that are fair AND safe for you get checked
+  const lineupCost = xs => xs.reduce((t, x) => t + (x.a.k === 'player' || x.a.k === 'keeper' ? Math.max(0, P[x.a.pid].bpa || 0) : 0), 0);
+  combos.forEach(c => { c.cost = lineupCost(c.xs); });
+  combos.sort((x, y) => (x.cost + (x.over - 1) * 0.15 + x.xs.length * 0.02) - (y.cost + (y.over - 1) * 0.15 + y.xs.length * 0.02));
   DN.ask.total = Math.min(combos.length, 60); DN.ask.done = 0;
   const tried = [], ok = [], seen = new Set();
   for (const c of combos) {
-    if (tried.length >= 60 || ok.length >= 6) break;
+    if (tried.length >= 70 || ok.filter(q => q.res.per[me].total >= -0.04).length >= 5) break;
     const key = c.xs.map(x => aKey(x.a)).sort().join('|'); if (seen.has(key)) continue; seen.add(key);
     const res = evaluate(legsFor(T, ask, c.xs.map(x => x.a))); const x = { offer: c.xs.map(y => y.a), res, v: c.v, over: c.over }; tried.push(x);
     DN.ask.done++; if (DN.ask.done % 4 === 0) { renderFinder(); await new Promise(r => setTimeout(r, 0)); }
     if (res.accepted && res.per[me] && res.per[me].total != null) ok.push(x);
   }
-  // cheapest for you first: the least overpay, then the least rating lost
-  ok.sort((x, y) => (x.over - y.over) || (y.res.per[me].total - x.res.per[me].total));
+  // best for you first: the offers they would take, ranked by your own grade with a small penalty for overpaying
+  const rankSc = x => x.res.per[me].total - 0.6 * Math.max(0, x.over - 1);
+  ok.sort((x, y) => rankSc(y) - rankSc(x));
   const comps = COMPS.filter(c => isP && P[pid].name.replace(/ \(.*\)$/, '') === c.who);
   const base = { ask, T, value, price, comps, cap };
   if (ok.length) return { ...base, state: 'ok', list: ok.slice(0, 5) };
@@ -3489,11 +3493,13 @@ function renderFinder() {
       const r = A.res;
       if (r.msg && r.state !== 'ok') h += `<p class="pad" style="margin:0">${esc(r.msg)}</p>`;
       if (r.state === 'ok') {
-        h += `<p class="pad" style="margin:0;padding-bottom:0"><b>${esc(aText(r.ask))}</b> belongs to ${tdot(r.T)}<b>${esc(r.T)}</b>. He is valued at ${vTxt(r.value)}, and ${esc(r.T)} would ask for ${vTxt(r.price)} back, since stars cost more than the sum of their parts.${r.comps && r.comps.length ? '<br><span style="color:var(--muted)">From your trade sheets: ' + r.comps.map(c => esc(c.txt)).join(' ') + '</span>' : ''}</p><p class="pad" style="margin:0;padding-bottom:0">Offers they would take, closest to a fair price first:</p>`;
+        h += `<p class="pad" style="margin:0;padding-bottom:0"><b>${esc(aText(r.ask))}</b> belongs to ${tdot(r.T)}<b>${esc(r.T)}</b>. He is valued at ${vTxt(r.value)}, and ${esc(r.T)} would ask for ${vTxt(r.price)} back, since stars cost more than the sum of their parts.${r.comps && r.comps.length ? '<br><span style="color:var(--muted)">From your trade sheets: ' + r.comps.map(c => esc(c.txt)).join(' ') + '</span>' : ''}</p><p class="pad" style="margin:0;padding-bottom:0">Offers they would take, best grade for you first (at a price close to what they ask):</p>`;
+        const bestMe = Math.max(...r.list.map(x => x.res.per[S.myTeam].total));
+        if (bestMe < -0.04) h += `<p class="pad banner warn" style="margin:8px 14px 0"><b>Heads up:</b> ${esc(r.T)} would take these, but even the best of them costs your projected season ${sgn(bestMe)} runs/game (grade ${tradeGrade(bestMe)}). The price is fair on draft value, but he is not worth that much to your lineup. Only do it if you see something the projection does not.</p>`;
         h += r.list.map((x, i) => {
           const pm = x.res.per[S.myTeam], pt = x.res.per[r.T], v = verdictMe(pm);
           return `<div class="tfcard"><h4>Give ${x.offer.map(a => esc(aText(a))).join(' + ')}</h4>
-            <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chip ${v[0]}">${v[1]} · ${sgn(pm.total)} runs/game</span><span class="chip g">${esc(r.T)} accepts</span><span class="chip ${pt.total >= 0 ? '' : 'w'}" title="Their projected rating change. A team will take a small hit when the offer meets the market price.">${esc(r.T)} rating ${sgn(pt.total)}</span><span class="chip" title="Market value of what you give compared with what they would ask">Value ${x.over >= 1.5 ? 'generous' : x.over >= 1.2 ? 'a little over' : 'fair'} · ${Math.round(x.over * 100)}% of the ask</span></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chip ${v[0]}" title="Your grade for this trade, the same one the trade builder shows">${v[1]} · grade ${pm.grade} · ${sgn(pm.total)} runs/game</span><span class="chip g">${esc(r.T)} accepts</span><span class="chip ${pt.total >= 0 ? '' : 'w'}" title="Their projected rating change. A team will take a small hit when the offer meets the market price.">${esc(r.T)} rating ${sgn(pt.total)}</span><span class="chip" title="Market value of what you give compared with what they would ask">Value ${x.over >= 1.5 ? 'generous' : x.over >= 1.2 ? 'a little over' : 'fair'} · ${Math.round(x.over * 100)}% of the ask</span></div>
             ${pm.lines && pm.lines.length ? `<ul>${pm.lines.slice(0, 3).map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
             <div><button data-askload="${i}">Open in the trade builder</button></div></div>`;
         }).join('');
