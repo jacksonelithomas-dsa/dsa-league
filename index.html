@@ -234,7 +234,6 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
 
 [hidden]{display:none!important}
 #tbForceNow,#tbForce{display:none!important}
-body:not(.is-owner) .tab[data-tab=setup]{display:none}
 .ico{border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;flex:none;display:inline-block}
 .ico.ph{display:inline-flex;align-items:center;justify-content:center;font-weight:600;color:var(--ink);letter-spacing:.02em}
 .toast{position:fixed;left:50%;bottom:18px;transform:translate(-50%,20px);background:var(--board);color:var(--board-ink);padding:10px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:.25s;z-index:60;max-width:min(92vw,520px);font-size:13px;border:1px solid var(--bulb)}
@@ -1031,7 +1030,7 @@ const lum = h => { const [r, g, b] = hex2(h).map(v => { v /= 255; return v <= .0
 const isDark = () => { const th = document.documentElement.dataset.theme; return th === 'dark' || (th !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches); };
 const cr = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
 function applyTeamTheme() {
-  const c = TEAMC[S.myTeam], dark = isDark(), surf = dark ? '#151d27' : '#ffffff', st = document.documentElement.style;
+  const spec = document.body.classList.contains('spectator'), c = spec ? { p: '#111111', s: '#c1272d' } : TEAMC[S.myTeam], dark = isDark(), surf = dark ? '#151d27' : '#ffffff', st = document.documentElement.style;
   // accent = whichever team color reads on the page (near-black primaries hand over to the secondary; white is never an accent)
   const cand = (lum(c.p) < .03 ? [c.s] : [c.p, c.s]).filter(h => lum(h) < .8);
   let acc = cand.find(h => cr(h, surf) >= 3);
@@ -1041,6 +1040,7 @@ function applyTeamTheme() {
   st.setProperty('--bulb', lum(c.s) > lum(c.p) || lum(c.p) < .03 ? c.s : mix(c.p, '#ffffff', .55));
   st.setProperty('--bline', mix(acc, '#ffffff', .2));
   st.setProperty('--mine', mix(acc, surf, dark ? .82 : .88));
+  if (spec) { st.setProperty('--bulb', '#f2c230'); st.setProperty('--bline', '#f2c230'); }
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmt = (x, d = 2) => (x == null || isNaN(x)) ? '—' : x.toFixed(d);
@@ -4072,6 +4072,8 @@ function specApply() {
   document.body.classList.toggle('spectator', sp);
   if (sp && LV.db && !LV.dbRaw) { LV.dbRaw = LV.db; LV.db = guardDb(LV.db); }
   if (!sp && LV.dbRaw) { LV.db = LV.dbRaw; LV.dbRaw = null; }
+  if (specApply.was !== sp) { specApply.was = sp; try { applyTeamTheme(); } catch (e) {} }
+  if (sp) { const cur = document.querySelector('.tabs .tab.on, .tabs .tab[aria-selected=true]'); if (cur && getComputedStyle(cur).display === 'none') { try { showTab(done() ? 'hm' : 'draft'); } catch (e) {} } }
 }
 // ---------- team logo (top right) ----------
 let logoFor = null;
@@ -4510,8 +4512,8 @@ function showGate() {
   $('#gate').hidden = false; $('#gateJoin').hidden = false; $('#gateMsg').textContent = LV.owner ? 'You are the commissioner. Join as a team with its code, pick a team to play, or just run the draft.' : 'Enter the code the commissioner sent you.';
   $('#gateOwner').hidden = !LV.owner;
   const cl = claimedTeams();
-  $('#gatePlay').innerHTML = TEAMS.filter(t => !cl[t] || cl[t].uid === LV.uid).map(t => `<option>${esc(t)}</option>`).join('');
-  $('#gatePlay').value = TEAMS.includes('Toadstool Titans') && (!cl['Toadstool Titans'] || cl['Toadstool Titans'].uid === LV.uid) ? 'Toadstool Titans' : $('#gatePlay').value;
+  $('#gatePlay').innerHTML = TEAMS.map(t => `<option value="${esc(t)}">${esc(t)}${cl[t] && cl[t].uid !== LV.uid ? ' (claimed, take over)' : ''}</option>`).join('');
+  $('#gatePlay').value = 'Toadstool Titans';
 }
 async function tryCode() {
   const code = $('#gateCode').value, t = teamForCode(code), er = $('#gateErr');
@@ -4926,7 +4928,12 @@ function hbTrades() {
 /* ---- commissioner tools (shown in Setup) ---- */
 const hbSnap = (wk, t) => 'w' + wk + '_' + hbTK(t);
 function hbAdminHtml() {
-  if (!LV.owner) return '';
+  if (!LV.owner) {
+    if (!window.__extBuild || isSpec()) return '';
+    return `<div class="panel" style="margin-bottom:14px"><h2>Commissioner mode <span>Password protected</span></h2><div class="pad" style="display:grid;gap:10px">
+   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="password" id="cmpw" placeholder="Commissioner password" autocomplete="off" style="min-width:200px"><button class="primary" data-hb="cmunlock">Unlock</button></div>
+   <div class="note">Only the commissioner needs this. It reloads the page with the commissioner controls on. You keep playing as ${esc(S.myTeam || 'your team')}, and it never lets you change another team's roster, lineup or stadium pick.</div></div></div>`;
+  }
   const on = LV.unlocked && LV.cmode;
   return `<div class="panel" style="margin-bottom:14px"><h2>Commissioner mode <span>Password protected</span></h2><div class="pad" style="display:grid;gap:10px">
    <label class="cmodeT" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="cmode2" ${on ? 'checked' : ''}> <b>${on ? 'Commissioner mode is on. The Commish tab is open.' : 'Team mode: you play as ' + esc(S.myTeam || 'your team') + ' only'}</b></label>
@@ -5246,7 +5253,7 @@ document.addEventListener('click', e => {
 });
 async function hbBxGo() { const p = $('#bxpw'); if (!p) return; const w = await hbBxUnlock(p.value); if (w) { toast('Week ' + w + ' unlocked.', 'good'); renderHub(); } else { toast('That password does not match any week.', 'bad'); p.value = ''; } }
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'bxpw') hbBxGo(); });
-async function hbUnlockGo() { const p = $('#cmpw'); if (!p) return; if (await cmUnlock(p.value)) { cmSet(true); HB.askPw = false; toast('Commissioner mode on.', 'good'); try { render(); } catch (x) {} renderHub(); hbLayout(); } else { toast('Wrong password.', 'bad'); p.value = ''; } }
+async function hbUnlockGo() { const p = $('#cmpw'); if (!p) return; if (await cmUnlock(p.value)) { if (!LV.owner && window.__extBuild) { try { localStorage.setItem('dsa_owner', '1'); } catch (e) {} location.reload(); return; } cmSet(true); HB.askPw = false; toast('Commissioner mode on.', 'good'); try { render(); } catch (x) {} renderHub(); hbLayout(); } else { toast('Wrong password.', 'bad'); p.value = ''; } }
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'cmpw') hbUnlockGo(); });
 document.addEventListener('change', e => {
   const t = e.target;
