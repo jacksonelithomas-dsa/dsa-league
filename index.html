@@ -381,6 +381,13 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
 .nw-cht{font-size:14px;line-height:1.4;margin:2px 0 3px;overflow-wrap:anywhere}
 .nw-chl{max-height:900px;overflow:auto}
 .spectator .nw-x{display:none}
+
+#nwToasts{position:fixed;right:14px;bottom:14px;z-index:9000;display:grid;gap:8px;width:min(360px,calc(100vw - 28px))}
+.nw-toast{display:flex;gap:10px;align-items:flex-start;text-align:left;background:var(--surface);color:var(--ink,inherit);border:1px solid var(--line);border-left:4px solid var(--accent,#c1272d);border-radius:10px;padding:10px 12px;box-shadow:0 6px 20px rgba(0,0,0,.28);cursor:pointer;font-size:13px;line-height:1.3;animation:nwin .25s ease}
+.nw-toast>span:last-child{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+@keyframes nwin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.nw-dot{display:inline-block;min-width:16px;height:16px;border-radius:8px;background:#e5322d;color:#fff;font:700 10px/16px var(--f-mono,monospace);text-align:center;margin-left:6px;padding:0 4px;vertical-align:middle}
+.nw-tog{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;cursor:pointer;white-space:nowrap}
 </style>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -4102,6 +4109,7 @@ const Snd = {
       case 'offer': T(880, 0, 0.12, 'sine', 0.3); T(880, 0.2, 0.12, 'sine', 0.3); T(1318.5, 0.4, 0.35, 'sine', 0.3); break;
       case 'start': [392, 523.25, 659.25, 783.99, 1046.5].forEach((f, i) => T(f, i * 0.13, 0.4, 'sawtooth', 0.18)); break;
       case 'no': T(220, 0, 0.25, 'sawtooth', 0.15); break;
+      case 'news': T(1046.5, 0, 0.07, 'triangle', 0.22); T(1396.9, 0.08, 0.07, 'triangle', 0.22); T(1760, 0.16, 0.32, 'triangle', 0.22); break; // newsflash: three quick rising blips
     }
   }
 };
@@ -5994,7 +6002,7 @@ function nwAssemble() {
 }
 
 // ---- the tab ----
-const NW = { f: 'all', t: 'all', shown: 40, open: new Set(), hidden: new Set(), started: false, memo: null };
+const NW = { f: 'all', t: 'all', shown: 40, open: new Set(), hidden: new Set(), started: false, memo: null, unread: 0, seen: null, t0: 0, notif: (() => { try { return localStorage.getItem('nw_notif') !== '0'; } catch (e) { return true; } })() };
 function nwStart() { if (NW.started || !LV.db) return; NW.started = true; try { LV.db.doc('league/news').onSnapshot(s => { NW.hidden = new Set(s.exists && s.data() && s.data().hidden || []); try { hbSched(); } catch (e) {} }, () => {}); } catch (e) {} }
 const nwWhen = ts => { if (!ts || ts < 1e12) return ''; const d = Date.now() - ts; if (d < 0) return 'just now'; const m = d / 60000; if (m < 1) return 'just now'; if (m < 60) return Math.round(m) + 'm ago'; if (m < 1440) return Math.round(m / 60) + 'h ago'; return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric' }); };
 const nwDots = ts => (ts || []).slice(0, 3).map(t => `<span class="tdot" style="background:${TCOL[t] || '#888'}" title="${esc(nwFull(t))}"></span>`).join('');
@@ -6011,10 +6019,10 @@ function nwCheepHtml(it) {
   const av = o ? `<span class="nw-av">${o.logo ? nwLogoHtml(it.outlet, 30) : `<b>${esc(o.short.slice(0, 2))}</b>`}</span>` : `<span class="nw-av fan" style="background:${TCOL[it.fanTeam] || '#888'}">${esc((it.fan || '?')[0])}</span>`;
   return `<div class="nw-ch">${av}<div><div><b>${esc(o ? o.name : it.fan)}</b> <span class="note">${esc(o ? o.handle : '@' + it.fan)} · ${esc(nwWhen(it.ts))}</span></div><div class="nw-cht">${esc(it.text)}</div><div class="note">🔁 ${rt} &nbsp; ♥ ${lk}</div></div></div>`;
 }
+function nwSig() { return [S.picks.length, S.trades.length, (HB.tlog || []).length, Object.values(HB.scores || {}).map(s => (s.status || '') + (s.as ?? '') + (s.hs ?? '') + (s.t || '')).join(',')].join('|'); }
+function nwItems() { const sig = nwSig(); if (!NW.memo || NW.memo.sig !== sig) NW.memo = { sig, items: nwAssemble() }; return NW.memo.items; }
 function newsView() {
-  nwStart();
-  const sig = [S.picks.length, S.trades.length, (HB.tlog || []).length, Object.values(HB.scores || {}).map(s => (s.status || '') + (s.as ?? '') + (s.hs ?? '') + (s.t || '')).join(',')].join('|');
-  if (!NW.memo || NW.memo.sig !== sig) NW.memo = { sig, items: nwAssemble() };
+  nwStart(); nwItems(); NW.unread = 0; try { nwDot(); } catch (e) {}
   const all = NW.memo.items.filter(x => !NW.hidden.has(x.id));
   const f = NW.f, flt = x => (f === 'all' || x.outlet === f || (f === 'fan' && x.outlet === 'fan'));
   const stories = all.filter(x => x.type !== 'cheep' && flt(x) && (NW.t === 'all' || NW.t === 'story' && x.type === 'story' || NW.t === 'pod' && (x.type === 'pod' || x.type === 'interview')));
@@ -6023,7 +6031,7 @@ function newsView() {
   const types = [['all', 'Everything'], ['story', 'Stories'], ['pod', 'Podcast & interviews'], ['cheep', 'Cheeps']].map(([k, n]) => `<button class="nw-chip txt" data-nwt="${k}" aria-pressed="${NW.t === k}">${n}</button>`).join('');
   const shown = stories.slice(0, NW.shown);
   const hasData = all.length > 0;
-  return `<div class="panel"><h2>News <span>Eight outlets, one league. Stories, podcasts and cheeps written from what actually happens.</span></h2><div class="pad" style="display:grid;gap:8px"><div class="nw-chips">${chips}</div><div class="nw-chips">${types}</div><div class="note">Everything here is written by the site from the league’s own results. Interviews, quotes and opinions are invented for fun.</div></div></div>
+  return `<div class="panel"><h2>News <span>Eight outlets, one league. Stories, podcasts and cheeps written from what actually happens.</span></h2><div class="pad" style="display:grid;gap:8px"><div class="nw-chips">${chips}</div><div class="nw-chips">${types}</div><div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div class="note">Everything here is written by the site from the league’s own results. Interviews, quotes and opinions are invented for fun.</div><label class="nw-tog" title="A dot on the News tab, a pop-up and a sound when a big story lands"><input type="checkbox" id="nwNotif" ${NW.notif ? 'checked' : ''}> News alerts</label></div></div></div>
   ${hasData ? `<div class="nw-grid"><div class="nw-main">${shown.map(nwCard).join('') || '<div class="panel"><div class="pad note">Nothing from this outlet yet.</div></div>'}${stories.length > shown.length ? `<div style="text-align:center;margin:8px"><button data-nwmore="1">Show older stories</button></div>` : ''}</div>
   <aside class="nw-side"><div class="panel"><h2>Cheeps <span>Hot takes, 280 characters or less</span></h2><div class="nw-chl">${cheeps.slice(0, 60).map(nwCheepHtml).join('') || '<div class="pad note">No cheeps yet.</div>'}</div></div></aside></div>` : `<div class="panel" style="margin-top:14px"><div class="pad note">The newsroom is quiet. Stories show up as picks, trades and games happen.</div></div>`}`;
 }
@@ -6035,6 +6043,46 @@ document.addEventListener('click', e => {
   else if (t.dataset.nwmore) NW.shown += 40;
   else if (t.dataset.nwhide) { if (typeof hbAdmin === 'function' && hbAdmin() && LV.db) { NW.hidden.add(t.dataset.nwhide); LV.db.doc('league/news').set({ hidden: [...NW.hidden] }).catch(dbErr); } }
   renderHub();
+});
+
+// ---- news alerts: a dot on the tab, a pop-up and a sound when a big story lands (trades, steals and reaches, draft grades, results, weekly reviews) ----
+const NW_BIG = new Set(['TRADE', 'STEAL', 'REACH', 'FIRST PICK', 'DRAFT GRADES', 'DRAFT GRADE', 'BLOWOUT', 'NAIL-BITER', 'RECAP', 'WEEK IN REVIEW', 'POWER RANKINGS', 'MATCHUP SPOTLIGHT', 'COLUMN']);
+function nwDot() {
+  const b = document.querySelector('.tab[data-tab="news"]'); if (!b) return;
+  let d = b.querySelector('.nw-dot');
+  if (!NW.unread || !NW.notif) { if (d) d.remove(); return; }
+  if (!d) { d = document.createElement('span'); d.className = 'nw-dot'; b.appendChild(d); }
+  d.textContent = NW.unread > 9 ? '9+' : NW.unread;
+}
+function nwToast(it, more) {
+  let box = document.getElementById('nwToasts'); if (!box) { box = document.createElement('div'); box.id = 'nwToasts'; box.setAttribute('role', 'status'); document.body.appendChild(box); }
+  const el = document.createElement('button'); el.className = 'nw-toast';
+  if (more) el.innerHTML = `<span><b>${more} more big stories</b><br>Open News to read them.</span>`;
+  else { const o = NW_OUT[it.outlet]; el.innerHTML = `<span class="nw-logo mini">${nwLogoHtml(it.outlet, o.wide ? 14 : 22)}</span><span><b>${esc(o.name)}</b> · ${esc(it.tag)}<br>${esc(it.head)}</span>`; }
+  el.onclick = () => { if (it) NW.open.add(it.id); try { showTab('news'); } catch (e) {} el.remove(); };
+  box.appendChild(el); setTimeout(() => el.remove(), 8000);
+}
+function nwTick() {
+  try {
+    if (typeof S === 'undefined' || !S.picks || typeof ORDER === 'undefined' || !ORDER.length) return;
+    const now = Date.now(); if (!NW.t0) NW.t0 = now; if (!NW.seen) NW.seen = new Set();
+    const items = nwItems().filter(x => !NW.hidden.has(x.id)), fresh = items.filter(x => !NW.seen.has(x.id));
+    fresh.forEach(x => NW.seen.add(x.id));
+    if (now - NW.t0 < 6000 || !fresh.length || !NW.notif) return; // the first few seconds are just the page loading
+    const sel = document.querySelector('.tab[data-tab="news"]'); if (sel && sel.getAttribute('aria-selected') === 'true') return;
+    const g = new Map();
+    for (const x of fresh) { if (x.type !== 'story' || !NW_BIG.has(x.tag) || !(x.ts > 1e12) || now - x.ts > 600000) continue; const k = x.id.split(':')[0] + '|' + x.tag, cur = g.get(k); if (!cur || (x.outlet === 'ats' && cur.outlet !== 'ats')) g.set(k, x); }
+    const list = [...g.values()].sort((a, b) => b.ts - a.ts); if (!list.length) return;
+    NW.unread += list.length; nwDot();
+    list.slice(0, 2).forEach(it => nwToast(it)); if (list.length > 2) nwToast(null, list.length - 2);
+    try { Snd.play('news'); } catch (e) {}
+  } catch (e) {}
+}
+setInterval(nwTick, 3000);
+document.addEventListener('change', e => {
+  if (e.target.id !== 'nwNotif') return;
+  NW.notif = e.target.checked; try { localStorage.setItem('nw_notif', NW.notif ? '1' : '0'); } catch (er) {}
+  if (NW.notif) { try { Snd.unlock(); Snd.play('news'); } catch (er) {} } else { NW.unread = 0; nwDot(); }
 });
 /* player pronouns: everyone is he/she/they; default he for characters and Miis, with the exceptions below */
 const NW_FEM = ['Daisy', 'Baby Daisy', 'Peach', 'Baby Peach', 'Toadette', 'Dixie Kong', 'Birdo', 'Tiny Kong', 'Madi', 'Olivia', 'Big Mak', 'JT2'];
