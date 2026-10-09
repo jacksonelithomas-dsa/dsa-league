@@ -388,6 +388,8 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
 @keyframes nwin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .nw-dot{display:inline-block;min-width:16px;height:16px;border-radius:8px;background:#e5322d;color:#fff;font:700 10px/16px var(--f-mono,monospace);text-align:center;margin-left:6px;padding:0 4px;vertical-align:middle}
 .nw-tog{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;cursor:pointer;white-space:nowrap}
+
+.nw-chh{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.nw-bird{width:18px;height:18px;border-radius:50%;flex:0 0 auto}.nw-ch>div:last-child{min-width:0}
 </style>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -5934,7 +5936,7 @@ function nwCheeps(ev, kind, c, facts, favOutlets) {
   const out = [], v0 = nwVars(kind, c, null);
   out.push(nwCheep(ev, 'ats', `${kind === 'game' ? 'FINAL' : kind === 'trade' ? 'TRADE ALERT' : kind === 'pick' ? 'PICK IS IN' : 'NEWS'}: ${facts.head}.`, 0));
   favOutlets.forEach(([o, focus, mood], i) => { if (o === 'ats' || !NWV[o]) return; const r = nwRng(ev.id + '|ch|' + o), v = nwVars(kind, c, focus); out.push(nwCheep(ev, o, nwFill(nwPick(r, NWV[o].cheep[mood]), v), 1 + i)); });
-  const focusTeams = (ev.teams || []).slice(0, 2);
+  const focusTeams = []; // fan cheeps now come from nwFanWave
   focusTeams.forEach((t, i) => { const r = nwRng(ev.id + '|fan|' + t), sg = kind === 'trade' ? nwSign.trade(c, t) : kind === 'game' ? nwSign.game(c, t) : kind === 'pick' ? nwSign.pick(c, t) : 0; const v = nwVars(kind, c, t);
     const bank = { 1: ['Let’s GOOOO {t}!! ({s})', 'Best day of the season so far. {t} fans eating today.', 'Told you. TOLD you. {t} baby. ({s})'], '-1': ['Nope. Nope nope nope. ({s})', 'I need a minute. {t} fans, we’ll be okay. (We won’t.)', 'Can we please run that back? ({s})'], 0: ['Okay, {s}. Thoughts? I have so many thoughts.', 'Not sure how to feel about {s}, honestly.'] }[sg];
     out.push(Object.assign(nwCheep(ev, 'fan', nwFill(nwPick(r, bank), v), 20 + i), { fan: NW_FANS[nwHash(ev.id + t) % NW_FANS.length] + '_' + nwN(t).replace(/\W/g, ''), fanTeam: t })); });
@@ -5942,7 +5944,7 @@ function nwCheeps(ev, kind, c, facts, favOutlets) {
 }
 /* ============ NEWS: assembling the feed and the tab ============ */
 function nwAssemble() {
-  const items = [], evs = nwEvents(), push = a => a.forEach(x => x && items.push(x));
+  const items = [], evs = nwEvents(); NW_USED = new Set(); const push = a => a.forEach(x => x && items.push(x));
   const bias = { ndct: 2, tribune: 2, dream: 2, mmm: 2, otr: 2, kings: 2, castle: 0 };
   for (const ev of evs) {
     try {
@@ -5997,12 +5999,13 @@ function nwAssemble() {
           items.push(nwCheep({ id: ev.id + g.gid, ts: ev.ts, teams: [g.away, g.home] }, o, nwFill(nwPick(r, ['Week ' + w + ': {t} vs {o}. Circle it.', 'Week ' + w + ' is here. {t} face {o}. We have thoughts.', '{t} vs {o} this week. Buckle up.']), { t: nwN(focus), o: nwN(opp) }), 0)); } }
       }
     } catch (e) { console.warn('news', ev.type, ev.id, e); }
+    try { push(nwFanWave(ev)); } catch (e) { console.warn('fans', ev.type, ev.id, e); }
   }
   items.sort((a, b) => b.ts - a.ts); return items;
 }
 
 // ---- the tab ----
-const NW = { f: 'all', t: 'all', shown: 40, open: new Set(), hidden: new Set(), started: false, memo: null, unread: 0, seen: null, t0: 0, notif: (() => { try { return localStorage.getItem('nw_notif') !== '0'; } catch (e) { return true; } })() };
+const NW = { f: 'all', t: 'all', shown: 40, cshown: 80, open: new Set(), hidden: new Set(), started: false, memo: null, unread: 0, seen: null, t0: 0, notif: (() => { try { return localStorage.getItem('nw_notif') !== '0'; } catch (e) { return true; } })() };
 function nwStart() { if (NW.started || !LV.db) return; NW.started = true; try { LV.db.doc('league/news').onSnapshot(s => { NW.hidden = new Set(s.exists && s.data() && s.data().hidden || []); try { hbSched(); } catch (e) {} }, () => {}); } catch (e) {} }
 const nwWhen = ts => { if (!ts || ts < 1e12) return ''; const d = Date.now() - ts; if (d < 0) return 'just now'; const m = d / 60000; if (m < 1) return 'just now'; if (m < 60) return Math.round(m) + 'm ago'; if (m < 1440) return Math.round(m / 60) + 'h ago'; return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric' }); };
 const nwDots = ts => (ts || []).slice(0, 3).map(t => `<span class="tdot" style="background:${TCOL[t] || '#888'}" title="${esc(nwFull(t))}"></span>`).join('');
@@ -6017,7 +6020,7 @@ function nwCard(it) {
 function nwCheepHtml(it) {
   const o = it.outlet === 'fan' ? null : NW_OUT[it.outlet], r = nwRng(it.id), lk = Math.floor(r() * r() * 1400) + 3, rt = Math.floor(lk * (0.1 + r() * 0.3));
   const av = o ? `<span class="nw-av">${o.logo ? nwLogoHtml(it.outlet, 30) : `<b>${esc(o.short.slice(0, 2))}</b>`}</span>` : `<span class="nw-av fan" style="background:${TCOL[it.fanTeam] || '#888'}">${esc((it.fan || '?')[0])}</span>`;
-  return `<div class="nw-ch">${av}<div><div><b>${esc(o ? o.name : it.fan)}</b> <span class="note">${esc(o ? o.handle : '@' + it.fan)} · ${esc(nwWhen(it.ts))}</span></div><div class="nw-cht">${esc(it.text)}</div><div class="note">🔁 ${rt} &nbsp; ♥ ${lk}</div></div></div>`;
+  return `<div class="nw-ch">${av}<div style="min-width:0;flex:1"><div class="nw-chh"><span><b>${esc(o ? o.name : it.fan)}</b> <span class="note">${esc(o ? o.handle : '@' + it.fan)} · ${esc(nwWhen(it.ts))}</span></span><img class="nw-bird" src="${NW_CHEEPER}" alt="Cheeper" title="Cheeper" width="18" height="18"></div><div class="nw-cht">${esc(it.text)}</div><div class="note">🔁 ${rt} &nbsp; ♥ ${lk}</div></div></div>`;
 }
 function nwSig() { return [S.picks.length, S.trades.length, (HB.tlog || []).length, Object.values(HB.scores || {}).map(s => (s.status || '') + (s.as ?? '') + (s.hs ?? '') + (s.t || '')).join(',')].join('|'); }
 function nwItems() { const sig = nwSig(); if (!NW.memo || NW.memo.sig !== sig) NW.memo = { sig, items: nwAssemble() }; return NW.memo.items; }
@@ -6027,20 +6030,21 @@ function newsView() {
   const f = NW.f, flt = x => (f === 'all' || x.outlet === f || (f === 'fan' && x.outlet === 'fan'));
   const stories = all.filter(x => x.type !== 'cheep' && flt(x) && (NW.t === 'all' || NW.t === 'story' && x.type === 'story' || NW.t === 'pod' && (x.type === 'pod' || x.type === 'interview')));
   const cheeps = all.filter(x => x.type === 'cheep' && flt(x) && (NW.t === 'all' || NW.t === 'cheep'));
-  const chips = `<button class="nw-chip" data-nwf="all" aria-pressed="${f === 'all'}">All</button>` + NW_IDS.map(o => `<button class="nw-chip" data-nwf="${o}" aria-pressed="${f === o}" title="${esc(NW_OUT[o].name + ' · ' + NW_OUT[o].sub)}"><span class="nw-logo mini${NW_OUT[o].wide ? ' wide' : ''}">${nwLogoHtml(o, NW_OUT[o].wide ? 14 : 20)}</span></button>`).join('');
+  const chips = `<button class="nw-chip" data-nwf="all" aria-pressed="${f === 'all'}">All</button>` + NW_IDS.map(o => `<button class="nw-chip" data-nwf="${o}" aria-pressed="${f === o}" title="${esc(NW_OUT[o].name + ' · ' + NW_OUT[o].sub)}"><span class="nw-logo mini${NW_OUT[o].wide ? ' wide' : ''}">${nwLogoHtml(o, NW_OUT[o].wide ? 14 : 20)}</span></button>`).join('') + `<button class="nw-chip txt" data-nwf="fan" aria-pressed="${f === 'fan'}">Fans</button>`;
   const types = [['all', 'Everything'], ['story', 'Stories'], ['pod', 'Podcast & interviews'], ['cheep', 'Cheeps']].map(([k, n]) => `<button class="nw-chip txt" data-nwt="${k}" aria-pressed="${NW.t === k}">${n}</button>`).join('');
   const shown = stories.slice(0, NW.shown);
   const hasData = all.length > 0;
   return `<div class="panel"><h2>News <span>Eight outlets, one league. Stories, podcasts and cheeps written from what actually happens.</span></h2><div class="pad" style="display:grid;gap:8px"><div class="nw-chips">${chips}</div><div class="nw-chips">${types}</div><div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div class="note">Everything here is written by the site from the league’s own results. Interviews, quotes and opinions are invented for fun.</div><label class="nw-tog" title="A dot on the News tab, a pop-up and a sound when a big story lands"><input type="checkbox" id="nwNotif" ${NW.notif ? 'checked' : ''}> News alerts</label></div></div></div>
-  ${hasData ? `<div class="nw-grid"><div class="nw-main">${shown.map(nwCard).join('') || '<div class="panel"><div class="pad note">Nothing from this outlet yet.</div></div>'}${stories.length > shown.length ? `<div style="text-align:center;margin:8px"><button data-nwmore="1">Show older stories</button></div>` : ''}</div>
-  <aside class="nw-side"><div class="panel"><h2>Cheeps <span>Hot takes, 280 characters or less</span></h2><div class="nw-chl">${cheeps.slice(0, 60).map(nwCheepHtml).join('') || '<div class="pad note">No cheeps yet.</div>'}</div></div></aside></div>` : `<div class="panel" style="margin-top:14px"><div class="pad note">The newsroom is quiet. Stories show up as picks, trades and games happen.</div></div>`}`;
+  ${hasData ? `<div class="nw-grid"><div class="nw-main">${shown.map(nwCard).join('') || ('<div class="panel"><div class="pad note">' + (f === 'fan' ? 'Fans only post cheeps. See them in the Cheeps column.' : 'Nothing from this outlet yet.') + '</div></div>')}${stories.length > shown.length ? `<div style="text-align:center;margin:8px"><button data-nwmore="1">Show older stories</button></div>` : ''}</div>
+  <aside class="nw-side"><div class="panel"><h2><span style="display:inline-flex;align-items:center;gap:7px"><img class="nw-bird" src="${NW_CHEEPER}" alt="" width="22" height="22">Cheeps</span> <span>Fans and outlets, posting all draft long</span></h2><div class="nw-chl">${cheeps.slice(0, NW.cshown).map(nwCheepHtml).join('') || '<div class="pad note">No cheeps yet.</div>'}${cheeps.length > NW.cshown ? '<div style="text-align:center;margin:8px"><button data-nwcmore="1">Show older cheeps</button></div>' : ''}</div></div></aside></div>` : `<div class="panel" style="margin-top:14px"><div class="pad note">The newsroom is quiet. Stories show up as picks, trades and games happen.</div></div>`}`;
 }
 if (typeof HB_VIEWS !== 'undefined') HB_VIEWS.news = newsView;
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-nwf],[data-nwt],[data-nwx],[data-nwmore],[data-nwhide]'); if (!t) return;
-  if (t.dataset.nwf) { NW.f = t.dataset.nwf; NW.shown = 40; } else if (t.dataset.nwt) { NW.t = t.dataset.nwt; NW.shown = 40; }
+  const t = e.target.closest('[data-nwf],[data-nwt],[data-nwx],[data-nwmore],[data-nwcmore],[data-nwhide]'); if (!t) return;
+  if (t.dataset.nwf) { NW.f = t.dataset.nwf; NW.shown = 40; NW.cshown = 80; } else if (t.dataset.nwt) { NW.t = t.dataset.nwt; NW.shown = 40; }
   else if (t.dataset.nwx) { const k = t.dataset.nwx; NW.open.has(k) ? NW.open.delete(k) : NW.open.add(k); }
   else if (t.dataset.nwmore) NW.shown += 40;
+  else if (t.dataset.nwcmore) NW.cshown += 80;
   else if (t.dataset.nwhide) { if (typeof hbAdmin === 'function' && hbAdmin() && LV.db) { NW.hidden.add(t.dataset.nwhide); LV.db.doc('league/news').set({ hidden: [...NW.hidden] }).catch(dbErr); } }
   renderHub();
 });
@@ -6269,6 +6273,119 @@ function nwBody(o, f, r) {
     return B.draft.map(t => nwFill(t, v));
   }
   return null;
+}
+/* ============ NEWS: the fans ============
+   A crowd of fans cheeps about every pick, trade and game. Each fan belongs to a team (or is a neutral viewer). Text is seeded by the event id. */
+const NW_CHEEPER = 'data:image/webp;base64,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';
+const NW_TEAMS = Object.keys(NW_NICK);
+const NW_FAN_T = ['{T}TilIDie', 'Real{T}Hours', '{T}Szn', 'BigDog{T}', '{T}Girl_22', 'Sir{T}alot', 'Dr{T}', '{T}Mike', 'Just{T}Things', '{T}Brainrot', 'Lil{T}', '{T}Ben'];
+const NW_FAN_N = ['PipeDreamPete', 'CoinBlockCarl', 'StarPowerSue', 'ShellyTheTurtle', 'BobombBob', 'ChainChompChad', 'FlagpoleFran', 'WarpZoneZed', '1UP_Uma', 'KoopaKing_Kev', 'ThwompTina', 'SpinyDan', 'MushroomMel', 'BuzzyBeetleBo'];
+function nwFanOf(r, team, k) { // a stable fan of a team
+  if (!team) { const n = NW_FAN_N[Math.floor(r() * NW_FAN_N.length)]; return { fan: n, fanTeam: null }; }
+  const tpl = NW_FAN_T[(nwHash(team) + Math.floor(r() * 5) * 7) % NW_FAN_T.length];
+  return { fan: tpl.replace('{T}', nwN(team).replace(/[^A-Za-z]/g, '')), fanTeam: team };
+}
+
+// ---- how big is the moment? 0 = shrug, 1 = notable, 2 = big, 3 = huge ----
+let NW_BPA = null;
+function nwValPct(id) { // 0..1, how good the player is, by the site's own best-player value
+  if (!NW_BPA) { const a = P.map(p => (typeof p.bpa === 'number' && isFinite(p.bpa)) ? p.bpa : (p.adp != null ? 100 - p.adp : 0)).sort((x, y) => x - y); NW_BPA = a; }
+  const p = P[id], v = (typeof p.bpa === 'number' && isFinite(p.bpa)) ? p.bpa : (p.adp != null ? 100 - p.adp : 0);
+  let lo = 0, hi = NW_BPA.length; while (lo < hi) { const m = (lo + hi) >> 1; if (NW_BPA[m] < v) lo = m + 1; else hi = m; } return lo / Math.max(1, NW_BPA.length - 1);
+}
+const nwLvl = s => s >= 0.78 ? 3 : s >= 0.55 ? 2 : s >= 0.3 ? 1 : 0;
+function nwPickLvl(c) {
+  const N = Math.max(2, ORDER.length), ns = 1 - (c.num - 1) / (N - 1), rankS = Math.pow(Math.max(0, ns), 2), valS = nwValPct(c.ev.pid);
+  let s = 0.68 * rankS + 0.32 * valS; if (c.steal || c.reach) s += 0.06 * (0.3 + rankS);
+  let l = nwLvl(s); if (c.first) l = 3;
+  const rd = nwRound(c.ev.n), nR = nwRound(ORDER[ORDER.length - 1].n); if (rd > nR * 0.66) l = Math.min(l, 1); if (rd > nR * 0.85) l = 0;
+  return l;
+}
+const NW_COUNT = [[3, 4], [4, 6], [6, 8], [9, 12]];
+
+// ---- the words: opener + clause + tail, chosen by sentiment and by how big the moment is ----
+const NWO = { // openers
+  pos: [['ok', 'nice', 'solid', 'fine', 'good', 'cool', 'alright', 'sure,'], ['Nice.', 'Good one.', 'Love it.', 'Smart.', 'Yes.', 'Okay okay.', 'I like this.', 'Respect.'], ['Oh yes.', 'LOVE this.', 'Now we’re talking.', 'Big one.', 'Okay WOW.', 'Let’s go.', 'Huge.', 'That’s a statement.'], ['LET’S GOOOO.', 'I AM SCREAMING.', 'ARE YOU KIDDING ME.', 'THIS IS IT.', 'HISTORY.', 'I CANNOT BREATHE.', 'UNREAL.', 'WE ARE SO BACK.']],
+  neg: [['hm', 'eh', 'okay,', 'mm', 'not sure,', 'meh,', 'well,', 'fine,'], ['Hmm.', 'Eh.', 'Not loving it.', 'Interesting.', 'Questionable.', 'Not sure.', 'Huh.', 'Okay…'], ['Yikes.', 'Oh no.', 'Hard to love this.', 'That’s rough.', 'Really?', 'I don’t get it.', 'Ouch.', 'Not good.'], ['WHAT.', 'NO. NO NO NO.', 'ARE YOU SERIOUS.', 'I NEED A MINUTE.', 'THIS IS A DISASTER.', 'WHY.', 'I’M SHAKING.', 'UNBELIEVABLE.']],
+  neu: [['noted:', 'ok:', 'so,', 'well,', 'huh,', 'depth move:', 'and', 'just saw:'], ['Interesting.', 'Okay.', 'Noted.', 'Fair enough.', 'Well.', 'So that happened.', 'Alright.', 'Hmm.'], ['Whoa.', 'Big move.', 'Okay now.', 'That changes things.', 'Hold on.', 'Didn’t expect that.', 'Wow.', 'Okay, wow.'], ['WOW.', 'HOLD ON.', 'EVERYONE LOOK.', 'ARE WE SEEING THIS.', 'BREAKING.', 'THE ROOM JUST CHANGED.', 'NOBODY MOVE.', 'THIS CHANGES EVERYTHING.']]
+};
+const NWT = { // tails
+  pos: [['', 'works for me.', 'good depth.', 'no complaints.', 'fits fine.', 'good value.', 'quiet win.', '👍'], ['{T} are building something.', 'Good day for {T}.', 'Feeling good about {T}.', '👏', 'Respect to the front office.', 'This helps a lot.', '{T} fans, we’re fine.', 'Real piece for the lineup.'], ['{T} fans are eating today.', 'This changes the whole lineup. 🔥', 'The front office cooked. 👨‍🍳', 'Sleep well, {T} fans.', 'The rest of the league should be nervous.', 'That’s a core piece right there. 💪', 'I’m so happy right now.', 'Put it in the lineup card. ✍️'], ['I’M CRYING. 😭🔥', '{T} FANS EAT TONIGHT. 🍽️', 'FRAME THIS PICK. 🖼️', 'THE LEAGUE IS IN TROUBLE. 🚨', 'BEST DAY OF THE SEASON. 🎉', 'RUN IT BACK FOREVER. 🔁', 'CALL MY MOM. 📞', 'I’M NEVER LOGGING OFF. 🙌']],
+  neg: [['', 'it’s fine.', 'whatever.', 'oh well.', 'not a big deal.', 'depth is depth.', 'we’ll see.', '🤷'], ['Hope it works out.', 'Let’s see how it plays.', 'Not my favorite.', 'Wait and see.', 'Not a disaster.', 'Could be better.', 'I’ll be watching.', '😬'], ['This could haunt us.', 'I hope the plan is good.', 'That worries me. 😬', 'I’ll be thinking about this all week.', 'Not the move.', 'I wanted better.', 'Tough one to swallow.', 'Rough day for {T}.'], ['I WANT TO LIE DOWN. 😭', 'FIRE EVERYONE. 🔥', 'THIS HURTS. 💔', 'I’M NOT OKAY. 🚨', 'WHO APPROVED THIS. 🤬', 'WORST DAY EVER. 😵', 'HELP. 🆘', 'WE WERE SO CLOSE TO A GOOD DAY. 😭']],
+  neu: [['', 'carry on.', 'next.', 'moving on.', 'depth.', 'fine.', 'ok.', '👀'], ['Eyes on the board.', 'Let’s see what’s next.', 'Watching this one.', 'Worth keeping an eye on.', 'The board keeps changing.', 'Pay attention.', '👀', 'Noted for later.'], ['Everyone take note.', 'This affects every team.', 'The draft just shifted. 👀', 'Big ripples from this one.', 'Group chat is going to explode.', 'Hard to ignore.', 'Whole league is watching. 🍿', 'Fascinating.'], ['THE WHOLE LEAGUE JUST SHOOK. 🌋', 'EVERY GROUP CHAT IS ON FIRE. 🔥', 'HISTORIC. 📜', 'I NEED POPCORN. 🍿', 'DRAFT HISTORY. 🏆', 'NOBODY IS SLEEPING TONIGHT. 😳', 'SCREENSHOT THIS. 📸', 'THIS IS WHY WE WATCH. 😤']]
+};
+const NWC = { // pick clauses
+  ownPos: [['{p} to {T}, round {ro}.', '{T} get {p} at {n}.', '{p} joins {T}.', 'picked up {p} for depth.', '{p} for {T}, {cls} type.', '{T} take {p}.'], ['{p} at {n} is a good fit for {T}.', '{p} becomes a {T} guy.', '{T} added {p} in round {ro}.', '{p} should help {T} right away.', 'Smart use of pick {n}: {p}.', '{p} is exactly what {T} needed.'], ['{p} at {n}! {T} got a real one.', '{T} just landed {p}.', '{p} is going to be great for {T}.', '{T} taking {p} that high, I love it.', '{p} on {T}. That is a core piece.', 'Pick {n} is {p}. {T} are thinking big.'], ['{T} TOOK {p} AT {n}.', '{p} IS A {T} PLAYER NOW.', '{p}!!! {T} GOT THE GUY.', '{T} FANS, WE GOT {p}.', 'PICK {n}: {p}. {T}. LOCK IT IN.', 'I WILL REMEMBER THIS PICK, {p}, FOREVER.']],
+  ownSteal: [['{p} still there at {n}? good value for {T}.', '{T} grabbed {p} later than expected.', 'nice value, {p} at {n}.', '{p} slipped to {T}.', 'small steal: {p} to {T}.', 'good pickup, {p}.'], ['{p} fell to {n}. {T} take the value.', '{p} usually goes around {adp}, {T} got him at {n}.', 'Good value from {T}, {p} at {n}.', '{T} found value in round {ro}: {p}.', '{p} lasted until {n}, nice for {T}.', '{T} waited, and {p} dropped.'], ['{p} fell to {n}! {T} got a steal.', '{T} getting {p} at {n} is a big win.', '{p} was supposed to go {adp}. {T} got him at {n}!', 'The room let {p} slide. {T} said thank you.', '{T} just stole {p}.', 'Everyone passed on {p}. {T} did not.'], ['{p} AT {n}?? {T} ROBBED THE DRAFT.', 'HE FELL. {p} FELL TO {T}.', '{T} GOT {p} AT {n}. HIGHWAY ROBBERY.', 'PICK {n} FOR {p}?? THAT IS A CRIME. {T}!!!', 'EVERYONE SLEPT ON {p}. {T} DID NOT.', 'CHECK THE BOARD: {p}, {n}, {T}. UNREAL.']],
+  ownReach: [['{T} took {p} a bit early. fine.', '{p} at {n}, a little early.', '{p} for {T}, earlier than expected.', 'small reach: {p}.', '{T} grab {p} a few spots early.', 'okay, {p} at {n}.'], ['{p} at {n} is a bit early for {T}.', '{T} reached a little for {p}.', '{p} usually goes later, around {adp}.', '{T} must really like {p}.', 'Round {ro}, {p}. Earlier than I’d go.', 'A reach, but {p} fits {T}.'], ['{p} at {n}? That’s early for {T}.', '{T} took {p} way ahead of the board.', 'Bold from {T}: {p} at {n}.', 'I hope {T} know something. {p} at {n}.', '{p} was supposed to be around {adp}. Early.', '{T} are betting on {p}.'], ['{p} AT {n}?? {T} WHAT ARE WE DOING.', '{T} REACHED FOR {p}. I’M NOT OKAY.', 'WHO WAS THE WAR ROOM, A TOASTER? {p}, {n}?', 'PICK {n}: {p}. I NEED A MINUTE, {T}.', '{p} WAS AVAILABLE LATER. WHY, {T}.', 'THAT’S A MASSIVE REACH, {T}.']],
+  rivalSteal: [['{T} got {p} at {n}, good value.', '{p} slid to {T}.', 'hmm, {p} to {T}.', 'decent pickup by {T}.', '{T} found value with {p}.', 'good grab, {T}.'], ['{p} fell to {T} at {n}. Annoying.', 'I wanted {p}. {T} got him.', 'Good value for {T}, {p} at {n}.', '{T} made a smart pick in {p}.', '{p} at {n} for {T}. Hmm.', 'Wish I had waited on {p}.'], ['{T} getting {p} at {n} is a problem for the rest of us.', 'I can’t believe {p} fell to {T}.', 'Now {T} have {p}. That’s hard to beat.', '{p} slid and {T} pounced. Ugh.', '{T} are going to be tough to beat with {p}.', '{p} at {n} was a gift to {T}.'], ['{T} GOT {p} AT {n}?? I’M FURIOUS.', 'I WANTED {p}!!! {T} STOLE HIM.', 'HOW DID {p} FALL TO {T}?!', '{T} ROBBED US ALL FOR {p}.', 'EVERYONE PASSED ON {p} AND {T} SAID THANKS.', 'I HATE THIS FOR US. {T}, {p}, {n}.']],
+  rivalReach: [['{T} took {p} early. fine.', '{p} at {n}, early for {T}.', 'ok, {p} to {T}.', 'a bit early for {p}.', 'more for us, I guess.', 'noted, {T}.'], ['{T} reached for {p}. Good for the rest of us.', '{p} at {n} is early.', 'Thanks for taking {p} early, {T}.', 'I would have waited on {p}.', 'Interesting choice, {T}.', 'That’s a reach for {p}.'], ['{T} took {p} at {n}? Big reach.', '{p} was going to fall further. {T} didn’t trust it.', 'Strange pick from {T}. {p} at {n}.', 'I’ll take what {T} left behind.', '{T} could have had {p} later.', 'That’s going to leave {T} a hole elsewhere.'], ['{T} REACHED FOR {p} AT {n}?? LMAOOO.', 'BIGGEST REACH OF THE DRAFT: {T}, {p}.', 'THANK YOU {T} FOR PASSING ON BETTER PLAYERS.', '{p} AT {n}?? THE {T} WAR ROOM IS COOKED.', '{T}, WHAT ARE YOU DOING.', 'I’M CRYING, {T} TOOK {p} THAT EARLY.']],
+  rival: [['{p} to {T}, round {ro}.', '{T} take {p}.', 'ok, {T} got {p}.', '{p} off the board.', '{T} picked {p} at {n}.', 'one more gone: {p}.'], ['{p} to {T} at {n}. I see you.', '{T} are filling a spot with {p}.', 'Solid pick by {T}, I guess.', 'Okay {T}, nice job on {p}.', '{p} is off the board. My turn soon.', '{T} picked {p}. I had my eye on him.'], ['{T} just took {p} at {n}. That makes them dangerous.', '{p} off the board at {n}. The rest of us have to adjust.', '{T} are scary with {p}.', 'Okay {T}, I’m worried about {p} now.', '{p} to {T} changes my plans.', 'My draft board just moved because of {p}.'], ['{T} TOOK {p} AT {n}!! THE REST OF US ARE IN TROUBLE.', 'THE {p} PICK CHANGES EVERYTHING. {T}!!', 'I HAD {p} AT THE TOP OF MY BOARD. {T}!!!', 'EVERYONE REWRITE YOUR BOARDS. {p}, {n}, {T}.', '{T} ARE THE TEAM TO BEAT NOW. {p}.', 'PICK {n}: {p}. MY HEART JUST STOPPED.']],
+  neutral: [['{p} to {T} at {n}.', 'round {ro}: {p}.', '{T} take {p}.', '{p} is off the board.', 'pick {n} is in.', '{p}, {T}, done.'], ['{T} take {p} at {n}. Round {ro} continues.', 'Pick {n}: {p} to {T}.', '{T} on the board with {p}.', 'Nice name to hear called: {p}.', '{p} goes in round {ro}.', 'Not the biggest name, but {p} to {T}.'], ['{T} take {p} at {n}. That’s a big one.', 'Pick {n} is {p}. The room is buzzing.', '{p} to {T} early. Eyes on the board.', '{T} just spent a big pick on {p}.', 'Every team has to adjust after {p}.', 'Big name off the board: {p}.'], ['{p} GOES AT {n}. THE DRAFT JUST CHANGED.', 'IT’S {p} AT {n}, I’M LOSING IT.', '{T} TOOK {p}. EVERYONE ADJUST.', 'THE ROOM EXPLODED FOR {p}.', 'PICK {n}: {p}. WHAT A MOMENT.', 'THIS IS WHY WE LOVE THE DRAFT: {p} TO {T}.']],
+  cap: ['Captain {p} is gone. 🧢', 'Another captain off the board.', 'A captain! {p} to {T}.'],
+  mii: ['A Mii for {T}, the chemistry plan is real.', '{p} the Mii, the chemistry pick.'],
+  krem: ['Kremlings keep getting picked.', '{T} like the Kremlings. 🐊']
+};
+const NWTR = { // trade clauses by sentiment
+  up: [['{T} got a good one done.', '{s} works for {T}.', '{T} come out fine in {s}.', 'okay, {s} helps {T}.', 'small win for {T}.', '{T} did fine here.'], ['{T} won {s}.', '{s} helps {T} a lot.', 'Smart business from {T}.', '{T} got the better of {s}.', 'I like {s} for {T}.', 'Good trade for {T}.'], ['{T} won {s} by a mile.', '{s} is a huge win for {T}.', '{T} just got a big upgrade with {s}.', 'Front office cooked: {s}.', '{T} fleeced them in {s}.', 'Big win for {T} in {s}.'], ['{T} WON {s} BY A MILE!!!', '{s}?? {T} ROBBED THE LEAGUE.', 'FRONT OFFICE OF THE YEAR: {T}. {s}.', '{T} JUST FLEECED SOMEONE IN {s}.', 'I’M SCREAMING, {s} IS PERFECT FOR {T}.', '{s} IS A MASTERCLASS FOR {T}.']],
+  down: [['{T} lost a little in {s}.', 'not a fan of {s} for {T}.', '{s} is meh for {T}.', 'fine, I guess. {s}.', '{T} gave a bit too much.', 'slight loss for {T}.'], ['{s} doesn’t help {T}.', '{T} overpaid in {s}.', 'I’m not a fan of {s}.', '{T} gave up too much in {s}.', 'Questionable trade by {T}.', '{s} is a loss for {T}.'], ['{T} got hurt in {s}.', '{s} is a rough one for {T}.', '{T} gave up way too much.', 'I hate {s} for {T}.', 'Tough trade for {T} fans. {s}.', '{T} got fleeced in {s}.'], ['{s} IS A DISASTER FOR {T}!!!', '{T} GOT ROBBED IN {s}.', 'FIRE EVERYONE, {T}. {s}.', 'WE GAVE UP WHAT??? {s}.', '{T} JUST RUINED THEIR SEASON WITH {s}.', 'I’M NOT OKAY. {s}. {T}.']],
+  mid: [['{s}, fair for {T}.', 'about even for {T}.', 'okay trade, {s}.', 'neutral on {s}.', 'fine for {T}.', '{T} made a move.'], ['{s}. Hard to say who won.', 'Fair trade for {T}.', '{s} is pretty even.', 'Can’t tell who won {s}.', '{T} did a deal. Okay.', '{s} makes sense for both.'], ['{s}, big names moving. Not sure who won.', '{s} is a huge deal either way.', 'Big move by {T}. We’ll see.', 'I need time to judge {s}.', '{s} could swing either way.', '{T} swung big in {s}.'], ['{s} JUST HAPPENED. NOBODY KNOWS WHO WON!!', 'HUGE TRADE: {s}!!', 'EVERYTHING JUST CHANGED: {s}.', '{T} MADE A MASSIVE MOVE. {s}.', '{s}?? I NEED A DAY TO PROCESS.', 'THE TRADE MARKET JUST EXPLODED: {s}.']],
+  neutral: [['{s} just happened.', 'a trade: {s}.', '{s}. okay.', 'small deal: {s}.', 'trade alert, small.', '{w} did fine.'], ['{s} is official.', '{w} look like the winner in {s}.', 'Trade: {s}.', '{l} gave up a lot in {s}.', 'The league keeps moving. {s}.', 'Who won {s}? I say {w}.'], ['{s} is a big one.', '{w} came out ahead in {s}.', '{l} fans are not happy about {s}.', 'The league changes with {s}.', 'Big names moved in {s}.', 'Everyone is talking about {s}.'], ['{s} JUST DROPPED. EVERY GROUP CHAT IS ON FIRE.', '{w} WON {s}. {l} FANS ARE NOT OKAY.', 'HISTORIC TRADE: {s}.', 'WHO GOT FLEECED IN {s}? ASKING FOR EVERYONE.', 'THE LEAGUE IS NEVER THE SAME AFTER {s}.', 'BREAKING: {s}. WOW.']]
+};
+const NWG = { // game clauses
+  up: [['{w} win, {s}.', 'a win for {w}.', 'good game, {w}.', '{w} take it.', 'W for {w}.', '{s}. nice.'], ['{w} win {s}. Good day.', 'Nice win for {w}.', '{p} helped a lot. {w} take it.', '{w} got the job done.', '{s}. {w} fans, enjoy.', 'Solid win. {w}.'], ['{w} WIN. {s}. Feeling great.', '{p} was great tonight. {w}!', 'Huge win for {w}. {s}.', '{w} are rolling.', 'That’s how you win. {s}.', 'Big night for {w}.'], ['{w} WIN {s}!!! LET’S GOOOO.', '{p} WAS UNREAL. {w}!!!', 'WHAT A GAME. {w} FOREVER.', '{s}!! I CAN’T BREATHE.', '{w} ARE UNSTOPPABLE.', 'BEST GAME OF THE YEAR. {w}!!']],
+  down: [['{l} lose, {s}.', 'tough one for {l}.', 'oh well, {l}.', 'not our day. {s}.', '{l} fall short.', 'rough game, {l}.'], ['{l} lose {s}. Tough.', 'Not our night, {l}.', '{s}. We’ll bounce back.', 'Rough result for {l}.', '{l} just couldn’t find it.', 'That one stings a bit.'], ['{s}. That one hurt, {l}.', '{l} had chances and let them go.', 'Rough night for {l}. {s}.', 'I’m annoyed. {s}.', '{l} need to be better.', 'A bad loss, {l}.'], ['{s}. I’M GOING TO BED.', 'NOT LIKE THIS, {l}!!! 😭', '{l} LOST {s}. I CAN’T.', 'I REFUSE TO TALK ABOUT {s}.', 'WORST LOSS OF THE YEAR. {l}.', '{l}, WHAT WAS THAT?!']],
+  neutral: [['{s}.', 'final: {s}.', 'game over: {s}.', 'another one: {s}.', '{w} take it.', 'done: {s}.'], ['{s}. {w} take it.', 'Final: {s}.', '{w} get the win over {l}.', 'Good game, {s}.', 'Standings move after {s}.', '{p} had a night.'], ['{s}. That was a good one.', '{w} beat {l}, {s}. Standings shift.', '{p} stole the show.', 'Big result: {s}.', 'The standings look different after {s}.', '{w} are for real.'], ['{s}!! WHAT A GAME!!', '{p} JUST HAD A NIGHT!!', '{w} BEAT {l}. WOW.', 'THIS WILL BE REMEMBERED: {s}.', 'WHAT A FINISH. {s}.', 'THE STANDINGS ARE CHAOS AFTER {s}.']]
+};
+const NW_GEXTRA = { close: ['One-run games are bad for the heart.', 'That was close all the way.'], blow: ['That was never close.', 'Not even competitive.'] };
+
+function nwCompose(r, kind, lv, clauses, vars, used) {
+  if (vars.T == null) vars = Object.assign({}, vars, { T: vars.t });
+  const O = NWO[kind][lv], T = NWT[kind][lv]; let t = '';
+  for (let a = 0; a < 60; a++) {
+    const o = r() < 0.6 ? nwPick(r, O) : '', c = nwPick(r, clauses), tl = r() < 0.65 ? nwPick(r, T) : '';
+    t = nwFill([o, c, tl].filter(Boolean).join(' '), vars).replace(/\s+/g, ' ').trim(); if (!used.has(t)) { used.add(t); return t; }
+  }
+  for (let a = 0; ; a++) { const u = t + ' (' + (a + 2) + ')'; if (!used.has(u)) { used.add(u); return u; } }
+}
+let NW_USED = null;
+function nwFanWave(ev, reset) {
+  if (reset || !NW_USED) NW_USED = new Set();
+  const used = NW_USED, out = [], r = nwRng(ev.id + '|wave'); let k = 40;
+  const add = (team, kind, lv, clauses, vars) => { const f = nwFanOf(r, team); out.push(Object.assign(nwCheep(ev, 'fan', nwCompose(r, kind, lv, clauses, vars, used), k++), { fan: f.fan, fanTeam: f.fanTeam })); };
+  const cnt = lv => { const [a, b] = NW_COUNT[lv]; return a + Math.floor(r() * (b - a + 1)); };
+  if (ev.type === 'pick') {
+    const c = nwPickCtx(ev), lv = nwPickLvl(c), t = ev.team, p = P[ev.pid], B = NWC;
+    const v = { p: nwSn(ev.pid), T: nwN(t), n: c.num, ro: nwRound(ev.n), cls: String(p.cls || '').toLowerCase(), adp: c.adp == null ? '?' : Math.round(c.adp) };
+    const steal = c.steal && !c.first, reach = c.reach && !c.first, N = cnt(lv), others = NW_TEAMS.filter(x => x !== t);
+    const ownN = Math.max(1, Math.round(N * 0.4)), rivN = Math.max(1, Math.round(N * 0.35));
+    for (let i = 0; i < ownN; i++) { if (reach && r() < 0.6) add(t, 'neg', lv, B.ownReach[lv], v); else if (steal) add(t, 'pos', lv, B.ownSteal[lv], v); else add(t, 'pos', lv, B.ownPos[lv], v); }
+    for (let i = 0; i < rivN; i++) { const ot = nwPick(r, others); if (steal) add(ot, 'neg', lv, B.rivalSteal[lv], v); else if (reach) add(ot, 'neu', lv, B.rivalReach[lv], v); else add(ot, 'neu', lv, B.rival[lv], v); }
+    for (let i = ownN + rivN; i < N; i++) add(null, 'neu', lv, B.neutral[lv], v);
+    if (lv >= 1 && (c.cap || c.mii || c.krem)) { const bank = c.cap ? B.cap : c.mii ? B.mii : B.krem; out.push(Object.assign(nwCheep(ev, 'fan', nwCompose(r, 'neu', lv, bank, v, used), k++), nwFanOf(r, null))); }
+  } else if (ev.type === 'trade') {
+    const c = nwTradeCtx(ev), sc = ev.teams.map(t => Math.abs(c.per[t].score)), mx = Math.max(...sc, 0);
+    const lv = nwLvl(Math.min(1, mx * 1.1) * 0.6 + (c.big ? 0.35 : 0.1) + (c.multi ? 0.1 : 0)), B = NWTR, v0 = nwVars('trade', c, null), N = cnt(lv) + 2;
+    const per = Math.max(1, Math.floor(N * 0.55 / Math.min(4, ev.teams.length)));
+    for (const t of ev.teams.slice(0, 4)) { const sg = nwSign.trade(c, t), v = nwVars('trade', c, t); for (let i = 0; i < per; i++) add(t, sg > 0 ? 'pos' : sg < 0 ? 'neg' : 'neu', lv, sg > 0 ? B.up[lv] : sg < 0 ? B.down[lv] : B.mid[lv], v); }
+    const others = NW_TEAMS.filter(x => !ev.teams.includes(x)); const used0 = Math.min(4, ev.teams.length) * per;
+    for (let i = used0; i < N; i++) add(i % 2 ? null : nwPick(r, others), 'neu', lv, B.neutral[lv], v0);
+  } else if (ev.type === 'game') {
+    const c = nwGameCtx(ev), idx = HB_WEEKS.indexOf(ev.wk), late = HB_WEEKS.length > 1 ? Math.max(0, idx) / (HB_WEEKS.length - 1) : 0;
+    const lv = nwLvl(0.2 + Math.min(0.28, c.m * 0.03) + (c.close ? 0.2 : 0) + (c.blow ? 0.12 : 0) + late * 0.2), B = NWG, vW = nwVars('game', c, c.W), vL = nwVars('game', c, c.L), v0 = nwVars('game', c, null), N = cnt(lv);
+    const nW = Math.max(1, Math.round(N * 0.35)), nL = Math.max(1, Math.round(N * 0.3));
+    for (let i = 0; i < nW; i++) add(c.W, 'pos', lv, B.up[lv], vW);
+    for (let i = 0; i < nL; i++) add(c.L, 'neg', lv, B.down[lv], vL);
+    const neu = B.neutral[lv].concat(c.close ? NW_GEXTRA.close : c.blow ? NW_GEXTRA.blow : []);
+    for (let i = nW + nL; i < N; i++) add(i % 2 ? null : nwPick(r, NW_TEAMS), 'neu', lv, neu, v0);
+  } else if (ev.type === 'draftDone') {
+    const lines = ['The draft is OVER. Who won it? Be honest.', 'Rosters are set. Now we see who was bluffing.', 'Already rewatching the whole draft. No regrets.', 'Draft’s done. Time to find out who actually cooked.', 'Everyone’s draft grade is about to be judged. Good luck.', 'After all that, I still like my board better than anyone’s.', 'That was a long one. Worth every pick.', 'Okay, who has the best roster? Fight me.', 'Spreadsheet open, rosters loaded, opinions ready.', 'I’m calling it: the draft was closer than anyone thinks.'];
+    for (let i = 0; i < 8; i++) { const f = nwFanOf(r, i % 2 ? null : NW_TEAMS[(i * 3) % NW_TEAMS.length]), txt = (() => { let t = nwPick(r, lines); for (let a = 2; used.has(t); a++) t = t.replace(/ \(\d+\)$/, '') + ' (' + a + ')'; used.add(t); return t; })(); out.push(Object.assign(nwCheep(ev, 'fan', txt, k++), { fan: f.fan, fanTeam: f.fanTeam })); }
+  } else if (ev.type === 'round' || ev.type === 'week') {
+    const lines = ev.type === 'round' ? ['Round {r} is done. Take a breath.', 'That’s a wrap on round {r}.', 'Round {r} is in the books. Who’s still happy with their board?', 'Round {r} done. Not a bad one.', 'Closing out round {r}. Still plenty of talent left.'] : ['Week {wk} is in the books.', 'Week {wk} done. The standings are changing.', 'Another week, another set of results: week {wk}.', 'Who’s hot after week {wk}? Who’s not?', 'Week {wk} wrapped. Back at it soon.'];
+    for (let i = 0; i < 4; i++) { const f = nwFanOf(r, i % 2 ? null : nwPick(r, NW_TEAMS)); let t = nwFill(nwPick(r, lines), { r: ev.r, wk: ev.wk }); for (let a = 2; used.has(t); a++) t = t.replace(/ \(\d+\)$/, '') + ' (' + a + ')'; used.add(t); out.push(Object.assign(nwCheep(ev, 'fan', t, k++), { fan: f.fan, fanTeam: f.fanTeam })); }
+  }
+  return out;
 }
 
 start(); liveBoot();
