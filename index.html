@@ -351,7 +351,7 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
 .nw-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .nw-chip{padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:12.5px}
 .nw-chip[aria-pressed=true]{outline:2px solid var(--accent,#c1272d);background:var(--surface2)}
-.nw-logo{display:inline-flex;align-items:center;justify-content:center;background:none;border-radius:0;padding:0 2px;line-height:0;min-width:32px}
+.nw-logo{display:inline-flex;align-items:center;justify-content:center;background:#fff;border-radius:8px;padding:3px 7px;line-height:0;min-width:32px}
 .nw-logo.mini{padding:2px 5px;min-width:0}
 .nw-logo img{display:block;max-width:150px;object-fit:contain}
 .nw-wm{font:700 12px var(--f-mono,monospace);letter-spacing:.08em;color:#4b5d7a}
@@ -375,7 +375,7 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
 .nw-qa p{margin:5px 0;font-size:14.5px;line-height:1.45}.nw-qa .ans{padding-left:12px;border-left:3px solid var(--line)}
 .nw-ch{display:flex;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line)}
 .nw-ch:last-child{border-bottom:0}
-.nw-av{flex:0 0 36px;height:36px;border-radius:50%;background:none;display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:11px;color:#222}
+.nw-av{flex:0 0 auto;min-width:36px;padding:0 5px;height:36px;border-radius:18px;background:#fff;border:1px solid rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:11px;color:#222}
 .nw-av img{max-width:34px;max-height:30px;object-fit:contain}
 .nw-av.fan{color:#fff;font-weight:700;font-size:15px}
 .nw-cht{font-size:14px;line-height:1.4;margin:2px 0 3px;overflow-wrap:anywhere}
@@ -5766,15 +5766,15 @@ function nwTradeFacts(c) {
   const f1 = `${nwList(e.teams.map(nwFull))} completed a trade ${c.when}. ` + e.teams.map(t => `${nwFull(t)} receive ${P0[t].getsTxt}${P0[t].givesTxt !== 'nothing' ? ' and send out ' + P0[t].givesTxt : ''}`).join('; ') + '.';
   const f2 = 'League grades: ' + e.teams.map(t => `${nwFull(t)} ${P0[t].g}`).join(', ') + '. ' + (c.big ? `${nwFull(c.win)} came out ahead by the numbers.` : 'The deal grades out close to even.');
   const math = e.teams.map(t => `${nwFull(t)}: grade ${P0[t].g}, model score ${P0[t].score >= 0 ? '+' : '−'}${Math.abs(P0[t].score).toFixed(2)}; raw pick-value in ${P0[t].gv.toFixed(2)}, out ${P0[t].lv.toFixed(2)}`);
-  return { head, dek, paras: [f1, f2], math, tag: 'TRADE' };
+  return { head, dek, paras: [f1, f2], math, tag: 'TRADE', kind: 'trade', c };
 }
 // ---- pick facts ----
 function nwPickCtx(ev) { const p = P[ev.pid], num = ev.n + 1, adp = p.adp, diff = adp == null ? 0 : adp - num; return { ev, p, num, adp, diff, steal: diff <= -18, reach: diff >= 18, first: num === 1, last: ev.i === ORDER.length - 1, cap: !!p.cap, mii: !!p.mii, krem: nwIsKrem(ev.pid) }; }
 function nwPickFacts(c) {
   const e = c.ev, t = nwFull(e.team), nm = nwSn(e.pid), lab = `${nwRound(e.n)}.${e.n % 10 + 1}`;
   const head = c.first ? `${t} take ${nm} with the first overall pick` : c.steal ? `${nm} falls to ${t} at ${lab}` : c.reach ? `${t} grab ${nm} early at ${lab}` : c.last ? `${nm} goes last: ${t} close out the draft` : `${t} select ${nm} at ${lab}`;
-  const adpTxt = c.adp == null ? `${nm} has never been drafted before.` : `${nm} has historically gone around pick ${Math.round(c.adp)}${c.diff >= 18 ? `, so ${t} took the player ${Math.round(c.diff)} spots early` : c.diff <= -18 ? `, so ${t} landed the player ${Math.round(-c.diff)} spots late` : ', so this is about where the player was expected'}.`;
-  return { head, dek: `${nm} (${c.cap ? 'captain, ' : ''}${c.mii ? 'Mii, ' : ''}${P[e.pid].cls}) · pick #${c.num} overall`, paras: [`${t} used pick ${lab} (#${c.num} overall) on ${nm}${c.cap ? ', a captain' : ''}${c.mii ? ', a Mii who fills in the chemistry' : ''}. ${adpTxt}`], math: [`Pick #${c.num}; historical average ${c.adp == null ? 'n/a' : Math.round(c.adp)}; difference ${c.adp == null ? 'n/a' : (c.diff >= 0 ? '+' : '') + Math.round(c.diff)} picks`], tag: c.first ? 'FIRST PICK' : c.steal ? 'STEAL' : c.reach ? 'REACH' : 'DRAFT' };
+  const adpTxt = c.adp == null ? `${nm} has never been drafted before.` : `${nm} has historically gone around pick ${Math.round(c.adp)}${c.diff >= 18 ? `, so ${t} took ${nwPro(e.pid).him} ${Math.round(c.diff)} spots early` : c.diff <= -18 ? `, so ${t} landed ${nwPro(e.pid).him} ${Math.round(-c.diff)} spots late` : ', so this is about where the player was expected'}.`;
+  return { head, dek: `${nm} (${c.cap ? 'captain, ' : ''}${c.mii ? 'Mii, ' : ''}${P[e.pid].cls}) · pick #${c.num} overall`, paras: [`${t} used pick ${lab} (#${c.num} overall) on ${nm}${c.cap ? ', a captain' : ''}${c.mii ? ', a Mii who fills in the chemistry' : ''}. ${adpTxt}`], math: [`Pick #${c.num}; historical average ${c.adp == null ? 'n/a' : Math.round(c.adp)}; difference ${c.adp == null ? 'n/a' : (c.diff >= 0 ? '+' : '') + Math.round(c.diff)} picks`], tag: c.first ? 'FIRST PICK' : c.steal ? 'STEAL' : c.reach ? 'REACH' : 'DRAFT', kind: 'pick', c };
 }
 // ---- round recap facts ----
 function nwRoundFacts(ev) {
@@ -5796,7 +5796,7 @@ const NW_STEPS = ['F', 'D', 'C−', 'C', 'C+', 'B−', 'B', 'B+', 'A−', 'A', '
 const nwBump = (g, n) => NW_STEPS[Math.max(0, Math.min(NW_STEPS.length - 1, (NW_STEPS.indexOf(g) < 0 ? 5 : NW_STEPS.indexOf(g)) + n))];
 function nwDraftFacts(rows) {
   const top = rows[0], bot = rows[rows.length - 1];
-  return { head: `Draft grades: ${nwFull(top.t)} lead the class, ${nwFull(bot.t)} trail`, dek: `All ten teams graded on projected runs per game and lineup chemistry.`, paras: [rows.map(r => `${nwFull(r.t)} ${r.g}`).join(' · ') + '.', `${nwFull(top.t)} earn the top grade (${top.g}) with a projected rating of ${top.sc.toFixed(2)} runs per game and ${top.ch >= 0 ? '+' : ''}${top.ch} lineup chemistry. ${nwFull(bot.t)} finish last (${bot.g}) at ${bot.sc.toFixed(2)}.`], math: rows.map(r => `#${r.rk} ${nwFull(r.t)}: rating ${r.sc.toFixed(2)}, chemistry ${r.ch >= 0 ? '+' : ''}${r.ch}, z-score ${r.z >= 0 ? '+' : '−'}${Math.abs(r.z).toFixed(2)}`), tag: 'DRAFT GRADES' };
+  return { head: `Draft grades: ${nwFull(top.t)} lead the class, ${nwFull(bot.t)} trail`, dek: `All ten teams graded on projected runs per game and lineup chemistry.`, paras: [rows.map(r => `${nwFull(r.t)} ${r.g}`).join(' · ') + '.', `${nwFull(top.t)} earn the top grade (${top.g}) with a projected rating of ${top.sc.toFixed(2)} runs per game and ${top.ch >= 0 ? '+' : ''}${top.ch} lineup chemistry. ${nwFull(bot.t)} finish last (${bot.g}) at ${bot.sc.toFixed(2)}.`], math: rows.map(r => `#${r.rk} ${nwFull(r.t)}: rating ${r.sc.toFixed(2)}, chemistry ${r.ch >= 0 ? '+' : ''}${r.ch}, z-score ${r.z >= 0 ? '+' : '−'}${Math.abs(r.z).toFixed(2)}`), tag: 'DRAFT GRADES', kind: 'draft', c: { rows } };
 }
 // ---- game facts ----
 function nwGameCtx(ev) {
@@ -5819,7 +5819,7 @@ function nwGameFacts(c) {
   if (c.homers.length) paras.push(`Home runs: ${c.homers.slice(0, 4).map(q => `${String(q.p).replace(/ \(.*/, '')} (${nwN(q.team)})${q.hr > 1 ? ' ×' + q.hr : ''}`).join(', ')}.`);
   if (c.sexy.length) paras.push(`Sexy plays: ${c.sexy.slice(0, 3).map(q => `${String(q.p).replace(/ \(.*/, '')} (${q.sx})`).join(', ')}.`);
   const math = [`Margin ${c.m}; combined runs ${c.ws + c.ls}.`, `${nwFull(c.W)} run differential through Week ${c.ev.wk}: ${c.rW.diff >= 0 ? '+' : ''}${c.rW.diff}; ${nwFull(c.L)}: ${c.rL.diff >= 0 ? '+' : ''}${c.rL.diff}.`];
-  return { head, dek: `${c.stad} · Week ${c.ev.wk}${c.mv ? ' · ' + nwLine(c.mv) : ''}`, paras, math, tag: c.blow ? 'BLOWOUT' : c.close ? 'NAIL-BITER' : 'RECAP' };
+  return { head, dek: `${c.stad} · Week ${c.ev.wk}${c.mv ? ' · ' + nwLine(c.mv) : ''}`, paras, math, tag: c.blow ? 'BLOWOUT' : c.close ? 'NAIL-BITER' : 'RECAP', kind: 'game', c };
 }
 /* ============ NEWS: voices and story assembly ============ */
 const NWV = {
@@ -5884,10 +5884,10 @@ function nwXform(o, head, mood, r, ctx) {
 }
 function nwStory(ev, o, facts, mood, vars, extra) {
   const r = nwRng(ev.id + '|' + o), v = vars;
-  const paras = facts.paras.slice();
-  if (o === 'castle' && facts.math && facts.math.length) paras.splice(1, 0, facts.math.join(' · ') + '.');
+  let paras = facts.paras.slice();
+  if (o !== 'ats' && facts.kind) { const b = nwBody(o, facts, nwRng(ev.id + '|body|' + o)); if (b && b.length) paras = b; }
+  if (o === 'castle' && facts.math && facts.math.length) paras.splice(1, 0, facts.math.map(m => m.replace(/\.$/, '')).join(' · ') + '.');
   if (o !== 'ats' && NWV[o]) { const n = o === 'mmm' ? 1 : 2; const bank = NWV[o].react[mood].slice(); for (let i = 0; i < n && bank.length; i++) { const k = Math.floor(r() * bank.length); paras.push(nwFill(bank[k], v)); bank.splice(k, 1); } }
-  if (o === 'mmm') paras.splice(1, paras.length - 2 > 0 ? 1 : 0); // keep it short
   return nwMk(Object.assign({ id: ev.id + ':' + o, outlet: o, ts: ev.ts + 600 + (nwHash(o) % 7) * 900, head: nwXform(o, facts.head, mood, r), dek: facts.dek, paras, tag: facts.tag, teams: ev.teams || [] }, extra || {}));
 }
 const nwChat = (id, q, a) => ({ q, a });
@@ -5960,7 +5960,7 @@ function nwAssemble() {
         items.push(nwPod(ev, 'draft', { rows }));
         for (const o of NW_IDS) { if (o === 'ats' || o === 'castle') continue; for (const t of NW_OUT[o].favs()) { const row = by[t]; if (!row) continue; const g = nwBump(row.g, bias[o] || 0), r = nwRng(ev.id + '|g|' + o + t), mood = row.rk <= 5 ? 'up' : 'down';
           const best = rosterOf(t).slice().sort((a, b) => b.bpa - a.bpa).slice(0, 3).map(p => nwSn(p.id));
-          items.push(nwMk({ id: ev.id + ':g:' + o + ':' + t, outlet: o, ts: ev.ts + 1500 + nwHash(o + t) % 1000, tag: 'DRAFT GRADE', teams: [t], head: nwXform(o, `${nwFull(t)} draft grade: ${g}`, mood, r), dek: `Our grade for ${nwFull(t)}'s draft class.`, paras: [`${NW_OUT[o].name} gives ${nwFull(t)} a ${g} for the draft. The class is built around ${nwList(best)}, with ${row.ch >= 0 ? '+' : ''}${row.ch} lineup chemistry and a projected ${row.sc.toFixed(2)} runs per game. Overall they rank #${row.rk} of 10.`, nwFill(nwPick(r, NWV[o].react[mood]), nwVars('x', {}, t))] })); items.push(nwCheep(ev, o, `${nwFull(t)} draft grade: ${g}. ${nwFill(nwPick(r, NWV[o].cheep[mood]), nwVars('draftDone', {}, t))}`, 3)); } }
+          items.push(nwMk({ id: ev.id + ':g:' + o + ':' + t, outlet: o, ts: ev.ts + 1500 + nwHash(o + t) % 1000, tag: 'DRAFT GRADE', teams: [t], head: nwXform(o, `${nwFull(t)} draft grade: ${g}`, mood, r), dek: `Our grade for ${nwFull(t)}'s draft class.`, paras: [nwGradePara(o, t, row, g, best, r), nwFill(nwPick(r, NWV[o].react[mood]), nwVars('x', {}, t))] })); items.push(nwCheep(ev, o, `${nwFull(t)} draft grade: ${g}. ${nwFill(nwPick(r, NWV[o].cheep[mood]), nwVars('draftDone', {}, t))}`, 3)); } }
         // the King's Word on Kremlings
         const kr = S.picks.map((id, i) => ({ id, i })).filter(x => nwIsKrem(x.id)); if (kr.length) { const avg = kr.reduce((a, x) => a + ORDER[x.i].n + 1, 0) / kr.length;
           items.push(nwMk({ id: ev.id + ':krem', outlet: 'kings', ts: ev.ts + 2500, tag: 'COLUMN', teams: [], head: `The Kremling count: ${kr.length} drafted, average pick ${Math.round(avg)}, still no award love`, dek: 'A column from The King’s Word.', paras: [`${kr.length} Kremlings were drafted this year: ${nwList(kr.map(x => nwSn(x.id) + ' (' + nwFull(S.moved[x.id] || ORDER[x.i].team) + ')'))}. Their average draft slot was #${Math.round(avg)}.`, 'And yet the league’s award committees have, once again, found a way to look right past them. The Word will keep counting.'] })); }
@@ -5970,8 +5970,7 @@ function nwAssemble() {
         const iv = nwInterview(ev, c); if (iv) items.push(iv);
         for (const o of NW_IDS) { if (o === 'ats') continue; const focus = nwFavOf(o, ev.teams), r = nwRng(ev.id + '|in|' + o); const take = o === 'mmm' || focus || (o === 'castle' && (c.blow || c.close)) || (o === 'otr' && r() < 0.25); if (!take) continue;
           const mood = focus ? nwMood(nwSign.game(c, focus)) : 'neu'; favs.push([o, focus, mood]);
-          if (o === 'mmm') { const m = nwStory(ev, 'mmm', Object.assign({}, f, { paras: [`${nwN(c.W)} ${c.ws}, ${nwN(c.L)} ${c.ls}. ${c.mv ? nwLine(c.mv) + '.' : ''} ${c.close ? 'it was TIGHT.' : c.blow ? 'it was never close lol.' : ''}`.trim()] }), mood, nwVars('game', c, focus)); items.push(m); }
-          else items.push(nwStory(ev, o, f, mood, nwVars('game', c, focus))); }
+          items.push(nwStory(ev, o, f, mood, nwVars('game', c, focus))); }
         push(nwCheeps(ev, 'game', c, f, favs));
       } else if (ev.type === 'week') {
         const rec = nwRecords(ev.wk), prev = ev.wk > HB_WEEKS[0] ? nwRecords(HB_WEEKS[HB_WEEKS.indexOf(ev.wk) - 1]) : null, games = nwGames().filter(x => x.wk === ev.wk);
@@ -6037,6 +6036,192 @@ document.addEventListener('click', e => {
   else if (t.dataset.nwhide) { if (typeof hbAdmin === 'function' && hbAdmin() && LV.db) { NW.hidden.add(t.dataset.nwhide); LV.db.doc('league/news').set({ hidden: [...NW.hidden] }).catch(dbErr); } }
   renderHub();
 });
+/* player pronouns: everyone is he/she/they; default he for characters and Miis, with the exceptions below */
+const NW_FEM = ['Daisy', 'Baby Daisy', 'Peach', 'Baby Peach', 'Toadette', 'Dixie Kong', 'Birdo', 'Tiny Kong', 'Madi', 'Olivia', 'Big Mak', 'JT2'];
+const NW_NEU = ['Goomba', 'Paragoomba', 'Blooper', 'Boo'];
+function nwPro(id) {
+  const n = id == null || !P[id] ? '' : nwSn(id);
+  if (NW_FEM.includes(n)) return { he: 'she', him: 'her', his: 'her', His: 'Her' };
+  if (NW_NEU.includes(n) || /Noki/.test(n)) return { he: 'they', him: 'them', his: 'their', His: 'Their' };
+  return { he: 'he', him: 'him', his: 'his', His: 'His' };
+}
+/* ============ NEWS: every outlet writes its own body copy ============ */
+const NWB = {
+  ndct: {
+    pick: {
+      steal: ['{T} did not just make a pick at {lab}. They made a statement. {nm} is a pick-{adp} talent and the city got {him} at #{num}, {sp} spots late, with the cameras rolling.', 'Scandal on the draft floor, the good kind: {nm} slid {sp} spots past {his} usual pick-{adp} slot and {T} scooped {him} up like a diamond left on a bar top.', 'Somebody call the society pages. {T} landed {nm} at #{num}, a full {sp} picks below {his} usual spot. Glitz, glamour and a bargain.'],
+      reach: ['Eyebrows rose across the avenue when {T} called {nm} at #{num}. {His} usual spot is around pick {adp}, which makes this a {sp}-spot gamble in a very loud jacket.', 'Bold, daring, possibly reckless: {T} took {nm} {sp} picks ahead of {his} usual pick-{adp} spot. The city is watching, and so are the knives.', '{T} reached for {nm} at {lab}, {sp} slots early. In this town, nobody gets credit for a quiet pick. They need this one to sing.'],
+      other: ['{T} stepped to the podium at {lab} and took {nm}{ext}, {hist}. The room applauded politely. The city expected a show.', 'Pick #{num} belongs to {nm}{ext}, courtesy of {T}. Fine work, if you like your drama on the quiet side.', '{nm}{ext} is headed to {T} at {lab}. Nobody fainted. The city remains hungry for superstars.']
+    },
+    trade: {
+      lede: ['BLOCKBUSTER ALERT: {A} and {B} pulled the trigger {when}. {A} get {aGets}; {B} get {bGets}. The phones have not stopped ringing.', 'The city is buzzing. {when}, {A} and {B} agreed to a deal that sends {aGets} to {A} and {bGets} to {B}, and {star} is the name on every lip.', 'Dim the lights, cue the band: {A} and {B} have a trade. {A} receive {aGets}; {B} get {bGets}.'],
+      big: ['The grades are in: {A} {aG}, {B} {bG}. {win} left with the shine, and {lose} left with questions. The city has opinions.', '{win} look like the clear winners here ({aG} and {bG} on the card), and {lose} will need a lot of glitz to explain it.'],
+      even: ['Grades: {A} {aG}, {B} {bG}. A rare even deal, which is to say a rare dull one. The city yawns politely.', '{A} {aG}, {B} {bG}. Both sides can spin it, and both will, on the avenue, loudly.'],
+      multi: 'A multi-team blockbuster {when}: {all} are all in. {getsAll}. Grades: {gradeline}. The city has never been so busy.'
+    },
+    game: {
+      blow: ['{W} {ws}, {L} {ls}, at {stad}. This was not a game; it was a coronation, and {L} were the audience. {W} improve to {wRec}.', 'A massacre under the lights at {stad}: {W} {ws}, {L} {ls}. {L} fall to {lRec}, and the avenue is already writing the obituaries.', 'Scandalous. {W} ran {L} out of {stad} in Week {wk}, {ws}-{ls}. {W} are {wRec}; {L} are {lRec} and unavailable for comment.'],
+      close: ['Drama at {stad}! {W} edged {L}, {ws}-{ls}, in a nail-biter the city will be talking about by breakfast. {W} move to {wRec}.', '{W} {ws}, {L} {ls}. One run, one breath, one very expensive heartbeat at {stad}. {L} drop to {lRec}.', 'The tension at {stad} could have been sold by the ounce: {W} survived {L}, {ws}-{ls}, and sit at {wRec}.'],
+      norm: ['{W} took care of {L}, {ws}-{ls}, at {stad} in Week {wk}. {W} go to {wRec}; {L} slip to {lRec}. Glamour was present. Fireworks, less so.', '{W} {ws}, {L} {ls}. A polished win at {stad}, and {W} are {wRec} as a result.', 'Week {wk} at {stad}: {W} over {L}, {ws}-{ls}. The standings shift, the champagne waits. {W} {wRec}, {L} {lRec}.'],
+      mv: ['The star of the night:', 'Spotlight on:'], hr: ['Fireworks:', 'The home run parade:']
+    },
+    grade: ['NDCT hands {T} a {g} for the draft. The class is anchored by {best}, rated {sc} runs per game with {ch} chemistry, #{rk} of 10. Glamour: present.', 'Grade for {T}: {g}. {best} headline a class that projects at {sc} runs per game ({ch} chemistry) and sits #{rk} in the league. The city will be watching.']
+  },
+  tribune: {
+    pick: {
+      steal: ['{T} added {nm} at #{num}, {sp} picks later than {his} usual pick-{adp} slot. It is the sort of value a well-run board produces.', 'A quiet bit of value: {nm} usually goes around pick {adp}, and {T} had {him} at {lab}. The Tribune likes the patience.', '{nm} fell, and {T} were ready. The usual pick-{adp} slot passed, and #{num} was good business.'],
+      reach: ['{T} took {nm} at {lab}, {sp} spots ahead of {his} usual pick-{adp} range. The Tribune will wait for the lineup before passing judgment; early picks have worked out before.', 'Some will call {nm} at #{num} a reach, given {his} typical spot is around pick {adp}. The Tribune would note that {T} drafts for fit, not for lists.', '{T} moved early for {nm}, {sp} slots ahead of {his} usual spot. A calculated choice, and calculated choices tend to age well.'],
+      other: ['{T} selected {nm}{ext} at {lab}, {hist}. A sensible pick, made without fuss.', 'With pick #{num}, {T} took {nm}{ext}. Nothing to argue with, which is usually how it goes when the plan is sound.', '{nm}{ext} joins {T} at {lab}. A steady choice from a steady operation.']
+    },
+    trade: {
+      lede: ['{A} and {B} completed a trade {when}. {A} receive {aGets}; {B} receive {bGets}. A reasonable piece of business by both sides.', '{when}, {A} and {B} came to terms: {aGets} to {A}, {bGets} to {B}. {star} is the headliner, but the whole package matters.', 'A trade is official between {A} and {B}. {A} get {aGets} and {B} get {bGets}, and the Tribune will wait for the games before issuing a verdict.'],
+      big: ['The grades lean toward {win} ({aG} for {A}, {bG} for {B}). {lose} may yet get value back, but the early read is clear.', 'On paper, {win} came out ahead ({aG} and {bG}). The Tribune would remind readers that paper has been wrong before.'],
+      even: ['Both teams grade close ({A} {aG}, {B} {bG}). Sensible trades often look like this.', '{A} {aG}, {B} {bG}. A balanced deal, and a balanced deal is usually a good one.'],
+      multi: '{all} completed a multi-team trade {when}. {getsAll}. League grades: {gradeline}. A complicated deal that deserves a careful read.'
+    },
+    game: {
+      blow: ['{W} beat {L} {ws}-{ls} at {stad}, a result that was never in much doubt. {W} are {wRec}; {L} are {lRec}.', 'A comfortable one at {stad}. {W} {ws}, {L} {ls}. {L} will want to turn the page; {W} move to {wRec}.', '{W} controlled Week {wk}’s game against {L} from start to finish, {ws}-{ls}. Records: {wRec} and {lRec}.'],
+      close: ['{W} held off {L}, {ws}-{ls}, at {stad}. A close game decided by execution, which is how the Tribune likes them. {W} move to {wRec}.', 'A tight one in Week {wk}: {W} {ws}, {L} {ls}. Neither side gave much away. {W} are {wRec}.', '{W} edged {L} by a run at {stad}. Careful, patient baseball from both dugouts.'],
+      norm: ['{W} beat {L}, {ws}-{ls}, at {stad} in Week {wk}. {W} move to {wRec}, {L} to {lRec}. A solid day’s work.', '{W} {ws}, {L} {ls}. Straightforward baseball at {stad}, and {W} are {wRec} for it.', 'At {stad}, {W} got the better of {L}, {ws}-{ls}. The standings tighten slightly: {wRec} and {lRec}.'],
+      mv: ['Player of the game:', 'Best performance:'], hr: ['Home runs:', 'Power on display:']
+    },
+    grade: ['The Tribune’s grade for {T}: {g}. {best} anchor a class that projects at {sc} runs per game with {ch} chemistry, #{rk} of 10. A measured draft by a measured team.', '{T} earn a {g}. The class leans on {best}, projects at {sc} runs per game ({ch} chemistry), and ranks #{rk}. Fair, and consistent with the process.']
+  },
+  castle: {
+    pick: {
+      steal: ['Pick #{num}: {nm} to {T}. Historical average draft position is {adp}, so the observed pick is {sp} slots later than expected. A positive residual of roughly {sp} picks.', 'Value check: {nm} (ADP {adp}) went at #{num}. Residual +{sp}. {T} captures that surplus, and the model approves with moderate-to-high confidence.', 'Observed pick #{num} versus expected pick {adp}: a gap of {sp} in {T}’s favor. n is small, but the direction is encouraging.'],
+      reach: ['Pick #{num}: {nm} to {T}. Expected position {adp}; observed {num}. Residual −{sp}. The model flags this as a reach. It does not flag {T} as wrong, only as early.', '{nm} has an ADP of {adp}. {T} selected {him} {sp} slots ahead of it. Negative residual, but the sample is five seasons and the error bars are generous.', 'Reach alert, measured: −{sp} picks against ADP {adp}. {T} may be pricing in lineup chemistry that ADP does not capture.'],
+      other: ['Pick #{num}: {nm}{ext} to {T}. {hist}. Observed and expected positions are close, so the residual is small.', '{T} select {nm}{ext} at {lab}. No meaningful deviation from expectation; the model files this under “as expected.”', '{nm}{ext}, #{num} overall, {T}. {hist}. Marginal change to projected strength: minimal.']
+    },
+    trade: {
+      lede: ['Trade registered {when}: {A} receive {aGets}; {B} receive {bGets}. Net effect is computed below.', '{A} ↔ {B}, {when}. Assets moving to {A}: {aGets}. Assets moving to {B}: {bGets}. The model has recalculated both rosters.', 'Transaction logged: {aGets} to {A}, {bGets} to {B}. Highest-value asset: {star}.'],
+      big: ['The model grades {A} {aG} and {B} {bG}. The gap between the two sides is larger than noise would predict, favoring {win}.', '{win} ahead by the model ({aG} / {bG}). The difference is outside the typical range for a trade of this size.'],
+      even: ['Grades: {A} {aG}, {B} {bG}. The difference is within noise, so we call this a push.', '{A} {aG}, {B} {bG}. Value exchanged is roughly equal. No significant edge for either side.'],
+      multi: 'Multi-party transaction {when} among {all}. {getsAll}. Grades: {gradeline}. Complexity increases variance; interpret with caution.'
+    },
+    game: {
+      blow: ['{W} {ws}, {L} {ls}. Margin of {m}, which is in the extreme tail of the Week {wk} distribution. {W} {wRec}; {L} {lRec}.', 'A {m}-run result at {stad}. Our win-probability model had this as unlikely at game start. {W} improve to {wRec}.', 'Outlier: {W} over {L}, {ws}-{ls}. Combined runs {tot}; margin {m}. Standings update: {wRec} and {lRec}.'],
+      close: ['{W} {ws}, {L} {ls}. A one-run game is closer to a coin flip than a verdict. {W} move to {wRec}.', 'Margin: {m}. Combined runs: {tot}. {W} were the better team by a hair and that is all the model will say. Records: {wRec}, {lRec}.', 'At {stad}, {W} won {ws}-{ls}. Expected margin was larger; observed was {m}. Variance won the day. {W} {wRec}.'],
+      norm: ['{W} {ws}, {L} {ls} at {stad}. Margin {m}, combined runs {tot}. Records: {W} {wRec}, {L} {lRec}.', 'Result logged: {W} beat {L} by {m}. Nothing outside the expected range. Standings: {wRec} / {lRec}.', '{W} over {L}, {ws}-{ls}, Week {wk}. Run differential updated for both clubs. Records {wRec}, {lRec}.'],
+      mv: ['Top performer by game score:', 'Highest-leverage line:'], hr: ['Home run log:', 'Long balls:']
+    },
+    grade: ['CASTLE grades {T} at {g}. The class is {best}, projecting {sc} runs per game with {ch} chemistry, ranked #{rk} of 10.', '{T}: {g}. Core assets {best}. Projected {sc} runs per game, chemistry {ch}, rank {rk} of 10.'],
+    draft: ['Draft grades by the model, method: z-score of projected runs per game plus lineup chemistry. {rowsLine}.', '{top} lead at {topSc} runs per game ({topG}); {bot} trail at {botSc} ({botG}). The spread from first to last is {spread} runs per game.']
+  },
+  kings: {
+    pick: {
+      steal: ['{nm} slid to #{num}, {sp} picks past {his} usual spot of {adp}, and {T} stood ready like a proper court. The Word notes the rest of the league let a gem fall.', 'A king knows value. {T} took {nm} at {lab}, {sp} slots later than expected, and the realm is richer for it.', 'The Word approves: {nm} to {T} at #{num}, {sp} spots below {his} usual pick {adp}. Once again, the crown sees what others overlook.'],
+      reach: ['{T} took {nm} at #{num}, {sp} picks ahead of {his} usual {adp}. The Word does not call it a reach. The Word calls it vision.', 'Some will say {T} reached for {nm}, who typically goes around {adp}. The Word reminds them that the crown picks when it wants.', '{nm} at {lab}, {sp} slots early. The Word has seen this before: when the throne chooses, the chosen rise.'],
+      other: ['{T} claimed {nm}{ext} at {lab}, {hist}. The Word accepts the offering.', 'With pick #{num}, the throne names {nm}{ext}, in the service of {T}. Order is maintained.', '{nm}{ext} has been welcomed to {T} at {lab}. The Word notes it, and waits to see how many Kremlings follow.']
+    },
+    trade: {
+      lede: ['The crown notes a trade {when}: {A} take {aGets}; {B} take {bGets}. The Word has views, and will share them.', '{A} and {B} have bargained {when}. {aGets} goes to {A}, {bGets} to {B}. The throne is watching the ledgers.', 'A deal has been struck: {A} gain {aGets} and {B} gain {bGets}. {star} is the jewel of it.'],
+      big: ['The grades place {win} above ({aG} to {bG}), and The Word nods. {lose} should have bargained harder.', '{win} won the bargain ({aG} for {A}, {bG} for {B}). The Word expected no less from a competent court.'],
+      even: ['{A} {aG}, {B} {bG}. An even trade, by any fair reading, and the Word sees no cause for alarm.', 'Both courts leave with fair grades ({aG} and {bG}). Peace holds.'],
+      multi: 'A grand bargain among {all} {when}. {getsAll}. Grades: {gradeline}. The Word reserves judgment until the dust settles.'
+    },
+    game: {
+      blow: ['{W} crushed {L}, {ws}-{ls}, at {stad}, and the realm took note. {W} are {wRec}; {L} are {lRec}.', 'A royal beating at {stad}: {W} {ws}, {L} {ls}. {L} may petition for mercy.', '{W} ruled Week {wk}’s game and sent {L} home, {ws}-{ls}. {wRec} and {lRec}.'],
+      close: ['{W} survived {L}, {ws}-{ls}, at {stad}. The throne was tested and held. {W} are {wRec}.', 'A one-run game at {stad}: {W} {ws}, {L} {ls}. Even kings have narrow days. {W} move to {wRec}.', '{W} won by a run over {L}, and The Word will say only that nerves were not an issue.'],
+      norm: ['{W} defeated {L}, {ws}-{ls}, at {stad}. The court is satisfied. {W} {wRec}; {L} {lRec}.', '{W} {ws}, {L} {ls}. An orderly win in Week {wk}, as the kingdom demanded.', 'At {stad}, {W} bested {L}, {ws}-{ls}. Records now {wRec} and {lRec}.'],
+      mv: ['The Word’s player of the game:', 'Hail to:'], hr: ['Home runs:', 'Royal blasts:']
+    },
+    grade: ['The Word grades {T}: {g}. {best} form the core, {sc} runs per game, {ch} chemistry, #{rk} of 10. The Word notes the Kremlings, as always, were not given their due.', 'A {g} for {T}. The court of {best} projects at {sc} runs per game and {ch} chemistry, ranked #{rk}. The crown approves, mostly.']
+  },
+  dream: {
+    pick: {
+      steal: ['{nm} drops to #{num} and {T} pounces. {sp} picks below {his} usual spot of {adp}. Did the rest of the league just sleep on this? Dreamcast has questions.', 'LOOK AT THIS. {nm}, normally gone around pick {adp}, is a {T} player at #{num}. Everybody else passed. EVERYBODY.', '{T} finds {nm} at {lab}, {sp} slots later than expected, and somewhere a rival GM just spilled their coffee. Dreamcast saw the whole thing.'],
+      reach: ['{T} took {nm} at #{num}, {sp} picks before {his} usual {adp}, and the group chat is already on fire. Genius or meltdown? Dreamcast says drama.', 'Reach?? Dreamcast spoke to nobody and everybody: {nm} at {lab} is {sp} slots early. The critics are circling. {T} doesn’t blink.', '{T} reaches for {nm} and the haters are LOUD. Dreamcast would like you to remember that haters do not draft the lineups.'],
+      other: ['{T} adds {nm}{ext} at {lab}, {hist}. Calm on the surface. Dreamcast is watching what happens next.', 'Pick #{num}: {nm}{ext} to {T}. Quiet pick, loud future, if you ask us.', '{T} goes with {nm}{ext} at {lab}. Sources say there’s more to this story. Sources always say that.']
+    },
+    trade: {
+      lede: ['SOURCES CONFIRM: {A} and {B} made a trade {when}. {A} get {aGets}. {B} get {bGets}. And somebody is NOT happy about it.', 'It’s official, and it’s messy: {aGets} to {A}, {bGets} to {B}, {when}. {star} is at the center of it.', '{A} and {B} just did a deal and the group chats are already lit. {A} receive {aGets}; {B} receive {bGets}.'],
+      big: ['{win} won this, {aG} to {bG} on the grade card, and {lose} fans are already asking who approved it. Dreamcast would love to know too.', 'The grades are lopsided ({A} {aG}, {B} {bG}). Somebody got fleeced and {lose} knows who. Dreamcast is taking calls.'],
+      even: ['{A} {aG}, {B} {bG}. Even on paper. Dreamcast does not believe a word of it.', 'The grade card says it’s close. Dreamcast says wait until the drama starts.'],
+      multi: 'FULL CHAOS: {all} all traded {when}. {getsAll}. Grades: {gradeline}. Dreamcast’s phone is melting.'
+    },
+    game: {
+      blow: ['ABSOLUTE CARNAGE. {W} {ws}, {L} {ls} at {stad}, and {L} haven’t released a statement. {W} {wRec}; {L} {lRec}.', '{W} just humiliated {L}, {ws}-{ls}, and Dreamcast has the receipts. {L} are {lRec} and someone is getting called into an office.', 'Week {wk} at {stad} turned into a massacre: {W} {ws}, {L} {ls}. {L} fans are asking for answers. So are we.'],
+      close: ['THE DRAMA. {W} {ws}, {L} {ls} at {stad}. One run. {L} will say they were robbed. Dreamcast has no comment. (Dreamcast has many comments.) {W} {wRec}.', '{W} escaped {L} by a run, {ws}-{ls}, and somebody is going to blame somebody. {wRec} to {lRec}.', 'A nail-biter at {stad}: {W} {ws}, {L} {ls}. Heart rates unconfirmed. Conspiracies unconfirmed. Drama confirmed.'],
+      norm: ['{W} beat {L}, {ws}-{ls}, at {stad}. {W} are {wRec}; {L} {lRec}. Calm on the surface, and you know how Dreamcast feels about the surface.', '{W} {ws}, {L} {ls}. A win is a win, but Dreamcast is already looking for the story behind it.', 'Week {wk}: {W} over {L} at {stad}, {ws}-{ls}. The standings move; the gossip does too.'],
+      mv: ['Our MVP:', 'Stole the show:'], hr: ['The home runs:', 'Fireworks:']
+    },
+    grade: ['DREAMCAST GRADE: {T} get a {g}. {best} lead a class at {sc} runs per game, {ch} chemistry, #{rk} of 10. The haters can read it and weep.', 'We gave {T} a {g} and we stand by it. {best} headline a class projecting {sc} runs per game, {ch} chemistry, #{rk}. Drama pending.']
+  },
+  mmm: {
+    pick: {
+      steal: ['{nm} fell to #{num} and {T} said thank you 😭 usually goes around pick {adp}. that’s {sp} spots of free value, no notes', 'ok so {nm} is a pick-{adp} guy and {T} got {him} at {lab}. {sp} picks late. we are COOKING 🔥', 'the way {nm} just slid {sp} spots?? {T} said we’ll take it. clip of the year.'],
+      reach: ['{T} took {nm} at #{num} and the replies are not being kind. usually goes around {adp}, so {sp} early. bold. we ride 🫡', '{sp} spots early for {nm}?? ok {T}. we trust the process (we have no choice)', '{nm} at {lab} is a reach on paper, {sp} picks ahead of {his} usual {adp}, but the heat doesn’t draft on paper 🔥'],
+      other: ['{T} take {nm}{ext} at {lab}. clean pick. we move 🔥', 'pick #{num}: {nm}{ext} to {T}. quietly good, loudly {T}.', '{nm}{ext} is a {T} player now. {hist}. vibes are immaculate.']
+    },
+    trade: {
+      lede: ['trade alert 🚨 {A} get {aGets}. {B} get {bGets}. {when}. we are SO not okay.', '{A} x {B} just traded?? {aGets} to {A}, {bGets} to {B}. this is going on the fyp 💀', 'ok so {when} {A} and {B} made a deal: {aGets} for {A}, {bGets} for {B}. rewatching it rn.'],
+      big: ['grades say {win} won ({aG} vs {bG}) and {lose} is NOT having a great day 😭', '{A} {aG}, {B} {bG}. {win} ate that one up. clip it 🔥'],
+      even: ['{A} {aG}, {B} {bG}. kinda even?? kinda fine?? we move 🫡', 'grades are close ({aG} / {bG}). no one’s winning the discourse 💀'],
+      multi: '{all} all in one trade?? {when}. {getsAll}. grades: {gradeline}. we need a flowchart 😭'
+    },
+    game: {
+      blow: ['{W} {ws}, {L} {ls}. it was never close lol. {W} are {wRec} and {L} are {lRec} 😭', '{W} just cooked {L} {ws}-{ls} at {stad} 💀 clip it, post it, save it', 'the way {W} ran {L} out of {stad}?? {ws}-{ls}. unreal.'],
+      close: ['{W} {ws}, {L} {ls}. ONE RUN. i can’t breathe 😭 {W} are {wRec}.', 'this game at {stad} was SO tight 💀 {W} edged {L}, {ws}-{ls}. watch the replay.', '{W} survived {L} by a run and my heart is still racing. {wRec} vs {lRec}.'],
+      norm: ['{W} beat {L} {ws}-{ls} at {stad}. {W} are {wRec}. clean game, good clips 🔥', '{W} {ws}, {L} {ls}. solid W. watch the highlights, not the box score.', 'week {wk}: {W} over {L}, {ws}-{ls}. {wRec} / {lRec}. we move.'],
+      mv: ['clip of the night:', 'main character:'], hr: ['homers:', 'the dingers:']
+    },
+    grade: ['{T} draft grade: {g} 🔥 {best} are the class. {sc} runs per game, {ch} chemistry, #{rk} of 10. clip it.', '{g} for {T}!! {best}, {sc} runs/game, {ch} chem, ranked #{rk}. we ride.']
+  },
+  otr: {
+    pick: {
+      steal: ['BREAKING (kind of): {nm} fell to #{num}, {sp} spots past {his} usual {adp}, and {T} caught {him} like a falling star. Witnesses say a Cheep Cheep was involved.', 'Nobody knows how this happened but {nm} is on {T} at {lab}, {sp} picks later than expected. The pipe did it. The pipe knows.', '{T} got {nm} at #{num}. {His} usual spot is {adp}. That’s {sp} picks of pure nonsense in {T}’s favor and we have no further information.'],
+      reach: ['{T} drafted {nm} at #{num}, {sp} picks ahead of {his} usual {adp}, and honestly? Chaos is a ladder. We respect it.', 'Experts say {nm} should have gone around {adp}. {T} said “no” and took {him} {sp} spots early. We’re told a Goomba laughed.', '{T} reaches {sp} spots for {nm} at {lab}. Is it a mistake? Is it a plan? Is there a difference? Off the Rails is investigating nothing.'],
+      other: ['{T} takes {nm}{ext} at {lab}. {hist}. A very normal event, which makes us nervous.', 'Pick #{num}: {nm}{ext}, {T}. Nothing weird happened, which is the weirdest part.', '{nm}{ext} goes to {T} at {lab}. We have been told to say it was fine. It was fine. (Was it?)']
+    },
+    trade: {
+      lede: ['WE HAVE A TRADE. {A} got {aGets}. {B} got {bGets}. This happened {when}. The pipes were notified.', 'BREAKING: {aGets} is now a {A} thing and {bGets} is now a {B} thing, {when}. {star} is reportedly “thrilled” or “asleep.”', '{A} and {B} traded and nobody can explain it. {A} receive {aGets}; {B} receive {bGets}. Anyway.'],
+      big: ['The grade card says {win} won ({aG} vs {bG}). {lose} says the card is wrong. The card is a moon.', '{A} {aG}, {B} {bG}. {win} cooked. {lose} is, reportedly, “fine.”'],
+      even: ['{A} {aG}, {B} {bG}. Pretty even. Boring? Maybe. Suspicious? Absolutely.', 'Grades are close ({aG} and {bG}). Off the Rails does not trust close grades.'],
+      multi: '{all} traded at once {when}. {getsAll}. Grades: {gradeline}. We tried to diagram it. The diagram ate the whiteboard.'
+    },
+    game: {
+      blow: ['{W} {ws}, {L} {ls}. This happened at {stad}. A Thwomp was reportedly involved. {W} are {wRec}; {L} {lRec} and, allegedly, “fine.”', '{W} just obliterated {L}, {ws}-{ls}, and nobody knows how. Witnesses blame the pipe. Records: {wRec} and {lRec}.', 'At {stad}, {W} ate {L} alive, {ws}-{ls}. Off the Rails has questions. The answers are in a moon.'],
+      close: ['{W} {ws}, {L} {ls}. ONE RUN. We have no idea what happened. Neither do the players. {W} {wRec}.', 'A one-run game at {stad} and the whole thing felt like a fever dream: {W} edged {L}, {ws}-{ls}.', '{W} beat {L} by one. The ball was allegedly hit. The sun was allegedly out. {wRec} / {lRec}.'],
+      norm: ['{W} beat {L}, {ws}-{ls}, at {stad}. Nothing weird happened, and we are suspicious. {W} {wRec}, {L} {lRec}.', '{W} {ws}, {L} {ls}. A regular result, which is suspicious on its own.', 'Week {wk}: {W} over {L}, {ws}-{ls}. Records now {wRec} and {lRec}. The pipe was unavailable for comment.'],
+      mv: ['Chaos MVP:', 'The one who did it:'], hr: ['Home runs (allegedly):', 'Baseballs that left:']
+    },
+    grade: ['We graded {T} and it came out as {g}. {best} are the class, which projects to {sc} runs per game and {ch} chemistry, #{rk} of 10. A Wiggler may have helped.', '{T}: {g}. {best} did the thing. {sc} runs per game, {ch} chemistry, #{rk}. The grade was handed down by a moon.']
+  }
+};
+function nwGradePara(o, t, row, g, best, r) {
+  return nwFill(nwPick(r, NWB[o].grade), { T: nwFull(t), g, best: nwList(best), sc: row.sc.toFixed(2), ch: (row.ch >= 0 ? '+' : '') + row.ch, rk: row.rk });
+}
+// builds the body of a story in the outlet's own voice; returns null when this outlet has nothing special to say
+function nwBody(o, f, r) {
+  const B = NWB[o], c = f.c; if (!B || !c) return null;
+  if (f.kind === 'pick' && B.pick) {
+    const e = c.ev, sit = c.steal ? 'steal' : c.reach ? 'reach' : 'other', adp = c.adp == null ? null : Math.round(c.adp);
+    const pr = nwPro(e.pid), v = { him: pr.him, his: pr.his, His: pr.His, T: nwFull(e.team), nm: nwSn(e.pid), lab: `${nwRound(e.n)}.${e.n % 10 + 1}`, num: c.num, adp, sp: adp == null ? 0 : Math.abs(Math.round(c.diff)), ext: c.cap ? ', a captain' : c.mii ? ', a Mii' : '', hist: adp == null ? 'a player with no draft history' : `historically a pick-${adp} type` };
+    return [nwFill(nwPick(r, B.pick[sit]), v)];
+  }
+  if (f.kind === 'trade' && B.trade) {
+    const e = c.ev, P0 = c.per, T = B.trade;
+    const gradeline = e.teams.map(t => `${nwN(t)} ${P0[t].g}`).join(', ');
+    if (c.multi) return [nwFill(T.multi, { all: nwList(e.teams.map(nwN)), when: c.when, gradeline, getsAll: e.teams.map(t => `${nwN(t)} get ${P0[t].getsTxt}`).join('; ') })];
+    const v = { A: nwN(c.A), B: nwN(c.B), aGets: P0[c.A].getsTxt, bGets: P0[c.B].getsTxt, aG: P0[c.A].g, bG: P0[c.B].g, win: nwN(c.win), lose: nwN(c.lose), when: c.when, star: c.star ? c.star.txt : 'the haul' };
+    return [nwFill(nwPick(r, T.lede), v), nwFill(nwPick(r, c.big ? T.big : T.even), v)];
+  }
+  if (f.kind === 'game' && B.game) {
+    const G = B.game, sit = c.blow ? 'blow' : c.close ? 'close' : 'norm';
+    const v = { W: nwN(c.W), L: nwN(c.L), ws: c.ws, ls: c.ls, m: c.m, tot: c.ws + c.ls, stad: c.stad, wk: c.ev.wk, wRec: `${c.rW.w}-${c.rW.l}`, lRec: `${c.rL.w}-${c.rL.l}` };
+    const out = [nwFill(nwPick(r, G[sit]), v)];
+    if (c.mv) out.push(`${nwPick(r, G.mv)} ${nwLine(c.mv)} for ${nwFull(c.mv.team)}.`);
+    if (o !== 'mmm' && c.homers.length) out.push(`${nwPick(r, G.hr)} ${c.homers.slice(0, 4).map(q => `${nwQn(q)} (${nwN(q.team)})${q.hr > 1 ? ' ×' + q.hr : ''}`).join(', ')}.`);
+    return out;
+  }
+  if (f.kind === 'draft' && B.draft) {
+    const rows = c.rows, top = rows[0], bot = rows[rows.length - 1];
+    const v = { rowsLine: rows.map(x => `${nwN(x.t)} ${x.g}`).join(' · '), top: nwN(top.t), topSc: top.sc.toFixed(2), topG: top.g, bot: nwN(bot.t), botSc: bot.sc.toFixed(2), botG: bot.g, spread: (top.sc - bot.sc).toFixed(2) };
+    return B.draft.map(t => nwFill(t, v));
+  }
+  return null;
+}
 
 start(); liveBoot();
 
