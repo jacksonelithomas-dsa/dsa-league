@@ -6782,6 +6782,7 @@ function rbApply() {
   RB.full = {}; RB.nick = {}; RB.names = {};
   for (const e of RB.list) { RB.full[e.key] = e.newFull; RB.nick[e.key] = e.newNick; const a = RB.names[e.key] = RB.names[e.key] || [e.key, NW_NICK[e.key]]; a.push(e.oldFull, e.oldNick, e.newFull, e.newNick); }
   rbCompile();
+  const hist = document.getElementById('tab-history'); if (hist) hist.setAttribute('data-rbskip', '1'); // the History tab keeps every name exactly as it was
   // colors and logos follow the franchise key
   for (const e of RB.list) {
     TEAMC[e.key] = { p: e.p, s: e.s };
