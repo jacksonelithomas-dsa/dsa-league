@@ -5542,6 +5542,7 @@ function hubStart() {
   on('sscores', s => { HB.scores = {}; s.docs.forEach(d => { const x = d.data(); if (x && x.gid) HB.scores[x.gid] = x; }); }, 1);
   on('ssnap', s => { HB.snaps = {}; s.docs.forEach(d => HB.snaps[d.id] = d.data()); }, 1);
   if (typeof rbOnSnap === 'function') on('league/rebrands', rbOnSnap);
+  if (typeof lgOnSnap === 'function') TEAMS.forEach((t, i) => on('league/logos_' + i, s => lgOnSnap(t, s)));
 }
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-hbsub],[data-hbweek],[data-hb],[data-hbo],[data-hbstar],[data-hbpid],[data-hbdrop]'); if (!t) return;
@@ -6759,15 +6760,15 @@ function rbCompile() {
 const rbSub = s => { let v = s; for (const [rx, to] of RB.rules) v = v.replace(rx, to); return v; };
 const RB_ATTR = ['title', 'alt', 'aria-label', 'placeholder'], RB_SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, NOSCRIPT: 1 };
 function rbNode(n) {
-  if (!RB.test) return;
+  if (!RB.test && !LG.rx) return;
   if (n.nodeType === 3) {
-    const v = n.nodeValue; if (!v || !RB.test.test(v)) return; const p = n.parentElement; if (!p || RB_SKIP[p.tagName] || p.closest('[data-rbskip]')) return;
-    if (p.tagName === 'OPTION' && !p.hasAttribute('value')) p.setAttribute('value', v); // keep the option's value as the team key
-    const nv = rbSub(v); if (nv !== v) n.nodeValue = nv; return;
+    const v = n.nodeValue; if (!v) return; const p = n.parentElement; if (!p || RB_SKIP[p.tagName] || p.closest('[data-rbskip]')) return;
+    if (RB.test && RB.test.test(v)) { if (p.tagName === 'OPTION' && !p.hasAttribute('value')) p.setAttribute('value', v); /* keep the option's value as the team key */ const nv = rbSub(v); if (nv !== v) n.nodeValue = nv; }
+    lgName(n); return;
   }
   if (n.nodeType !== 1 || RB_SKIP[n.tagName] || (n.closest && n.closest('[data-rbskip]'))) return;
-  for (const a of RB_ATTR) { const v = n.getAttribute && n.getAttribute(a); if (v && RB.test.test(v)) { const nv = rbSub(v); if (nv !== v) n.setAttribute(a, nv); } }
-  if (n.tagName === 'OPTION' && !n.hasAttribute('value') && RB.test.test(n.textContent)) n.setAttribute('value', n.textContent);
+  if (RB.test) { for (const a of RB_ATTR) { const v = n.getAttribute && n.getAttribute(a); if (v && RB.test.test(v)) { const nv = rbSub(v); if (nv !== v) n.setAttribute(a, nv); } }
+    if (n.tagName === 'OPTION' && !n.hasAttribute('value') && RB.test.test(n.textContent)) n.setAttribute('value', n.textContent); }
   for (let c = n.firstChild; c; c = c.nextSibling) rbNode(c);
 }
 let rbQ = new Set(), rbRaf = 0;
@@ -6788,6 +6789,7 @@ function rbApply() {
   }
   try { logoFor = null; setTeamLogo(); } catch (x) {} try { applyTeamTheme(); } catch (x) {}
   if (RB.test && document.body) { rbWatch(); rbNode(document.body); }
+  try { lgApply(); } catch (x) {}
   try { if (typeof S !== 'undefined' && S.myTeam && $('#myTeam')) { /* the team picker keeps its values; only labels change */ } } catch (x) {}
 }
 function rbOnSnap(s) {
@@ -6852,6 +6854,66 @@ async function rbUndo() {
   const ok = await hbPut('league/rebrands', { list: RB.list.slice(0, -1) }); if (ok) setTimeout(() => location.reload(), 500);
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-rb]'); if (!b) return; if (b.dataset.rb === 'go') rbGo(); else if (b.dataset.rb === 'undo') rbUndo(); });
+
+/* ============ SECONDARY LOGOS: every team (and the commissioner for any team) can add logos and choose where each one shows ============ */
+const LG = { docs: {}, col: {}, base: JSON.parse(JSON.stringify(TEAMC)), ui: { team: '', busy: false }, map: null, rx: null };
+const LG_SPOTS = [['name', 'Beside the team name'], ['banner', 'Header banner'], ['dots', 'Dots and news avatars']];
+const lgList = k => (LG.docs[k] || []);
+const lgWith = (k, spot) => lgList(k).find(l => l.spots && l.spots[spot]) || null;
+function lgOnSnap(k, s) { const d = s && s.exists ? s.data() : null; LG.docs[k] = d && Array.isArray(d.list) ? d.list.filter(l => l && l.img && l.id) : []; LG.col[k] = d && d.colors && d.colors.p && d.colors.s ? d.colors : null; lgApply(); }
+const lgColors = k => { const c = LG.col[k], rb = RB.list.filter(e => e.key === k).pop(); const base = rb ? { p: rb.p, s: rb.s } : LG.base[k]; return c && (!rb || c.t > rb.ts) ? { p: c.p, s: c.s } : base; };
+function lgApply() {
+  TEAMS.forEach(t => { const c = lgColors(t); if (c) TEAMC[t] = { p: c.p, s: c.s }; }); try { applyTeamTheme(); } catch (e) {}
+  TEAMS.forEach((t, i) => { const d = lgWith(t, 'dots'); TCOL[t] = d ? `url(${d.img}) center/contain no-repeat` : `var(--lg${i}) center/contain no-repeat`; });
+  const names = {}; TEAMS.forEach(t => { const l = lgWith(t, 'name'); if (l) [nwFull(t), t].forEach(n => { names[n] = l.img; }); });
+  LG.map = Object.keys(names).length ? names : null; LG.rx = LG.map ? Object.keys(LG.map).sort((a, b) => b.length - a.length) : null;
+  document.querySelectorAll('img.lg-nm').forEach(x => x.remove());
+  try { rbWatch(); if (document.body) rbNode(document.body); } catch (e) {}
+  try { setTeamLogo(); } catch (e) {} try { if (typeof hbSched === 'function') hbSched(); } catch (e) {}
+}
+function lgName(n) { // put a small logo before a short text that is just a team name
+  if (!LG.rx || n.nodeType !== 3) return; const v = n.nodeValue, tv = v.trim(); if (!tv || tv.length > 44) return; const p = n.parentElement; if (!p) return;
+  if (/^(OPTION|SELECT|TEXTAREA|SCRIPT|STYLE|TITLE)$/.test(p.tagName) || p.closest('[data-rbskip]') || (n.previousSibling && n.previousSibling.className === 'lg-nm')) return;
+  for (const nm of LG.rx) { if (tv.indexOf(nm) >= 0 && nm.length >= tv.length * 0.55) { const im = document.createElement('img'); im.className = 'lg-nm'; im.src = LG.map[nm]; im.alt = ''; im.style.cssText = 'height:1.2em;width:auto;max-width:2.2em;vertical-align:-.25em;margin-right:.3em;object-fit:contain'; p.insertBefore(im, n); return; } }
+}
+{ const _mo = rbWatch; rbWatch = function () { if (RB.mo || !window.MutationObserver) return; RB.mo = new MutationObserver(ms => { for (const m of ms) { if (m.type === 'childList') m.addedNodes.forEach(n => { if (!(n.nodeType === 1 && n.className === 'lg-nm')) rbQ.add(n); }); else if (m.type === 'characterData') rbQ.add(m.target); else if (m.type === 'attributes') rbQ.add(m.target); } if (!rbQ.size) return; if (!rbRaf) rbRaf = requestAnimationFrame(rbFlush); }); RB.mo.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: RB_ATTR }); }; }
+{ const _stl = setTeamLogo;
+  setTeamLogo = function () { _stl(); try { lgBanner(_stl); } catch (e) {} };
+  function lgBanner(orig) {
+    const spec = typeof isSpec === 'function' && isSpec(), t = LV.team || (LV.owner ? S.myTeam : null), ii = document.getElementById('tlimg'); if (spec || !t || !ii) return;
+    const l = lgWith(t, 'banner');
+    if (!l) { if (ii.dataset.lgb) { delete ii.dataset.lgb; logoFor = null; orig(); } return; }
+    ii.style.background = `url(${l.img}) center/contain no-repeat`; ii.dataset.lgb = '1'; const w0 = l.w || 100, h0 = l.h || 100, root = document.documentElement.style;
+    const upd = () => { const bi = document.querySelector('.board-in'), bh = bi ? bi.offsetHeight : 90, mobile = innerWidth < 700, hmax = mobile ? 56 : Math.max(48, Math.min(170, bh)), k = Math.min(hmax / h0, (mobile ? 90 : 300) / w0), w = Math.round(w0 * k), h = Math.round(h0 * k); ii.style.width = w + 'px'; ii.style.height = h + 'px'; root.setProperty('--lgw', w + 'px'); };
+    upd(); setTimeout(upd, 300); setTeamLogo.upd = upd; } }
+const lgTeam = () => { const own = hbMe(); if (hbAdmin()) { if (!LG.ui.team || !TEAMS.includes(LG.ui.team)) LG.ui.team = own || TEAMS[0]; return LG.ui.team; } return own && TEAMS.includes(own) ? own : null; };
+function lgPanelHtml() {
+  if (typeof isSpec === 'function' && isSpec()) return ''; const k = lgTeam(); if (!k) return ''; const L = lgList(k), cc = lgColors(k) || { p: '#336699', s: '#ffd23f' };
+  const sel = hbAdmin() ? `<label class="hb-f">Team<select data-lgf="team">${TEAMS.map(t => `<option value="${esc(t)}" ${t === k ? 'selected' : ''}>${esc(nwFull(t))}</option>`).join('')}</select></label>` : '';
+  const rows = L.map(l => `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:8px"><img src="${l.img}" alt="Logo" style="height:56px;max-width:120px;object-fit:contain"><div style="display:flex;gap:14px;flex-wrap:wrap;flex:1">${LG_SPOTS.map(([s, n]) => `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-lgs="${esc(l.id)}|${s}" ${l.spots && l.spots[s] ? 'checked' : ''}> ${n}</label>`).join('')}</div><button data-lg="del" data-id="${esc(l.id)}">Remove</button></div>`).join('');
+  return `<div class="panel rbp" data-su="keep" style="margin-bottom:14px"><h2>Team logos <span>${esc(nwFull(k))}</span></h2><div class="pad" style="display:grid;gap:10px">
+   <div class="note">Change your team's UI colors, and add extra logos and tick where each one shows: beside your team name, as the header banner on your screen, or as the team dot and news avatar. Everyone in the league sees the name and dot logos. Up to 4 logos. Only one logo can be the banner.</div>${sel}
+   <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><b>UI colors</b><label style="display:flex;gap:6px;align-items:center">Main <input type="color" data-lgf="p" value="${esc(cc.p)}" style="width:64px;height:34px;padding:2px"></label><label style="display:flex;gap:6px;align-items:center">Second <input type="color" data-lgf="s" value="${esc(cc.s)}" style="width:64px;height:34px;padding:2px"></label><button data-lg="reset">Reset colors</button></div>
+   <div class="note">Colors drive the site theme for ${esc(nwFull(k))} fans and the team's color marks everywhere. Everyone sees them.</div>
+   ${rows || '<div class="note">No extra logos yet.</div>'}
+   <label class="hb-f">${L.length >= 4 ? 'The 4-logo limit is reached' : 'Add a logo (PNG with a clear background works best)'}<input type="file" accept="image/*" data-lgf="file" ${L.length >= 4 || LG.ui.busy ? 'disabled' : ''}></label></div></div>`;
+}
+{ const o = hbAdminHtml; hbAdminHtml = function () { return o() + lgPanelHtml(); }; }
+async function lgSave(k, list, colors) { LG.ui.busy = true; const i = TEAMS.indexOf(k); const c = colors === undefined ? LG.col[k] : colors; const doc = { list, team: k }; if (c) doc.colors = c; const ok = await hbPut('league/logos_' + i, doc); LG.ui.busy = false; rbRender(); return ok; }
+function lgPrep(file, cb) {
+  if (!file || !/^image\//.test(file.type)) { toast('That file is not an image.', 'bad'); return; } const fr = new FileReader();
+  fr.onload = () => { const im = new Image(); im.onload = () => { const k = Math.min(1, 240 / im.naturalHeight, 360 / im.naturalWidth), w = Math.max(1, Math.round(im.naturalWidth * k)), h = Math.max(1, Math.round(im.naturalHeight * k)), cv = document.createElement('canvas'); cv.width = w; cv.height = h; cv.getContext('2d').drawImage(im, 0, 0, w, h);
+    let d = cv.toDataURL('image/webp', 0.88); if (!/^data:image\/webp/.test(d)) d = cv.toDataURL('image/png'); if (d.length > 250000) { toast('That logo is too large. Try a smaller image.', 'bad'); return; } cb(d, w, h); };
+    im.onerror = () => toast('Could not read that image.', 'bad'); im.src = fr.result; }; fr.readAsDataURL(file);
+}
+document.addEventListener('change', e => {
+  const t = e.target, d = t.dataset; if (!d) return;
+  if (d.lgf === 'team') { LG.ui.team = t.value; rbRender(); }
+  else if (d.lgf === 'file') { const k = lgTeam(); if (!k) return; const f = t.files && t.files[0]; t.value = ''; lgPrep(f, (img, w, h) => { const L = lgList(k).slice(); if (L.length >= 4) return; const first = !L.length; L.push({ id: Date.now().toString(36), img, w, h, spots: first ? { name: true } : {} }); lgSave(k, L); }); }
+  else if (d.lgf === 'p' || d.lgf === 's') { const k = lgTeam(); if (!k) return; const cur = lgColors(k) || { p: '#336699', s: '#ffd23f' }; const c = { p: cur.p, s: cur.s, t: Date.now() }; c[d.lgf] = t.value; lgSave(k, lgList(k), c); }
+  else if (d.lgs) { const k = lgTeam(), [id, s] = d.lgs.split('|'); if (!k) return; const L = lgList(k).map(l => Object.assign({}, l, { spots: Object.assign({}, l.spots) })); L.forEach(l => { if (l.id === id) l.spots[s] = t.checked; else if (s === 'banner' && t.checked) l.spots.banner = false; }); lgSave(k, L); }
+});
+document.addEventListener('click', e => { const r = e.target.closest('[data-lg="reset"]'); if (r) { const k = lgTeam(); if (k) lgSave(k, lgList(k), null); return; } const b = e.target.closest('[data-lg="del"]'); if (!b) return; const k = lgTeam(); if (!k || !confirm('Remove this logo?')) return; lgSave(k, lgList(k).filter(l => l.id !== b.dataset.id)); });
 
 start(); liveBoot();
 
