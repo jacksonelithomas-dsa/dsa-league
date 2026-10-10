@@ -6739,7 +6739,7 @@ function rbBanner() {
 /* ============ REBRANDS: the commissioner changes a team's name, logo and colors; the whole site follows, history stays put ============ */
 const RB_NICK0 = { 'Toadstool Titans': 'Titans', 'Sluggin Heat': 'Heat' };
 RB.ui = { team: '', name: '', nick: '', p: '#336699', s: '#ffd23f', logo: '', lw: 0, lh: 0, busy: false, file: '' };
-RB.rules = null; RB.test = null; RB.applied = 0; RB.n0 = null;
+RB.cur = 6; RB.rules = null; RB.test = null; RB.applied = 0; RB.n0 = null;
 const rbNorm = s => String(s || '').toLowerCase().replace(/^the /, '').replace(/[^a-z0-9]/g, '');
 function rbKeyOf(x) { const n = rbNorm(x); if (!n) return null; for (const k in RB.names) if (RB.names[k].some(v => rbNorm(v) === n)) return k; return null; }
 const rbEsc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -6757,17 +6757,19 @@ function rbCompile() {
   }
   rules.sort((a, b) => b[0] - a[0]); RB.rules = rules.map(x => [x[1], x[2]]); RB.test = rules.length ? new RegExp(rules.map(x => x[1].source).join('|')) : null;
 }
+/* past seasons in the History tab keep the team names they had then; the current season and every other tab use the new name */
+const rbNoRename = el => !!(el && el.closest && (el.closest('[data-rbskip]') || (el.closest('#tab-history') && typeof HS !== 'undefined' && HS.s !== RB.cur && HS.s !== 'h2h')));
 const rbSub = s => { let v = s; for (const [rx, to] of RB.rules) v = v.replace(rx, to); return v; };
 const RB_ATTR = ['title', 'alt', 'aria-label', 'placeholder'], RB_SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, NOSCRIPT: 1 };
 function rbNode(n) {
   if (!RB.test && !LG.rx) return;
   if (n.nodeType === 3) {
     const v = n.nodeValue; if (!v) return; const p = n.parentElement; if (!p || RB_SKIP[p.tagName] || p.closest('[data-rbskip]')) return;
-    if (RB.test && RB.test.test(v)) { if (p.tagName === 'OPTION' && !p.hasAttribute('value')) p.setAttribute('value', v); /* keep the option's value as the team key */ const nv = rbSub(v); if (nv !== v) n.nodeValue = nv; }
+    if (RB.test && RB.test.test(v) && !rbNoRename(p)) { if (p.tagName === 'OPTION' && !p.hasAttribute('value')) p.setAttribute('value', v); /* keep the option's value as the team key */ const nv = rbSub(v); if (nv !== v) n.nodeValue = nv; }
     lgName(n); return;
   }
   if (n.nodeType !== 1 || RB_SKIP[n.tagName] || (n.closest && n.closest('[data-rbskip]'))) return;
-  if (RB.test) { for (const a of RB_ATTR) { const v = n.getAttribute && n.getAttribute(a); if (v && RB.test.test(v)) { const nv = rbSub(v); if (nv !== v) n.setAttribute(a, nv); } }
+  if (RB.test && !rbNoRename(n)) { for (const a of RB_ATTR) { const v = n.getAttribute && n.getAttribute(a); if (v && RB.test.test(v)) { const nv = rbSub(v); if (nv !== v) n.setAttribute(a, nv); } }
     if (n.tagName === 'OPTION' && !n.hasAttribute('value') && RB.test.test(n.textContent)) n.setAttribute('value', n.textContent); }
   for (let c = n.firstChild; c; c = c.nextSibling) rbNode(c);
 }
@@ -6782,7 +6784,6 @@ function rbApply() {
   RB.full = {}; RB.nick = {}; RB.names = {};
   for (const e of RB.list) { RB.full[e.key] = e.newFull; RB.nick[e.key] = e.newNick; const a = RB.names[e.key] = RB.names[e.key] || [e.key, NW_NICK[e.key]]; a.push(e.oldFull, e.oldNick, e.newFull, e.newNick); }
   rbCompile();
-  const hist = document.getElementById('tab-history'); if (hist) hist.setAttribute('data-rbskip', '1'); // the History tab keeps every name exactly as it was
   // colors and logos follow the franchise key
   for (const e of RB.list) {
     TEAMC[e.key] = { p: e.p, s: e.s };
