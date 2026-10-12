@@ -412,6 +412,11 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
 .st-tbl td:nth-child(2),.st-tbl th:nth-child(2){position:sticky;left:0;background:var(--surface,#fff);z-index:1}
 .st-add{border:1px solid var(--line,#ccd);border-radius:8px;padding:2px 8px;font-size:12px}
 .st-add.on{background:var(--accent,#336);color:var(--accent-ink,#fff)}
+.fa-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.fa-row label{display:grid;gap:3px;font-size:12px;color:var(--muted,#667)}
+.fa-claims{display:flex;gap:4px;flex-wrap:wrap}
+.fa-act{display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.fa-act select{max-width:150px}
 </style>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -449,6 +454,7 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
     <button class="tab" role="tab" data-tab="hr" aria-selected="false" hidden>Rosters</button>
     <button class="tab" role="tab" data-tab="hs" aria-selected="false" hidden>Standings</button>
     <button class="tab" role="tab" data-tab="ht" aria-selected="false" hidden>Trades</button>
+    <button class="tab" role="tab" data-tab="fa" aria-selected="false" hidden>Free Agents</button>
     <button class="tab" role="tab" data-tab="news" aria-selected="false" hidden>News</button>
     <button class="tab" role="tab" data-tab="stats" aria-selected="false" hidden>Stats</button>
     <button class="tab" role="tab" data-tab="hsim" aria-selected="false" hidden>Season Sim</button>
@@ -542,6 +548,7 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
   <section id="tab-hr" hidden><div id="hv_hr"></div></section>
   <section id="tab-hs" hidden><div id="hv_hs"></div></section>
   <section id="tab-ht" hidden><div id="hv_ht"></div></section>
+  <section id="tab-fa" hidden><div id="hv_fa"></div></section>
   <section id="tab-news" hidden><div id="hv_news"></div></section>
   <section id="tab-stats" hidden><div id="hv_stats"></div></section>
   <section id="tab-hsim" hidden><div id="hv_hsim"></div></section>
@@ -1827,8 +1834,8 @@ document.addEventListener('click', e => {
 });
 function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.tab === name));
-  ['draft', 'board', 'rosters', 'trades', 'watch', 'season', 'hub', 'hl', 'hm', 'hr', 'hs', 'ht', 'news', 'stats', 'hsim', 'bx', 'cm', 'history', 'setup'].forEach(n => $('#tab-' + n).hidden = n !== name);
-  if (['hub', 'hl', 'hm', 'hr', 'hs', 'ht', 'news', 'stats', 'hsim', 'bx', 'cm', 'setup'].includes(name) && typeof renderHub === 'function') { hubStart(); renderHub(); }
+  ['draft', 'board', 'rosters', 'trades', 'watch', 'season', 'hub', 'hl', 'hm', 'hr', 'hs', 'ht', 'fa', 'news', 'stats', 'hsim', 'bx', 'cm', 'history', 'setup'].forEach(n => $('#tab-' + n).hidden = n !== name);
+  if (['hub', 'hl', 'hm', 'hr', 'hs', 'ht', 'fa', 'news', 'stats', 'hsim', 'bx', 'cm', 'setup'].includes(name) && typeof renderHub === 'function') { hubStart(); renderHub(); }
   if (name === 'history' && typeof renderHistory === 'function') renderHistory();
   if (name === 'rosters') renderRostersTab();
   if (name === 'trades') { renderTrades(true); if (typeof renderFinder === 'function') renderFinder(); }
@@ -4668,8 +4675,10 @@ function liveCounter(id) {
 }
 function renderOffers() {
   const el = $('#trOffers'); if (!el) return;
-  const rel = LV.offers.filter(o => LV.owner || (LV.team && o.teams.includes(LV.team))).sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || b.t - a.t).slice(0, 25);
-  if (!rel.length) { el.innerHTML = '<p class="pad" style="color:var(--muted)">No offers yet. Build one above and send it.</p>'; return; }
+  const mineAll = LV.offers.filter(o => LV.owner || (LV.team && o.teams.includes(LV.team))), nDone = mineAll.filter(o => o.status !== 'pending').length;
+  const rel = mineAll.filter(o => o.status === 'pending' || window.__trShowDone).sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || b.t - a.t).slice(0, 25);
+  const doneBtn = nDone ? `<div class="pad"><button id="trShowDone">${window.__trShowDone ? 'Hide' : 'Show'} ${nDone} finished offer${nDone === 1 ? '' : 's'}</button></div>` : '';
+  if (!rel.length) { el.innerHTML = '<p class="pad" style="color:var(--muted)">' + (nDone ? 'No open offers.' : 'No offers yet. Build one above and send it.') + '</p>' + doneBtn; return; }
   el.innerHTML = rel.map(o => {
     const valid = o.legs.every(l => ownerOfAsset(l.a) === l.from), pend = o.status === 'pending' && valid;
     const chips = o.teams.map(t => { const r = o.resp && o.resp[TKEY(t)]; return `<span class="chip ${r === 'yes' ? 'g' : r === 'no' ? 'b' : 'w'}">${esc(t)}: ${r === 'yes' ? 'in' : r === 'no' ? 'declined' : 'waiting'}</span>`; }).join(' ');
@@ -4682,8 +4691,9 @@ function renderOffers() {
     else if (pend && LV.owner) btns = `<button data-cxl="${o.id}">Cancel offer</button>`;
     const stTxt = o.status === 'pending' ? (valid ? 'Waiting on responses' : 'No longer valid') : o.status === 'done' ? 'Completed' : o.status === 'declined' ? 'Declined' : o.status === 'cancelled' ? 'Withdrawn' : o.status === 'countered' ? 'Countered' : 'Could not be completed' + (o.note ? ': ' + o.note : '');
     return `<div class="vcard" style="margin:0 14px 10px"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>${esc(o.from)}'s offer</b><span style="font-size:12px;color:var(--muted)">${esc(stTxt)}</span></div><div style="margin:6px 0;font-size:13px">${o.teams.map(t => legSummary(t, o.legs)).join('')}</div>${rsn}<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${chips}<span style="margin-left:auto;display:flex;gap:6px;align-items:center;font-size:11px;color:var(--muted)">Model: ${gr}</span></div>${btns ? `<div style="display:flex;gap:8px;margin-top:8px">${btns}</div>` : ''}</div>`;
-  }).join('');
+  }).join('') + doneBtn;
 }
+document.addEventListener('click', e => { if (e.target.id === 'trShowDone') { window.__trShowDone = !window.__trShowDone; renderOffers(); } });
 const _renderTrades = renderTrades;
 renderTrades = function (full = true) { _renderTrades(full); renderOffers(); };
 renderTradeLog = function () {
@@ -4942,8 +4952,9 @@ function hbBase() {
 }
 function hbReplay() {
   const r = hbBase(), s7 = Object.assign({}, HB_S7_PRESET, (typeof S !== 'undefined' && S.s7) || {});
-  const log = HB.tlog.filter(l => !vetoed(l.id)).sort((a, b) => (a.t || 0) - (b.t || 0));
+  const log = HB.tlog.filter(l => !vetoed(l.id)).concat(((HB.fa && HB.fa.moves) || []).map(m => ({ t: m.t, legs: [{ pid: m.pid, from: m.from || 'FA', to: m.to || 'FA' }] }))).sort((a, b) => (a.t || 0) - (b.t || 0));
   for (const l of log) for (const g of l.legs || []) {
+    if (g.from === 'FA' || g.to === 'FA') { if (g.from === 'FA') { const t = r[g.to]; if (t && !TEAMS.some(x => r[x].includes(g.pid))) t.push(g.pid); } else { const f = r[g.from]; if (f) { const i = f.indexOf(g.pid); if (i >= 0) f.splice(i, 1); } } continue; }
     if (g.s7) { const k = g.s7.r + '|' + g.s7.o; if ((s7[k] || g.s7.o) === g.from) s7[k] = g.to; continue; }
     const f = r[g.from], t = r[g.to]; if (!f || !t) continue; const i = f.indexOf(g.pid); if (i >= 0) { f.splice(i, 1); t.push(g.pid); } }
   return { r, s7 };
@@ -5040,6 +5051,42 @@ function hbProj(g) {
   for (let i = 0; i < N; i++) { const [x, y] = Core.game(h, a, rng, null); hr += x; ar += y; if (x > y) hw++; }
   return HB.proj[key] = { hw: hw / N, hr: hr / N, ar: ar / N, cha: A.chem.good - A.chem.bad, chh: H.chem.good - H.chem.bad };
 }
+
+
+/* ---- suggested stadiums: simulate this week's opponent at every stadium with the saved/edited lineups ---- */
+function hbSugData(team, wk) {
+  const g = HB_GAMES.find(x => x.wk === wk && (x.away === team || x.home === team)); if (!g || typeof parkOf !== 'function' || typeof HB_STADS === 'undefined') return null;
+  const opp = g.away === team ? g.home : g.away, home = g.home === team;
+  const me = hbBuilt(team, HE.order.length && HE.team === team && HE.wk === wk ? { slots: HE.order, pos: HE.pos } : null, wk), ot = hbBuilt(opp, null, wk); if (!me || !ot) return null;
+  const key = g.gid + '|' + JSON.stringify([me.lineup.map(p => p.id), me.staff.map(s => s.p.id), ot.lineup.map(p => p.id), ot.staff.map(s => s.p.id)]);
+  HB.sug = HB.sug || {}; if (HB.sug[key]) return Object.assign({ g, opp, home }, HB.sug[key]);
+  const a = Core.prepSide(me), b = Core.prepSide(ot), N = 250, rows = [];
+  for (const n of HB_STADS) { const pk = parkOf(n); if (!pk) continue; const rng = Core.mulberry(11 + wk * 17 + n.length); let w = 0, rf = 0, ra = 0;
+    for (let i = 0; i < N; i++) { const [x, y] = home ? Core.game(a, b, rng, null, pk) : Core.game(b, a, rng, null, pk); const mine = home ? x : y, th = home ? y : x; rf += mine; ra += th; if (mine > th) w++; }
+    rows.push({ n, w: w / N, rf: rf / N, ra: ra / N }); }
+  HB.sug[key] = { rows }; return Object.assign({ g, opp, home }, HB.sug[key]);
+}
+function hbSugHtml(team, wk) {
+  const d = hbSugData(team, wk); if (!d) return '';
+  const { g, opp, home, rows } = d, m = HB.maps[g.gid], fin = HB.scores[g.gid] && HB.scores[g.gid].status === 'final', banned = hbBanned(m);
+  const rank = rows.slice().sort((x, y) => y.w - x.w), pct = x => Math.round(x * 100) + '%';
+  let tip = '', act = '', pool = rows.filter(r => !banned.includes(r.n));
+  if (!home && !(m && m.ban)) {
+    // away: one ban. The home team then picks whatever is worst for us, so rate each ban by the worst stadium left
+    const opts = rows.map(r => { const ban = [r.n].concat(HB_LINK[r.n] ? [HB_LINK[r.n]] : []), left = rows.filter(x => !ban.includes(x.n)), worst = left.slice().sort((x, y) => x.w - y.w)[0]; return { r, worst, v: worst ? worst.w : 1 }; }).sort((x, y) => y.v - x.v);
+    const best = opts[0]; tip = `Best ban: <b>${esc(best.r.n)}</b>. ${esc(opp)} would then likely pick <b>${esc(best.worst.n)}</b>, where you still win about ${pct(best.worst.w)} of games.`;
+    if (hbCanAct(team) && !fin) act = `<button class="primary" data-hb="ban" data-g="${g.gid}" data-n="${esc(best.r.n)}">Ban ${esc(best.r.n)}</button>`;
+  } else if (home) {
+    const best = pool.slice().sort((x, y) => y.w - x.w)[0];
+    tip = m && m.ban ? `Best pick: <b>${esc(best.n)}</b> (about ${pct(best.w)} win chance). ${esc(opp)} banned ${esc(banned.join(' and '))}.` : `You pick after ${esc(opp)} bans one. Best overall: <b>${esc(rank[0].n)}</b> (about ${pct(rank[0].w)}); they will likely ban it, so ${esc(rank[1] ? rank[1].n : '')} is the backup.`;
+    if (hbCanAct(team) && m && m.ban && !fin && (!m.pick || m.pick !== best.n)) act = `<button class="primary" data-hb="pick" data-g="${g.gid}" data-n="${esc(best.n)}">Pick ${esc(best.n)}</button>`;
+  } else tip = m && m.pick ? `Playing at <b>${esc(m.pick)}</b>.` : `${esc(opp)} will pick from the rest after your ban.`;
+  const sel = HB.sugSel && rows.some(r => r.n === HB.sugSel) ? HB.sugSel : rank[0].n, cur = rows.find(r => r.n === sel);
+  return `<div class="panel" style="margin-bottom:14px"><h2>Suggested stadiums <span>Week ${wk} ${home ? 'vs' : 'at'} ${esc(opp)} · ${home ? 'home' : 'away'}</span></h2><div class="pad" style="display:grid;gap:8px">
+   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><label class="hb-f">Stadiums ranked for your roster<select id="hbSug">${rank.map((r, i) => `<option value="${esc(r.n)}" ${r.n === sel ? 'selected' : ''} ${banned.includes(r.n) ? 'disabled' : ''}>${i + 1}. ${esc(r.n)} · win ${pct(r.w)}${banned.includes(r.n) ? ' (banned)' : ''}</option>`).join('')}</select></label>${act}</div>
+   <div class="note">${tip}</div><div class="note">At ${esc(sel)}: you average <b>${cur.rf.toFixed(1)}</b> runs to ${esc(opp)}'s <b>${cur.ra.toFixed(1)}</b>. From 250 simulated games per stadium using your current lineup (including unsaved edits) and ${esc(opp)}'s lineup for the week.</div></div></div>`;
+}
+document.addEventListener('change', e => { if (e.target && e.target.id === 'hbSug') { HB.sugSel = e.target.value; renderHub(); } });
 
 /* ---- stadium ban / pick (only the away team bans; the home team picks) ---- */
 async function hbBan(g, name) {
@@ -5162,7 +5209,7 @@ function hbLineupView() {
   const prevStars = ((hbDoc(team, wk - 1) || {}).stars || []);
   const order = HE.order.map((id, i) => `<div class="hb-row"><span class="hb-n">${i + 1}</span>${ico(P[id], 22)}<span class="hb-rn">${pcl(id)} ${P[id].cap ? '<span class="chip cap">C</span>' : ''}${HE.stars.has(id) ? ' <b class="hb-s">★</b>' : ''}</span><span class="hb-pp">${esc(HE.pos[id] || '')}</span>
      <span class="hb-mv"><button data-hbo="up" data-i="${i}" aria-label="Move up" ${!ed || !i ? 'disabled' : ''}>↑</button><button data-hbo="dn" data-i="${i}" aria-label="Move down" ${!ed || i === HE.order.length - 1 ? 'disabled' : ''}>↓</button></span></div>`).join('');
-  return `<div class="panel"><h2>${hbLogo(team, true)}${esc(team)} <span>Week ${wk}${wk < hbCur() ? ' (played, view only)' : wk === hbCur() ? (HB.cfg && HB.cfg.locked ? ' (locked)' : ' (current)') : ' (upcoming)'}</span></h2>
+  return `${wk >= hbCur() ? hbSugHtml(team, wk) : ''}<div class="panel"><h2>${hbLogo(team, true)}${esc(team)} <span>Week ${wk}${wk < hbCur() ? ' (played, view only)' : wk === hbCur() ? (HB.cfg && HB.cfg.locked ? ' (locked)' : ' (current)') : ' (upcoming)'}</span></h2>
    <div class="pad" style="display:grid;gap:10px">${hbWeekBar('lweek', wk)}
    <div class="note">Drag players onto positions, or tap a player and then a position. Drag back to the dugout to bench. Star up to ${HB_MAX_STARS} players a week, a player cannot be starred two weeks in a row, and Miis cannot be starred${prevStars.length ? ` (starred last week: ${prevStars.map(hbSn).join(', ')})` : ''}. A week with no saved lineup uses your most recent one.</div></div></div>
   <div class="hb-two" style="margin-top:14px"><div class="panel"><h2>Field <span>${HE.stars.size}/${HB_MAX_STARS} stars</span></h2><div class="pad"><div class="hb-field" id="hbField"><svg viewBox="0 0 100 92" preserveAspectRatio="none" aria-hidden="true"><path d="M50 84 L95 40 A52 52 0 0 0 5 40 Z" class="hb-grass"/><path d="M50 80 L80 58 L50 36 L20 58 Z" class="hb-dirt"/><path d="M50 74 L72 58 L50 42 L28 58 Z" class="hb-inf"/></svg>${spots}</div>
@@ -5267,7 +5314,7 @@ function hbS7Panel() {
    <div class="hb-s7">${ord.r1.map((t, i) => `<div class="hb-s7c ${i < 4 ? 'lot' : ''}"><span class="num">${i + 1}</span>${hbLogo(t)}<b>${esc(t)}</b>${i < 4 && !ord.lot ? '<span class="note">lottery</span>' : ''}</div>`).join('')}</div></div></div>`;
 }
 function hbTrades() {
-  const me = hbMe(), T = HB.trade, inc = HB.offers.filter(o => o.status === 'pending' && o.to === me), out = HB.offers.filter(o => o.status === 'pending' && o.from === me), log = HB.tlog.slice().sort((a, b) => b.t - a.t);
+  const me = hbMe(), T = HB.trade, inc = HB.offers.filter(o => !o.multi && o.status === 'pending' && o.to === me), out = HB.offers.filter(o => !o.multi && o.status === 'pending' && o.from === me), log = HB.tlog.slice().sort((a, b) => b.t - a.t);
   let compose = '<div class="panel"><div class="pad note">Join a team to make offers.</div></div>';
   if (me) { if (!T.to || T.to === me) T.to = TEAMS.find(t => t !== me);
     compose = `<div class="panel"><h2>Make an offer <span>${esc(me)}</span></h2><div class="pad" style="display:grid;gap:10px">${hbTradeOpen() ? '' : `<div class="banner warn" style="margin:0">The trade deadline (10 PM before week ${HB_DEADLINE_WEEK} games) has passed.</div>`}
@@ -5276,8 +5323,8 @@ function hbTrades() {
      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="primary" data-hb="send" ${T.give.size || T.get.size || T.giveS7.size || T.getS7.size ? '' : 'disabled'}>Send offer</button><span class="note">Each team keeps at least ${HB_MIN_ROSTER} players and a captain. Season 7 picks can be traded too.</span></div></div></div>`; }
   return `${inc.length ? `<div class="panel" style="margin-bottom:14px"><h2>Offers for you</h2>${inc.map(o => hbOffer(o, 'in')).join('')}</div>` : ''}
    ${out.length ? `<div class="panel" style="margin-bottom:14px"><h2>Your open offers</h2>${out.map(o => hbOffer(o, 'out')).join('')}</div>` : ''}
-   ${compose}${tbkHtml()}${hbS7Panel()}<div class="panel" style="margin-top:14px"><h2>Completed season trades</h2>${log.length ? log.map(l => `<div class="hb-offer"><div><b>${esc((l.teams || []).join(' and '))}</b> <span class="note">week ${l.wk || '?'}</span> </div>
-    ${voteRow(l.id)}<div class="chips">${(l.legs || []).map(g => g.s7 ? `<span class="chip pk">${esc('S7 ' + g.s7.o + ' Rd ' + g.s7.r)} → ${esc(g.to)}</span>` : `<span class="chip">${ico(P[g.pid], 16)}${esc(hbSn(g.pid))} → ${esc(g.to)}</span>`).join('')}</div></div>`).join('') : '<div class="pad note">No season trades yet.</div>'}</div>`;
+   ${compose}${typeof mtHtml === 'function' ? mtHtml() : ''}${tbkHtml()}${hbS7Panel()}<details class="panel" id="hbDoneLog" ${HB.logOpen ? 'open' : ''} style="margin-top:14px"><summary style="cursor:pointer;padding:12px 14px;font-weight:700">Completed season trades (${log.length})</summary>${log.length ? log.map(l => `<div class="hb-offer"><div><b>${esc((l.teams || []).join(', '))}</b> <span class="note">week ${l.wk || '?'}</span> </div>
+    ${voteRow(l.id)}<div class="chips">${(l.legs || []).map(g => g.s7 ? `<span class="chip pk">${esc('S7 ' + g.s7.o + ' Rd ' + g.s7.r)} → ${esc(g.to)}</span>` : `<span class="chip">${ico(P[g.pid], 16)}${esc(hbSn(g.pid))} → ${esc(g.to)}</span>`).join('')}</div></div>`).join('') : '<div class="pad note">No season trades yet.</div>'}</details>`;
 }
 
 /* ---- commissioner tools (shown in Setup) ---- */
@@ -5550,12 +5597,12 @@ function renderHub() {
   }
   if (HB_VIEWS[tab]) { const el = $('#hv_' + tab); if (el) { el.innerHTML = HB_VIEWS[tab](); hbAfter(tab); } }
 }
-const hbPending = () => { const me = hbMe(); return me ? HB.offers.filter(o => o.status === 'pending' && o.to === me) : []; };
+const hbPending = () => { const me = hbMe(); return me ? HB.offers.filter(o => o.status === 'pending' && (o.multi ? (typeof mtNeedsMe === 'function' && mtNeedsMe(o, me)) : o.to === me)) : []; };
 function hbAfter(view) {
   if (view !== 'hm') return;
   clearTimeout(hbAfter.t); hbAfter.t = setTimeout(() => { const w = HB.week || hbCur(); for (const g of HB_GAMES.filter(x => x.wk === w)) { const s = HB.scores[g.gid]; if (s && s.status === 'final') continue; const k = hbProj(g), el = document.querySelector(`[data-hbproj="${g.gid}"]`); if (k && el) el.innerHTML = hbProjHtml(g, k); } }, 30);
 }
-function hbSched() { HB.rn = null; clearTimeout(hbSched.t); hbSched.t = setTimeout(() => { const tab = hbActiveTab(); if (!(HB_VIEWS[tab] || tab === 'hub' || tab === 'setup')) return; const m = $('#hbModal'); if (m && !m.hidden) return; const ae = document.activeElement; if (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName) && ae.closest('#hubView,#hbAdmin,#tab-hl,#tab-hm,#tab-hr,#tab-hs,#tab-ht,#tab-hsim,#tab-cm,#tab-bx,#tab-stats') && !ae.matches('[data-hbtr]')) return; renderHub(); }, 80); }
+function hbSched() { HB.rn = null; clearTimeout(hbSched.t); hbSched.t = setTimeout(() => { const tab = hbActiveTab(); if (!(HB_VIEWS[tab] || tab === 'hub' || tab === 'setup')) return; const m = $('#hbModal'); if (m && !m.hidden) return; const ae = document.activeElement; if (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName) && ae.closest('#hubView,#hbAdmin,#tab-hl,#tab-hm,#tab-hr,#tab-hs,#tab-ht,#tab-hsim,#tab-cm,#tab-bx,#tab-stats,#tab-fa') && !ae.matches('[data-hbtr]')) return; renderHub(); }, 80); }
 function hubStart() {
   if (HB.started || !LV.db) return; HB.started = true; const db = LV.db;
   const on = (path, f, col) => (col ? db.collection(path) : db.doc(path)).onSnapshot(s => { f(s); hbSched(); }, dbErr);
@@ -5568,6 +5615,9 @@ function hubStart() {
   on('smaps', s => { HB.maps = {}; s.docs.forEach(d => { const x = d.data(); if (x && x.gid) HB.maps[x.gid] = x; }); }, 1);
   on('sscores', s => { HB.scores = {}; s.docs.forEach(d => { const x = d.data(); if (x && x.gid) HB.scores[x.gid] = x; }); }, 1);
   on('ssnap', s => { HB.snaps = {}; s.docs.forEach(d => HB.snaps[d.id] = d.data()); }, 1);
+  on('league/past_trades', s => { PT.list = s.exists && s.data() && Array.isArray(s.data().list) ? s.data().list : []; try { if (hbActiveTab() === 'history' && typeof renderHistory === 'function') renderHistory(); } catch (e) {} });
+  on('league/fa_moves', s => { HB.fa = s.exists ? s.data() : { moves: [] }; });
+  TEAMS.forEach((t, i) => on('league/fa_claim_' + i, s => { HB.faClaims = HB.faClaims || {}; HB.faClaims[t] = s.exists && s.data() && Array.isArray(s.data().pids) ? s.data() : null; }));
   if (typeof rbOnSnap === 'function') on('league/rebrands', rbOnSnap);
   if (typeof lgOnSnap === 'function') TEAMS.forEach((t, i) => on('league/logos_' + i, s => lgOnSnap(t, s)));
 }
@@ -5624,7 +5674,7 @@ document.addEventListener('change', e => {
 });
 
 /* ---- tab layout: before the draft ends the draft tabs stay; after it the season tabs replace them ---- */
-const HB_POST = ['hl', 'hm', 'hr', 'hs', 'ht', 'news', 'stats', 'hsim', 'bx', 'history', 'board', 'cm', 'setup'], HB_PRE = ['draft', 'board', 'rosters', 'trades', 'news', 'stats', 'hub', 'history', 'setup'];
+const HB_POST = ['hl', 'hm', 'hr', 'hs', 'ht', 'fa', 'news', 'stats', 'hsim', 'bx', 'history', 'board', 'cm', 'setup'], HB_PRE = ['draft', 'board', 'rosters', 'trades', 'news', 'stats', 'hub', 'history', 'setup'];
 let hbDoneWas = null;
 function hbLayout() {
   hbSetupTag();
@@ -5689,6 +5739,8 @@ function hbResetHtml() {
    <div class="note">Restarts the draft from pick 1 and clears every mid-draft and post-draft trade, open offer and veto vote (pre-draft trades always stay), plus the season hub: rosters go back to the draft's keepers, and saved lineups, stars, lock snapshots and the Season 7 lottery are cleared. Box scores and stadium picks are kept.</div>
    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="hbRstTxt" placeholder="Type RESET to confirm" autocomplete="off" style="min-width:180px"><button data-hb="hardreset" ${HB.resetBusy ? 'disabled' : ''} style="color:#fff;background:var(--bad);border-color:var(--bad)">${HB.resetBusy ? 'Resetting…' : 'Hard reset'}</button></div></div></div>`;
 }
+
+document.addEventListener('toggle', e => { if (e.target && e.target.id === 'hbDoneLog') HB.logOpen = e.target.open; }, true);
 
 /* ============ NEWS: outlets, voices, helpers ============
    Stories are written from the league's own data every time the tab opens. The text for an event is fixed by the event
@@ -6801,7 +6853,7 @@ const ST_PRESET = {
   Essentials: ['G', 'AB', 'AVG', 'HR', 'RBI', 'OPS', 'OPp', 'SP', 'ONM'], Hitting: ST_COLS.filter(c => c[2] === 'Hitting').map(c => c[0]), Fielding: ['G'].concat(ST_COLS.filter(c => c[2] === 'Fielding').map(c => c[0])),
   Pitching: ST_COLS.filter(c => c[2] === 'Pitching').map(c => c[0]), 'Awards and ONM': ST_COLS.filter(c => c[2] === 'Awards and ONM').map(c => c[0]), Everything: ST_COLS.map(c => c[0])
 };
-const ST = { mode: 'career', season: 'all', q: '', team: '', role: 'all', cols: ST_PRESET.Essentials.slice(), filters: [], sort: { k: 'ONM', d: -1 }, shown: 60, cmp: [], cq: '', open: false };
+const ST = { mode: 'career', season: 'all', q: '', team: '', cur: '', role: 'all', cols: ST_PRESET.Essentials.slice(), filters: [], sort: { k: 'ONM', d: -1 }, shown: 60, cmp: [], cq: '', open: false };
 const stN = x => +x || 0;
 const ST_SUM = ['G', 'AB', 'b1', 'b2', 'b3', 'H', 'HR', 'RBI', 'BB', 'SO', 'SP', 'BC', 'BT', 'E', 'OUT', 'App', 'GS', 'IP', 'W', 'L', 'SV', 'BS', 'K', 'PBB', 'HA', 'ER', 'MVP', 'GSc'];
 
@@ -6863,11 +6915,17 @@ function stRows() {
   return { rows, all: sr };
 }
 function stFmt(v, f) { if (v == null || (typeof v === 'number' && isNaN(v))) return '—'; if (f === 'i') return String(Math.round(v)); if (f === '3') return v.toFixed(3).replace(/^0\./, '.').replace(/^-0\./, '-.'); if (f === '2') return v.toFixed(2); return v.toFixed(1); }
+function stCurTeamOf(pid) {
+  if (pid == null || pid < 0) return null;
+  try { if (typeof hbRoster === 'function' && typeof done === 'function' && done()) return TEAMS.find(t => hbRoster(t).includes(pid)) || null; } catch (e) {}
+  try { return TEAMS.find(t => rosterOf(t).some(p => p.id === pid)) || null; } catch (e) { return null; }
+}
 function stApply(rows) {
   const q = ST.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
   let out = rows.filter(r => {
     const nm = r.nm.toLowerCase(); if (q.some(w => nm.indexOf(w) < 0)) return false;
     if (ST.team && !(r.tcs || []).includes(ST.team)) return false;
+    if (ST.cur && stCurTeamOf(r.pid) !== (ST.cur === '_fa' ? null : ST.cur)) return false;
     if (ST.role === 'hit' && !(r.AB > 0)) return false; if (ST.role === 'pit' && !(r.IP > 0)) return false;
     for (const f of ST.filters) { if (f.v === '' || f.v == null || isNaN(+f.v)) continue; const v = r[f.k]; if (v == null) return false; if (f.op === '>=' && !(v >= +f.v)) return false; if (f.op === '<=' && !(v <= +f.v)) return false; if (f.op === '=' && Math.abs(v - +f.v) > 1e-9) return false; }
     return true;
@@ -6886,6 +6944,7 @@ function stCtlHtml() {
   return `<div class="st-row">${seg('mode', [['career', 'Career stats'], ['season', 'Season stats']])}${ST.mode === 'season' ? `<label>Season<select data-st="season">${ss}</select></label>` : ''}
    <label>Search players<input type="search" data-st="q" value="${esc(ST.q)}" placeholder="Name" style="min-width:180px"></label>
    <label>Team<select data-st="team"><option value="">All teams</option>${TEAMS.map(t => `<option value="${esc(t)}" ${ST.team === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
+   <label>Current team<select data-st="cur"><option value="">Any</option>${TEAMS.map(t => `<option value="${esc(t)}" ${ST.cur === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}<option value="_fa" ${ST.cur === '_fa' ? 'selected' : ''}>Free agents</option></select></label>
    <label>Players<select data-st="role">${[['all', 'Everyone'], ['hit', 'Hitters (have at-bats)'], ['pit', 'Pitchers (have innings)']].map(([v, n]) => `<option value="${v}" ${ST.role === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label></div>
    <div style="display:grid;gap:6px"><b>Stat filters</b>${flt || '<span class="note">No stat filters. Add one to narrow the list, like HR at least 30.</span>'}<div><button data-st="fadd">Add a stat filter</button> ${ST.filters.length ? '<button data-st="fclear">Clear filters</button>' : ''}</div></div>
    <div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><b>Stats shown</b>${Object.keys(ST_PRESET).map(n => `<button class="st-add" data-st="preset" data-v="${esc(n)}">${esc(n)}</button>`).join('')}<button class="st-add ${ST.open ? 'on' : ''}" data-st="colopen">Pick stats…</button></div>
@@ -6960,6 +7019,7 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const t = e.target; if (!t.dataset || !t.dataset.st || !t.closest('#tab-stats')) return; const a = t.dataset.st;
   if (a === 'season') { ST.season = t.value; ST.shown = 60; renderHub(); }
+  else if (a === 'cur') { ST.cur = t.value; ST.shown = 60; stRefresh(['res']); }
   else if (a === 'team') { ST.team = t.value; ST.shown = 60; stRefresh(['res']); }
   else if (a === 'role') { ST.role = t.value; ST.shown = 60; stRefresh(['res']); }
   else if (a === 'fk') { ST.filters[+t.dataset.i].k = t.value; stRefresh(['res']); }
@@ -6968,6 +7028,216 @@ document.addEventListener('change', e => {
   else if (a === 'cq') { if (t.value) stAddByName(t.value); }
 });
 if (typeof HB_VIEWS !== 'undefined') HB_VIEWS.stats = statsView;
+/* ============ FREE AGENTS: undrafted players, team claims, commissioner assignments ============
+   The pool is every player not on a season-hub roster. Teams file claims (league/fa_claim_<i>); the commissioner assigns or releases
+   (league/fa_moves). Moves are replayed in hbReplay together with trades, so rosters everywhere stay in sync and nothing in the draft changes. */
+const FA = { q: '', sort: 'val', only: false, shown: 60, pick: {} };
+const faPool = () => { const on = new Set(); for (const t of TEAMS) hbRoster(t).forEach(i => on.add(i)); return P.filter(p => !on.has(p.id)); };
+const faClaimsOf = pid => TEAMS.filter(t => HB.faClaims && HB.faClaims[t] && HB.faClaims[t].pids.includes(pid));
+const faMoves = () => (HB.fa && HB.fa.moves) || [];
+const faTeamOf = pid => TEAMS.find(t => hbRoster(t).includes(pid)) || null;
+function faRows() {
+  const q = FA.q.trim().toLowerCase();
+  let L = faPool().filter(p => (!q || p.name.toLowerCase().includes(q)) && (!FA.only || faClaimsOf(p.id).length));
+  if (FA.sort === 'name') L.sort((a, b) => a.name.localeCompare(b.name));
+  else if (FA.sort === 'claims') L.sort((a, b) => faClaimsOf(b.id).length - faClaimsOf(a.id).length || (b.bpa || 0) - (a.bpa || 0));
+  else L.sort((a, b) => (b.bpa || 0) - (a.bpa || 0));
+  return L;
+}
+function faResHtml() {
+  const L = faRows(), me = hbMe(), adm = hbAdmin(), mine = me && HB.faClaims && HB.faClaims[me] ? HB.faClaims[me].pids : [];
+  const rows = L.slice(0, FA.shown).map(p => {
+    const cl = faClaimsOf(p.id), pick = FA.pick[p.id] || cl[0] || me || TEAMS[0];
+    const chips = cl.length ? cl.map(t => `<span class="chip"><span class="tdot" style="background:${TCOL[t]}"></span>${esc(t)}</span>`).join('') : '<span class="muted">none</span>';
+    const act = (me ? `<button data-fa="claim" data-pid="${p.id}" class="${mine.includes(p.id) ? 'primary' : ''}">${mine.includes(p.id) ? 'Claimed' : 'Claim'}</button>` : '')
+      + (adm ? `<select data-fa="team" data-pid="${p.id}" aria-label="Assign to">${TEAMS.map(t => `<option ${t === pick ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select><button class="primary" data-fa="assign" data-pid="${p.id}">Assign</button>` : '');
+    return `<tr><td class="l">${ico(p, 20)}<b class="pclick" data-pid="${p.id}">${esc(p.name)}</b> ${p.cap ? '<span class="chip cap">C</span>' : ''}${p.mii ? ' <span class="chip">Mii</span>' : ''}</td><td>${(p.bpa >= 0 ? '+' : '') + (p.bpa || 0).toFixed(2)}</td><td class="l"><div class="fa-claims">${chips}</div></td><td><div class="fa-act">${act || '<span class="muted">Join a team to claim</span>'}</div></td></tr>`;
+  }).join('');
+  return `<div class="tbl-wrap"><table><thead><tr><th class="l">Player</th><th title="Runs per game he adds to an empty roster (the draft room's rating)">Rating</th><th class="l">Claims</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="4" class="note">No free agents match.</td></tr>'}</tbody></table></div>`
+    + `<div class="pad note">${L.length} free agent${L.length === 1 ? '' : 's'}${L.length > FA.shown ? ` · <button data-fa="more">Show more</button>` : ''}</div>`;
+}
+function faLogHtml() {
+  const mv = faMoves().slice().sort((a, b) => b.t - a.t);
+  if (!mv.length) return '<div class="pad note">No free-agent moves yet.</div>';
+  return mv.slice(0, 40).map(m => { const on = m.to && m.to !== 'FA' && hbRoster(m.to).includes(m.pid);
+    return `<div class="hb-offer"><div>${m.to && m.to !== 'FA' ? `<b>${esc(m.to)}</b> signed ` : `<b>${esc(m.from)}</b> released `}<b class="pclick" data-pid="${m.pid}">${esc(P[m.pid] ? P[m.pid].name : '?')}</b> <span class="note">${new Date(m.t).toLocaleDateString()}${m.note ? ' · ' + esc(m.note) : ''}</span></div>${hbAdmin() && on ? `<button data-fa="release" data-pid="${m.pid}" data-team="${esc(m.to)}">Release</button>` : ''}</div>`; }).join('');
+}
+function faView() {
+  const me = hbMe(), n = faPool().length, nc = faPool().filter(p => faClaimsOf(p.id).length).length;
+  return `<div class="panel"><h2>Free agents <span>${n} available · ${nc} with claims</span></h2><div class="pad" style="display:grid;gap:10px">
+   <div class="fa-row"><label>Search<input id="faQ" type="search" value="${esc(FA.q)}" placeholder="Player name" autocomplete="off"></label>
+    <label>Sort<select id="faSort"><option value="val" ${FA.sort === 'val' ? 'selected' : ''}>Rating</option><option value="claims" ${FA.sort === 'claims' ? 'selected' : ''}>Most claims</option><option value="name" ${FA.sort === 'name' ? 'selected' : ''}>Name</option></select></label>
+    <label style="grid-auto-flow:column;align-items:center;gap:6px"><input id="faOnly" type="checkbox" ${FA.only ? 'checked' : ''}> Only players with claims</label></div>
+   <div class="note">${me ? `Claim a player for ${esc(me)}. The commissioner assigns free agents` : 'Join a team to file claims. The commissioner assigns free agents'}${hbAdmin() ? ' (you can assign anyone below)' : ''}. Assigned players join the roster right away, with no change to the draft, picks or trades.</div></div>
+   <div id="faRes">${faResHtml()}</div></div>
+   <div class="panel" style="margin-top:14px"><h2>Free-agent moves</h2>${faLogHtml()}</div>`;
+}
+async function faClaim(pid) {
+  const me = hbMe(); if (!me) return; const cur = (HB.faClaims && HB.faClaims[me] && HB.faClaims[me].pids) || [];
+  const pids = cur.includes(pid) ? cur.filter(x => x !== pid) : cur.concat(pid);
+  if (await hbPut('league/fa_claim_' + TEAMS.indexOf(me), { team: me, pids, ts: Date.now() })) { HB.faClaims = HB.faClaims || {}; HB.faClaims[me] = { team: me, pids, ts: Date.now() }; faRefresh(); }
+}
+async function faMove(m) {
+  const moves = faMoves().concat(Object.assign({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), t: Date.now() }, m));
+  if (await hbPut('league/fa_moves', { moves })) { HB.fa = { moves }; HB.rn = null; renderHub(); return true; } return false;
+}
+function faRefresh() { const el = document.getElementById('faRes'); if (el) el.innerHTML = faResHtml(); }
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-fa]'); if (!b || !b.closest('#tab-fa')) return; const a = b.dataset.fa, pid = +b.dataset.pid;
+  if (a === 'claim') faClaim(pid);
+  else if (a === 'more') { FA.shown += 60; faRefresh(); }
+  else if (a === 'assign' && hbAdmin()) {
+    const sel = b.parentElement.querySelector('select'), to = sel && sel.value; if (!to || faTeamOf(pid)) return;
+    await faMove({ pid, to, from: 'FA', by: 'commissioner' }); toast((P[pid] ? P[pid].name : 'Player') + ' signed with ' + to + '.', 'good');
+  } else if (a === 'release' && hbAdmin()) {
+    const t = b.dataset.team; if (!t || !hbRoster(t).includes(pid)) return;
+    if (hbRoster(t).length <= HB_MIN_ROSTER) { toast(t + ' needs at least ' + HB_MIN_ROSTER + ' players.', 'bad'); return; }
+    if (P[pid].cap && !hbRoster(t).some(i => i !== pid && P[i].cap)) { toast(t + ' needs a captain.', 'bad'); return; }
+    if (!confirm('Release ' + P[pid].name + ' from ' + t + ' to free agency?')) return;
+    await faMove({ pid, from: t, to: 'FA', by: 'commissioner' });
+  }
+});
+document.addEventListener('input', e => { if (e.target.id === 'faQ') { FA.q = e.target.value; FA.shown = 60; faRefresh(); } });
+document.addEventListener('change', e => {
+  const t = e.target; if (!t.closest || !t.closest('#tab-fa')) return;
+  if (t.id === 'faSort') { FA.sort = t.value; faRefresh(); } else if (t.id === 'faOnly') { FA.only = t.checked; FA.shown = 60; faRefresh(); }
+  else if (t.dataset.fa === 'team') FA.pick[+t.dataset.pid] = t.value;
+});
+if (typeof HB_VIEWS !== 'undefined') HB_VIEWS.fa = faView;
+/* ============ MULTI-TEAM TRADES: 3 or 4 teams in one deal (season hub, Trades tab) ============
+   An offer is one sstrades doc with multi:1, the list of teams, and legs (each asset goes from one team to another).
+   Every team other than the proposer has to accept. When the last one does, the legs are written to sstlog as one trade, which hbReplay applies. */
+const MT = { teams: [], d: {}, s: {} };
+const mtAns = (o, t) => o['a' + TEAMS.indexOf(t)];
+const mtNeedsMe = (o, me) => o.multi && o.status === 'pending' && o.teams.includes(me) && o.from !== me && !mtAns(o, me);
+function mtLegsOf(m) {
+  const legs = [];
+  for (const k of Object.keys(m.d)) { const to = m.d[k], pid = +k, from = m.teams.find(t => hbRoster(t).includes(pid)); if (to && from && to !== from && m.teams.includes(to)) legs.push({ pid, from, to }); }
+  for (const k of Object.keys(m.s)) { const to = m.s[k]; const [r, ...o] = k.split('|'), org = o.join('|'), from = hbS7Owner(+r, org); if (to && m.teams.includes(from) && to !== from && m.teams.includes(to)) legs.push({ s7: { r: +r, o: org }, from, to }); }
+  return legs;
+}
+function mtCheck(teams, legs) {
+  const bad = [];
+  if (teams.length < 3 || teams.length > 4) bad.push('A multi-team trade needs 3 or 4 teams.');
+  if (!legs.length) bad.push('Move at least one player or pick.');
+  if (!hbTradeOpen()) bad.push(`The trade deadline has passed (10 PM before week ${HB_DEADLINE_WEEK} games).`);
+  const R = {}; teams.forEach(t => R[t] = hbRoster(t).slice());
+  for (const l of legs) {
+    if (l.s7) { if (hbS7Owner(l.s7.r, l.s7.o) !== l.from) bad.push('A Season 7 pick in this offer has changed hands.'); continue; }
+    if (!R[l.from] || !R[l.from].includes(l.pid)) { bad.push('A player in this offer is no longer on that roster.'); continue; }
+    R[l.from].splice(R[l.from].indexOf(l.pid), 1); R[l.to].push(l.pid);
+  }
+  for (const t of teams) {
+    if (!legs.some(l => l.from === t || l.to === t)) bad.push(`${t} is not part of any move.`);
+    if (R[t].length < HB_MIN_ROSTER) bad.push(`${t} would have ${R[t].length} players (the minimum is ${HB_MIN_ROSTER}).`);
+    if (!R[t].some(i => P[i].cap)) bad.push(`${t} would have no captain.`);
+  }
+  return [...new Set(bad)];
+}
+function mtSummary(teams, legs) {
+  return teams.map(t => {
+    const gets = legs.filter(l => l.to === t), gives = legs.filter(l => l.from === t), nm = l => l.s7 ? `S7 ${l.s7.o} Rd ${l.s7.r}` : hbSn(l.pid), tag = (l, side) => `${esc(nm(l))} <span class="muted">${side === 'g' ? '→ ' + esc(l.to) : 'from ' + esc(l.from)}</span>`;
+    return `<div class="hb-offer"><div><b>${hbLogo(t)}${esc(t)}</b></div><div class="note">Gets: ${gets.length ? gets.map(l => tag(l, 'r')).join(', ') : 'nothing'}</div><div class="note">Gives: ${gives.length ? gives.map(l => tag(l, 'g')).join(', ') : 'nothing'}</div></div>`;
+  }).join('');
+}
+function mtOfferHtml(o) {
+  const me = hbMe(), need = mtNeedsMe(o, me);
+  const chips = o.teams.map(t => { const a = t === o.from ? 'yes' : mtAns(o, t); return `<span class="chip ${a === 'yes' ? 'g' : a === 'no' ? 'b' : 'w'}">${esc(t)}: ${a === 'yes' ? (t === o.from ? 'proposed' : 'in') : a === 'no' ? 'declined' : 'waiting'}</span>`; }).join(' ');
+  return `<div class="hb-offer" style="display:grid;gap:6px"><div><b>${o.teams.length}-team trade</b> <span class="muted">proposed by</span> <b>${hbLogo(o.from)}${esc(o.from)}</b></div><div class="chips">${chips}</div>${mtSummary(o.teams, o.legs || [])}
+   ${need ? `<div style="display:flex;gap:8px"><button class="primary" data-mt="acc" data-o="${o.id}">Accept</button><button data-mt="dec" data-o="${o.id}">Decline</button></div>` : ''}${o.from === me ? `<div><button data-mt="cxl" data-o="${o.id}">Cancel offer</button></div>` : ''}</div>`;
+}
+function mtBuilder(me) {
+  if (!MT.teams.length || MT.teams[0] !== me) { MT.teams = [me]; MT.d = {}; MT.s = {}; }
+  const others = TEAMS.filter(t => t !== me), legs = mtLegsOf(MT), bad = MT.teams.length >= 3 ? mtCheck(MT.teams, legs) : [];
+  const opts = (own, sel) => ['<option value="">Stays</option>'].concat(MT.teams.filter(t => t !== own).map(t => `<option value="${esc(t)}" ${sel === t ? 'selected' : ''}>→ ${esc(t)}</option>`)).join('');
+  const boxes = MT.teams.length >= 3 ? MT.teams.map(t => `<div class="panel" style="margin:0"><h2>${hbLogo(t)}${esc(t)} <span>gives</span></h2><div class="pad" style="display:grid;gap:4px">
+    ${hbRoster(t).map(i => `<div style="display:flex;gap:8px;align-items:center;justify-content:space-between"><span>${ico(P[i], 18)} <b class="pclick" data-pid="${i}">${esc(hbSn(i))}</b> ${P[i].cap ? '<span class="chip cap">C</span>' : ''}</span><select data-mtd="p|${i}" aria-label="Send ${esc(hbSn(i))}">${opts(t, MT.d[i])}</select></div>`).join('')}
+    ${hbS7Of(t).map(x => `<div style="display:flex;gap:8px;align-items:center;justify-content:space-between"><span>${hbLogo(x.o)} ${esc(hbS7Label(x.r, x.o))}</span><select data-mtd="s|${x.r}|${esc(x.o)}">${opts(t, MT.s[x.r + '|' + x.o])}</select></div>`).join('')}</div></div>`).join('') : '';
+  return `<div style="display:grid;gap:10px"><div><b>Teams in the deal</b> <span class="note">You plus 2 or 3 more</span></div>
+   <div class="chips">${others.map(t => { const on = MT.teams.includes(t), full = !on && MT.teams.length >= 4; return `<label class="hb-chip ${on ? 'on' : ''}" style="${full ? 'opacity:.4' : ''}"><input type="checkbox" data-mtt="${esc(t)}" ${on ? 'checked' : ''} ${full ? 'disabled' : ''}> ${esc(t)}</label>`; }).join('')}</div>
+   ${boxes ? `<div class="note">For each player or pick, choose which team receives him. Anything left on "Stays" does not move.</div><div class="hb-lbs" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))">${boxes}</div>` : '<div class="note">Pick at least two other teams to start building.</div>'}
+   ${legs.length ? `<div><b>Summary</b></div>${mtSummary(MT.teams, legs)}` : ''}
+   ${bad.length ? `<div class="banner warn" style="margin:0">${bad.map(esc).join('<br>')}</div>` : ''}
+   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="primary" data-mt="send" ${MT.teams.length >= 3 && legs.length && !bad.length ? '' : 'disabled'}>Send to all teams</button><span class="note">Every other team in the deal has to accept. Each team keeps at least ${HB_MIN_ROSTER} players and a captain. The league can still veto it.</span></div></div>`;
+}
+function mtHtml() {
+  const me = hbMe(); if (!me) return '';
+  const mine = HB.offers.filter(o => o.multi && o.status === 'pending' && o.teams.includes(me));
+  return `${mine.length ? `<div class="panel" style="margin-bottom:14px"><h2>Multi-team offers <span>${mine.length} open</span></h2>${mine.map(mtOfferHtml).join('')}</div>` : ''}
+   <details class="panel" id="mtBuild" ${MT.open ? 'open' : ''} style="margin-top:14px"><summary style="cursor:pointer;padding:12px 14px;font-weight:700">Make a 3 or 4 team trade</summary><div class="pad">${hbTradeOpen() ? mtBuilder(me) : '<div class="banner warn" style="margin:0">The trade deadline has passed.</div>'}</div></details>`;
+}
+async function mtSend() {
+  const me = hbMe(); if (!me) return; const legs = mtLegsOf(MT), bad = mtCheck(MT.teams, legs); if (bad.length) { toast(bad[0], 'bad'); return; }
+  const o = { id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), multi: 1, from: me, teams: MT.teams.slice(), legs, status: 'pending', t: Date.now(), by: LV.uid || '' };
+  if (await hbPut('sstrades/' + o.id, o)) { MT.teams = [me]; MT.d = {}; MT.s = {}; MT.open = false; toast('Offer sent to ' + o.teams.filter(t => t !== me).join(', ') + '.', 'good'); renderHub(); }
+}
+async function mtAnswer(id, yes) {
+  const o = HB.offers.find(x => x.id === id), me = hbMe(); if (!o || !o.multi || o.status !== 'pending' || !mtNeedsMe(o, me)) return;
+  if (!yes) { await hbPut('sstrades/' + id, { ['a' + TEAMS.indexOf(me)]: 'no', status: 'declined', t2: Date.now() }, true); return; }
+  const bad = mtCheck(o.teams, o.legs); if (bad.length) { toast(bad[0], 'bad'); return; }
+  if (!(await hbPut('sstrades/' + id, { ['a' + TEAMS.indexOf(me)]: 'yes', t2: Date.now() }, true))) return;
+  let f = o; try { const sn = await LV.db.doc('sstrades/' + id).get(); if (sn.exists) f = sn.data(); } catch (e) {}
+  f['a' + TEAMS.indexOf(me)] = 'yes';
+  if (f.status === 'pending' && o.teams.every(t => t === o.from || mtAns(f, t) === 'yes')) {
+    if (await hbPut('sstlog/' + id, { id, t: Date.now(), legs: o.legs, teams: o.teams, wk: hbCur(), multi: 1 })) { await hbPut('sstrades/' + id, { status: 'done', t2: Date.now() }, true); toast('Trade done.', 'good'); }
+  } else toast('Accepted. Waiting on the other teams.', 'good');
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-mt]'); if (!b) return; const a = b.dataset.mt;
+  if (a === 'send') mtSend(); else if (a === 'acc') mtAnswer(b.dataset.o, true); else if (a === 'dec') mtAnswer(b.dataset.o, false);
+  else if (a === 'cxl') hbPut('sstrades/' + b.dataset.o, { status: 'cancelled', t2: Date.now() }, true);
+});
+document.addEventListener('toggle', e => { if (e.target && e.target.id === 'mtBuild') MT.open = e.target.open; }, true);
+document.addEventListener('change', e => {
+  const t = e.target; if (!t.dataset) return;
+  if (t.dataset.mtt) { const n = t.dataset.mtt; if (t.checked) { if (MT.teams.length < 4 && !MT.teams.includes(n)) MT.teams.push(n); } else { MT.teams = MT.teams.filter(x => x !== n); for (const k of Object.keys(MT.d)) if (MT.d[k] === n) delete MT.d[k]; for (const k of Object.keys(MT.s)) if (MT.s[k] === n) delete MT.s[k]; } MT.open = true; renderHub(); }
+  else if (t.dataset.mtd) { const [k, ...r] = t.dataset.mtd.split('|'); if (k === 'p') { if (t.value) MT.d[r[0]] = t.value; else delete MT.d[r[0]]; } else { const key = r[0] + '|' + r.slice(1).join('|'); if (t.value) MT.s[key] = t.value; else delete MT.s[key]; } MT.open = true; renderHub(); }
+});
+/* ============ PAST TRADES: the commissioner can add trades that never made it into the History tab ============
+   Stored in league/past_trades {list}. They show up in History next to the sheet's trades, graded the same way. */
+const PT = { list: [] };
+{ const _hl = histLive; histLive = function () { return _hl().concat(PT.list.map(x => Object.assign({}, x, { _t: 0 }))); }; }
+function ptTeamNames() { const s = new Set(TEAMS); try { TRADES_HIST.forEach(t => t.teams.forEach(n => s.add(n))); } catch (e) {} return [...s]; }
+function ptParse(txt, tr) {
+  const out = [];
+  for (let raw of String(txt || '').split(/[\n;]+/)) {
+    raw = raw.trim(); if (!raw) continue;
+    let m = raw.match(/^S(\d+)\s+(.+?)\s+(\d+)\.(\d+)$/i);
+    if (m) { const ps = +m[1], r = +m[3], k = +m[4]; out.push({ t: 'pick', label: raw, n10: (r - 1) * 10 + k, r, fut: ps > tr.s, org: ptOrg(m[2], tr), ps }); continue; }
+    m = raw.match(/^S(\d+)\s+(.+?)\s+Rd\.?\s*(\d+)$/i);
+    if (m) { const ps = +m[1], r = +m[3]; out.push({ t: 'pick', label: raw, n10: (r - 1) * 10 + 5.5, r, fut: ps > tr.s, org: ptOrg(m[2], tr), ps }); continue; }
+    const pl = P.find(p => p.name.toLowerCase() === raw.toLowerCase()) || P.find(p => p.name.toLowerCase().replace(/ \(.*\)/, '') === raw.toLowerCase());
+    if (pl) out.push({ t: 'player', label: pl.name, mii: !!pl.mii, pid: pl.id }); else out.push({ t: 'other', label: raw });
+  }
+  return out;
+}
+const ptOrg = (txt, tr) => { const q = txt.toLowerCase().replace(/[^a-z0-9]/g, ''); return tr.teams.find(t => { const k = t.toLowerCase().replace(/[^a-z0-9]/g, ''); return k.includes(q) || q.includes(k); }) || ''; };
+function ptPanelHtml() {
+  if (!hbAdmin()) return '';
+  const names = ptTeamNames(), opt = n => `<option>${esc(n)}</option>`, slot = i => `<div class="pt-slot" style="display:grid;gap:4px"><label class="hb-f">Team ${i + 1}${i > 1 ? ' (optional)' : ''}<select data-pt="team${i}">${i > 1 ? '<option value="">None</option>' : ''}${names.map(opt).join('')}</select></label>
+    <label class="hb-f">${i < 2 ? 'Receives' : 'Receives'}<textarea data-pt="got${i}" rows="3" placeholder="One per line: Hammer Bro; S6 Jazz 3.3; S7 Jazz Rd 2" style="width:100%"></textarea></label></div>`;
+  const mine = PT.list.slice().sort((a, b) => a.s - b.s);
+  return `<div class="panel" style="margin-top:14px" id="ptPanel"><h2>Add a past trade <span>Shows up in the History tab</span></h2><div class="pad" style="display:grid;gap:10px">
+   <div class="hb-two"><label class="hb-f">Season<select data-pt="s">${[1, 2, 3, 4, 5, 6].map(n => `<option ${n === 6 ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+   <label class="hb-f">When<input data-pt="phase" placeholder="Pre-Draft, Week 3, Offseason…" value="In-Season"><input data-pt="date" placeholder="Date (optional), e.g. October 3rd" style="margin-top:4px"></label></div>
+   <div class="hb-two">${[0, 1, 2, 3].map(slot).join('')}</div>
+   <datalist id="ptNames">${P.map(p => `<option value="${esc(p.name)}">`).join('')}</datalist>
+   <div class="note">List what each team receives. Players are matched by exact name; draft picks as <b>S6 Jazz 3.3</b> (season, original team, round.pick) or <b>S7 Jazz Rd 2</b>. Anything else is kept as plain text. Two teams is a normal trade; use up to four for a multi-team deal.</div>
+   <div><button class="primary" data-pt-go="add">Add to History</button></div>
+   ${mine.length ? `<div><b>Added by you</b></div>${mine.map(x => `<div class="hb-offer"><div><b>Season ${x.s}</b> <span class="note">${esc([x.phase, x.date].filter(Boolean).join(' · '))}</span> ${esc(x.teams.join(', '))}</div><button data-pt-go="del" data-id="${esc(x.id)}">Remove</button></div>`).join('')}` : ''}</div></div>`;
+}
+{ const _c = hbCmTrade; hbCmTrade = function () { return _c() + ptPanelHtml(); }; }
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-pt-go]'); if (!b || !hbAdmin()) return; const root = document.getElementById('ptPanel'); if (!root) return;
+  if (b.dataset.ptGo === 'del') { if (!confirm('Remove this trade from History?')) return; if (await hbPut('league/past_trades', { list: PT.list.filter(x => x.id !== b.dataset.id) })) toast('Removed.', 'good'); return; }
+  const v = k => { const el = root.querySelector('[data-pt="' + k + '"]'); return el ? el.value.trim() : ''; };
+  const teams = [0, 1, 2, 3].map(i => v('team' + i)).filter(Boolean), uniq = [...new Set(teams)];
+  if (uniq.length !== teams.length || uniq.length < 2) { toast('Pick two to four different teams.', 'bad'); return; }
+  const tr = { id: 'pt' + Date.now().toString(36), s: +v('s'), phase: v('phase'), date: v('date'), teams, veto: [], manual: 1 };
+  tr.got = [0, 1, 2, 3].filter(i => v('team' + i)).map(i => ptParse(v('got' + i), tr));
+  if (tr.got.every(g => !g.length)) { toast('List at least one player or pick.', 'bad'); return; }
+  if (await hbPut('league/past_trades', { list: PT.list.concat(tr) })) { toast('Trade added to Season ' + tr.s + ' history.', 'good'); root.querySelectorAll('textarea').forEach(t => t.value = ''); }
+});
 /* ============ REBRANDS: the commissioner changes a team's name, logo and colors; the whole site follows, history stays put ============ */
 const RB_NICK0 = { 'Toadstool Titans': 'Titans', 'Sluggin Heat': 'Heat' };
 RB.ui = { team: '', name: '', nick: '', p: '#336699', s: '#ffd23f', logo: '', lw: 0, lh: 0, busy: false, file: '' };
