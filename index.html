@@ -5429,7 +5429,8 @@ async function hbBotImport(txt, who) {
   const { games, notes } = hbParseBot(txt), log = notes.slice(); let n = 0;
   if (!games.length && !notes.length) log.push('Nothing to import. Paste the rows from the Game Stats Generator or the bot\'s JSON.');
   for (const x of games) {
-    const g = hbRef({ gid: x.gid, wk: x.wk, away: x.away || (x.pair && x.pair[0]), home: x.home || (x.pair && x.pair[1]) }) || (x.pair && HB_GAMES.find(y => (!x.wk || y.wk === x.wk) && ((y.away === x.pair[0] && y.home === x.pair[1]) || (y.home === x.pair[0] && y.away === x.pair[1]))));
+    let g = hbRef({ gid: x.gid, wk: x.wk, away: x.away || (x.pair && x.pair[0]), home: x.home || (x.pair && x.pair[1]) }) || (x.pair && HB_GAMES.find(y => (!x.wk || y.wk === x.wk) && ((y.away === x.pair[0] && y.home === x.pair[1]) || (y.home === x.pair[0] && y.away === x.pair[1]))));
+    if (!g && x.away && x.home) { g = HB_GAMES.find(y => (!x.wk || y.wk === x.wk) && y.away === x.home && y.home === x.away); if (g) { /* sheet lists the teams the other way round from the site schedule: swap sides */ [x.as, x.hs] = [x.hs, x.as]; [x.eA, x.eH] = [x.eH, x.eA]; if (x.line) x.line = { away: x.line.home, home: x.line.away }; log.push(`Week ${g.wk}: the paste had ${x.home} away and ${x.away} home; saved with the site's home/away.`); } }
     if (!g) { log.push(`No game found for ${x.away || (x.pair && x.pair[0]) || '?'} vs ${x.home || (x.pair && x.pair[1]) || '?'} (week ${x.wk || '?'}).`); continue; }
     if (!hbBxCan(g.wk)) { log.push(`Week ${g.wk} is locked for you. Unlock it with its password first.`); continue; }
     const old = HB.scores[g.gid] || {}, d = Object.assign({}, old, { gid: g.gid, wk: g.wk, away: g.away, home: g.home, t: Date.now(), src: who || 'bot', by: LV.uid || '' });
