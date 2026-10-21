@@ -5080,7 +5080,7 @@ function hbSugHtml(team, wk) {
     const best = pool.slice().sort((x, y) => y.w - x.w)[0];
     tip = m && m.ban ? `Best pick: <b>${esc(best.n)}</b> (about ${pct(best.w)} win chance). ${esc(opp)} banned ${esc(banned.join(' and '))}.` : `You pick after ${esc(opp)} bans one. Best overall: <b>${esc(rank[0].n)}</b> (about ${pct(rank[0].w)}); they will likely ban it, so ${esc(rank[1] ? rank[1].n : '')} is the backup.`;
     if (hbCanAct(team) && m && m.ban && !fin && (!m.pick || m.pick !== best.n)) act = `<button class="primary" data-hb="pick" data-g="${g.gid}" data-n="${esc(best.n)}">Pick ${esc(best.n)}</button>`;
-  } else tip = m && m.pick ? `Playing at <b>${esc(m.pick)}</b>.` : `${esc(opp)} will pick from the rest after your ban.`;
+  } else tip = m && m.pick ? `Playing at <b>${esc(hbStName(m.pick, m.tod))}</b>.` : `${esc(opp)} will pick from the rest after your ban.`;
   const sel = HB.sugSel && rows.some(r => r.n === HB.sugSel) ? HB.sugSel : rank[0].n, cur = rows.find(r => r.n === sel);
   return `<div class="panel" style="margin-bottom:14px"><h2>Suggested stadiums <span>Week ${wk} ${home ? 'vs' : 'at'} ${esc(opp)} · ${home ? 'home' : 'away'}</span></h2><div class="pad" style="display:grid;gap:8px">
    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><label class="hb-f">Stadiums ranked for your roster<select id="hbSug">${rank.map((r, i) => `<option value="${esc(r.n)}" ${r.n === sel ? 'selected' : ''} ${banned.includes(r.n) ? 'disabled' : ''}>${i + 1}. ${esc(r.n)} · win ${pct(r.w)}${banned.includes(r.n) ? ' (banned)' : ''}</option>`).join('')}</select></label>${act}</div>
@@ -5099,7 +5099,12 @@ async function hbUnban(g) {
   const m0 = HB.maps[g.gid]; if (m0 && m0.pick) { toast('The home team already picked a stadium, so the ban is final.', 'bad'); return; }
   if (await hbPut('smaps/' + g.gid, { gid: g.gid, wk: g.wk, away: g.away, home: g.home, t: Date.now() })) toast('Ban removed. Choose again.', 'good');
 }
-async function hbPick(g, name) { if (!hbCanAct(g.home)) return; const m = HB.maps[g.gid]; const sc = HB.scores && HB.scores[g.gid]; if (!m || !m.ban || hbBanned(m).includes(name) || m.pick === name || (sc && sc.status === 'final')) return; if (await hbPut('smaps/' + g.gid, { pick: name, pickBy: LV.uid || '', t2: Date.now() }, true)) toast('Playing at ' + name + '.', 'good'); }
+const HB_NO_TOD = new Set(['Bowser Castle', 'Bowser Jr. Playroom']); // these two are their own day and night
+const hbTodOf = gid => (HB.tod && HB.tod[gid]) || (HB.maps[gid] && HB.maps[gid].tod) || 'Day';
+const hbStName = (n, tod) => n && !HB_NO_TOD.has(n) && tod ? n + ' (' + tod + ')' : n;
+const hbTodBar = (g, m) => { const cur = hbTodOf(g.gid); return `<span class="hb-tod" style="display:inline-flex;gap:4px;align-items:center"><span class="note">Time of day</span><button class="hb-chip ${cur === 'Day' ? 'on' : ''}" data-hb="tod" data-g="${g.gid}" data-t="Day">Day</button><button class="hb-chip ${cur === 'Night' ? 'on' : ''}" data-hb="tod" data-g="${g.gid}" data-t="Night">Night</button><span class="note">(Bowser Castle and Bowser Jr. Playroom have their own)</span></span>`; };
+async function hbPick(g, name) { if (!hbCanAct(g.home)) return; const m = HB.maps[g.gid]; const sc = HB.scores && HB.scores[g.gid]; const tod = HB_NO_TOD.has(name) ? null : hbTodOf(g.gid); if (!m || !m.ban || hbBanned(m).includes(name) || (m.pick === name && (m.tod || null) === tod) || (sc && sc.status === 'final')) return; if (await hbPut('smaps/' + g.gid, { pick: name, tod, pickBy: LV.uid || '', t2: Date.now() }, true)) toast('Playing at ' + hbStName(name, tod) + '.', 'good'); }
+async function hbSetTod(g, t) { HB.tod = HB.tod || {}; HB.tod[g.gid] = t; const m = HB.maps[g.gid], sc = HB.scores && HB.scores[g.gid]; if (m && m.pick && !HB_NO_TOD.has(m.pick) && hbCanAct(g.home) && !(sc && sc.status === 'final')) { if (await hbPut('smaps/' + g.gid, { tod: t, t2: Date.now() }, true)) toast('Playing at ' + hbStName(m.pick, t) + '.', 'good'); } else renderHub(); }
 
 /* ---- matchups ---- */
 function hbProjHtml(g, k) { const ap = Math.round((1 - k.hw) * 100), hp = 100 - ap;
@@ -5112,18 +5117,18 @@ function hbSide(g, side, s) {
 }
 function hbStad(g, s) {
   const m = HB.maps[g.gid], fin = s && s.status === 'final';
-  if (fin) return `<div class="hb-st"><span class="note">Stadium</span> <b>${esc(s.stadium || (m && m.pick) || '—')}</b></div>`;
+  if (fin) return `<div class="hb-st"><span class="note">Stadium</span> <b>${esc(s.stadium || (m && m.pick) ? (s.stadium ? s.stadium + (s.time ? ' · ' + s.time : (m && m.pick === s.stadium && m.tod && !HB_NO_TOD.has(s.stadium) ? ' (' + m.tod + ')' : '')) : hbStName(m.pick, m.tod)) : '—')}</b></div>`;
   if (!m || !m.ban) {
     if (hbCanAct(g.away)) return `<div class="hb-st"><div><b>Ban a stadium</b> <span class="note">${esc(g.away)} (away) gets one ban. You can undo it until ${esc(g.home)} picks a stadium, then it is final. ${esc(g.home)} picks from the rest and can change the pick later. Banning Bowser Castle also bans Bowser Jr. Playroom, and the other way round.</span></div><div class="chips">${HB_STADS.map(n => `<button class="hb-chip" data-hb="ban" data-g="${g.gid}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`;
     return `<div class="hb-st"><span class="note">Stadium</span> Waiting for ${esc(g.away)} to ban one.</div>`;
   }
   const undo = hbCanAct(g.away) ? ` <button class="hb-chip" data-hb="unban" data-g="${g.gid}">Undo ban</button>` : '';
   if (!m.pick) {
-    if (hbCanAct(g.home)) return `<div class="hb-st"><div><b>Pick the stadium</b> <span class="note">${esc(g.away)} banned ${esc(hbBanned(m).join(' and '))}.</span></div><div class="chips">${HB_STADS.map(n => hbBanned(m).includes(n) ? `<span class="hb-chip banned">${esc(n)}</span>` : `<button class="hb-chip" data-hb="pick" data-g="${g.gid}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`;
+    if (hbCanAct(g.home)) return `<div class="hb-st"><div><b>Pick the stadium</b> <span class="note">${esc(g.away)} banned ${esc(hbBanned(m).join(' and '))}.</span> ${hbTodBar(g, m)}</div><div class="chips">${HB_STADS.map(n => hbBanned(m).includes(n) ? `<span class="hb-chip banned">${esc(n)}</span>` : `<button class="hb-chip" data-hb="pick" data-g="${g.gid}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`;
     return `<div class="hb-st"><span class="note">Stadium</span> ${esc(g.away)} banned <b>${esc(hbBanned(m).join(' and '))}</b>. Waiting for ${esc(g.home)} to pick.${undo}</div>`;
   }
-  if (hbCanAct(g.home)) return `<div class="hb-st"><div><b>Playing at ${esc(m.pick)}</b> <span class="note">${esc(g.away)} banned ${esc(hbBanned(m).join(' and '))}. You can change the pick.</span></div><div class="chips">${HB_STADS.map(n => hbBanned(m).includes(n) ? `<span class="hb-chip banned">${esc(n)}</span>` : n === m.pick ? `<span class="hb-chip on">${esc(n)}</span>` : `<button class="hb-chip" data-hb="pick" data-g="${g.gid}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`;
-  return `<div class="hb-st"><span class="note">Playing at</span> <b>${esc(m.pick)}</b> <span class="note">· ${esc(hbBanned(m).join(' and '))} banned (final)</span></div>`;
+  if (hbCanAct(g.home)) return `<div class="hb-st"><div><b>Playing at ${esc(hbStName(m.pick, m.tod))}</b> <span class="note">${esc(g.away)} banned ${esc(hbBanned(m).join(' and '))}. You can change the pick.</span> ${hbTodBar(g, m)}</div><div class="chips">${HB_STADS.map(n => hbBanned(m).includes(n) ? `<span class="hb-chip banned">${esc(n)}</span>` : n === m.pick ? `<span class="hb-chip on">${esc(n)}</span>` : `<button class="hb-chip" data-hb="pick" data-g="${g.gid}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`;
+  return `<div class="hb-st"><span class="note">Playing at</span> <b>${esc(hbStName(m.pick, m.tod))}</b> <span class="note">· ${esc(hbBanned(m).join(' and '))} banned (final)</span></div>`;
 }
 function hbCard(g) {
   const s = HB.scores[g.gid], st = s ? s.status : 'scheduled';
@@ -5636,7 +5641,7 @@ document.addEventListener('click', e => {
     return;
   }
   const a = t.dataset.hb, g = t.dataset.g && HB_GAMES.find(x => x.gid === t.dataset.g);
-  if (a === 'unban') hbUnban(g); else if (a === 'ban') hbBan(g, t.dataset.n); else if (a === 'pick') hbPick(g, t.dataset.n);
+  if (a === 'unban') hbUnban(g); else if (a === 'ban') hbBan(g, t.dataset.n); else if (a === 'pick') hbPick(g, t.dataset.n); else if (a === 'tod') hbSetTod(g, t.dataset.t);
   else if (a === 'resetstad') { if (hbAdmin()) LV.db.doc('smaps/' + g.gid).delete().catch(dbErr); }
   else if (a === 'lineups') hbLineups(t.dataset.g); else if (a === 'box') hbBox(t.dataset.g);
   else if (a === 'close') $('#hbModal').hidden = true;
