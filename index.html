@@ -5155,6 +5155,23 @@ function hbLeaders() {
     for (const x of b.pit || []) { const k = x.p + '|' + g[side]; const o = pit[k] || (pit[k] = { p: x.p, t: g[side], ip: 0, er: 0, so: 0, h: 0, bb: 0, w: 0, sv: 0, l: 0, mvp: 0 }); for (const f of ['ip', 'er', 'so', 'h', 'bb', 'w', 'sv', 'l', 'mvp']) o[f] = (o[f] || 0) + (+x[f] || 0); } } }
   return { bat: Object.values(bat), pit: Object.values(pit) };
 }
+
+// Match a name from a paste (AI, sheet or bot) to the site's player, however it was written: case, punctuation, "(Blue Mii)" or not.
+// Players on the team win ties, so a Mii is never turned into a new player. Returns the short name the box score editor uses.
+const hbNk = s => String(s || '').toLowerCase().replace(/\(.*?\)/g, m => m.replace(/[()]/g, ' ')).replace(/[^a-z0-9]/g, '');
+function hbCanon(raw, team, wk, notes) {
+  const name = String(raw || '').trim(); if (!name) return name; const k = hbNk(name), noP = hbNk(name.replace(/\(.*?\)/g, ''));
+  let ros = []; try { ros = hbRoster(team) || []; } catch (e) {}
+  const full = i => hbNk(P[i].name), short = i => hbNk(hbSn(i)), all = P.map((p, i) => i);
+  const pick = (ids, why) => { if (!ids.length) return null; const on = ids.filter(i => ros.includes(i)); const i = (on[0] != null ? on[0] : ids[0]); if (notes && why && hbSn(i) !== name) notes.push(`${name} (${team}) matched to ${P[i].name}.`); return hbSn(i); };
+  let r = pick(all.filter(i => full(i) === k || short(i) === k), 0) || pick(all.filter(i => full(i) === noP || short(i) === noP), 1);
+  if (r) return r;
+  // a unique roster player whose name starts with, or is started by, what was typed ("Mike" for "Mike Toad")
+  const near = ros.filter(i => noP.length >= 3 && (short(i).startsWith(noP) || noP.startsWith(short(i))));
+  if (near.length === 1) { if (notes) notes.push(`${name} (${team}) matched to ${P[near[0]].name}.`); return hbSn(near[0]); }
+  if (notes) notes.push(`Could not match "${name}" (${team}) to any player, so it was kept as typed and will show as a new player.`);
+  return name;
+}
 const hbPid = name => { const i = P.findIndex(p => p.name === name || hbSnName(p) === name); return i < 0 ? null : i; };
 const hbSnName = p => String(p.name).replace(/ \(.*/, '');
 function hbStTable(rows, title, sub) {
@@ -5429,8 +5446,7 @@ async function hbBotImport(txt, who) {
   const { games, notes } = hbParseBot(txt), log = notes.slice(); let n = 0;
   if (!games.length && !notes.length) log.push('Nothing to import. Paste the rows from the Game Stats Generator or the bot\'s JSON.');
   for (const x of games) {
-    let g = hbRef({ gid: x.gid, wk: x.wk, away: x.away || (x.pair && x.pair[0]), home: x.home || (x.pair && x.pair[1]) }) || (x.pair && HB_GAMES.find(y => (!x.wk || y.wk === x.wk) && ((y.away === x.pair[0] && y.home === x.pair[1]) || (y.home === x.pair[0] && y.away === x.pair[1]))));
-    if (!g && x.away && x.home) { g = HB_GAMES.find(y => (!x.wk || y.wk === x.wk) && y.away === x.home && y.home === x.away); if (g) { /* sheet lists the teams the other way round from the site schedule: swap sides */ [x.as, x.hs] = [x.hs, x.as]; [x.eA, x.eH] = [x.eH, x.eA]; if (x.line) x.line = { away: x.line.home, home: x.line.away }; log.push(`Week ${g.wk}: the paste had ${x.home} away and ${x.away} home; saved with the site's home/away.`); } }
+    const g = hbRef({ gid: x.gid, wk: x.wk, away: x.away || (x.pair && x.pair[0]), home: x.home || (x.pair && x.pair[1]) }) || (x.pair && HB_GAMES.find(y => (!x.wk || y.wk === x.wk) && ((y.away === x.pair[0] && y.home === x.pair[1]) || (y.home === x.pair[0] && y.away === x.pair[1]))));
     if (!g) { log.push(`No game found for ${x.away || (x.pair && x.pair[0]) || '?'} vs ${x.home || (x.pair && x.pair[1]) || '?'} (week ${x.wk || '?'}).`); continue; }
     if (!hbBxCan(g.wk)) { log.push(`Week ${g.wk} is locked for you. Unlock it with its password first.`); continue; }
     const old = HB.scores[g.gid] || {}, d = Object.assign({}, old, { gid: g.gid, wk: g.wk, away: g.away, home: g.home, t: Date.now(), src: who || 'bot', by: LV.uid || '' });
@@ -5442,6 +5458,7 @@ async function hbBotImport(txt, who) {
     if (d.status === 'final' && (d.as == null || d.hs == null || d.as === d.hs)) { log.push(`${g.away} at ${g.home}: a final needs two different scores.`); continue; }
     if (x.players.length || x.rawBox) { const box = x.rawBox || { away: { bat: [], pit: [] }, home: { bat: [], pit: [] } };
       if (!x.rawBox) for (const r of x.players) { const side = r.team === g.away ? 'away' : r.team === g.home ? 'home' : null; if (!side) { log.push(`${(r.bat || r.pit).p}: team does not match this game.`); continue; } if (r.bat) box[side].bat.push(r.bat); if (r.pit) box[side].pit.push(r.pit); }
+      for (const sd of ['away', 'home']) { const tm = sd === 'away' ? g.away : g.home; ['bat', 'pit'].forEach(kk => ((box[sd] || {})[kk] || []).forEach(x => { if (x && x.p) x.p = hbCanon(x.p, tm, g.wk, log); })); }
       d.box = box; }
     if (!d.status) d.status = 'final';
     if (await hbPut('sscores/' + g.gid, d)) { n++; log.push(`Week ${g.wk}: ${g.away} ${d.as == null ? '–' : d.as}, ${g.home} ${d.hs == null ? '–' : d.hs} saved${d.box ? ' with box score' : ''}.`); }
@@ -5538,9 +5555,9 @@ function hbBoxEdit(gid) {
   const g = HB_GAMES.find(x => x.gid === gid); if (!g) return; const s = HB.scores[gid] || {}, m = HB.maps[gid];
   const nI = (id, v, ph) => `<input type="number" step="any" min="0" id="${id}" value="${v == null || v === 0 ? '' : v}" placeholder="${ph}" style="width:100%;min-width:0;padding:4px">`;
   const side = k => {
-    const l = hbLineup(g[k], g.wk), ids = l ? l.slots : [], old = (s.box && s.box[k]) || {}, ob = {}, op = {}; (old.bat || []).forEach(x => ob[x.p] = x); (old.pit || []).forEach(x => op[x.p] = x);
-    const pit = ids.filter(i => l.pos[i] === 'P').map(hbSn); (old.pit || []).forEach(x => { if (!pit.includes(x.p)) pit.push(x.p); });
-    const bt = ids.map(hbSn); (old.bat || []).forEach(x => { if (!bt.includes(x.p)) bt.push(x.p); });
+    const l = hbLineup(g[k], g.wk), ids = l ? l.slots : [], old = (s.box && s.box[k]) || {}, ob = {}, op = {}; (old.bat || []).forEach(x => { x = Object.assign({}, x, { p: hbCanon(x.p, g[k], g.wk) }); ob[x.p] = x; }); (old.pit || []).forEach(x => { x = Object.assign({}, x, { p: hbCanon(x.p, g[k], g.wk) }); op[x.p] = x; });
+    const pit = ids.filter(i => l.pos[i] === 'P').map(hbSn); Object.keys(op).forEach(n => { if (!pit.includes(n)) pit.push(n); });
+    const bt = ids.map(hbSn); Object.keys(ob).forEach(n => { if (!bt.includes(n)) bt.push(n); });
     return `<h3 class="hb-h3">${hbLogo(g[k])}${esc(g[k])}</h3><div class="tbl-wrap"><table><thead><tr><th class="l">Batter</th>${['AB', 'R', 'H', 'RBI', 'HR', 'BB', 'SO'].map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${bt.map((n, i) => `<tr data-bxn="${esc(n)}" data-bxk="${k}" data-bxt="b"><td class="l">${esc(n)}</td>${['ab', 'r', 'h', 'rbi', 'hr', 'bb', 'so'].map(f => `<td>${nI('bx_' + k + '_b' + i + '_' + f, (ob[n] || {})[f], '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
      <div class="tbl-wrap"><table><thead><tr><th class="l">Pitcher</th>${['IP', 'H', 'R', 'ER', 'BB', 'SO'].map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${pit.map((n, i) => `<tr data-bxn="${esc(n)}" data-bxk="${k}" data-bxt="p"><td class="l">${esc(n)}</td>${['ip', 'h', 'r', 'er', 'bb', 'so'].map(f => `<td>${nI('bx_' + k + '_p' + i + '_' + f, (op[n] || {})[f], '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   };
