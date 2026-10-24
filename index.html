@@ -5132,7 +5132,7 @@ function hbStad(g, s) {
 }
 function hbCard(g) {
   const s = HB.scores[g.gid], st = s ? s.status : 'scheduled';
-  const pill = st === 'live' ? `<span class="hb-pill live">LIVE${s.inn ? ' · ' + esc(s.inn) : ''}</span>` : st === 'final' ? '<span class="hb-pill">FINAL</span>' : '<span class="hb-pill dim">UPCOMING</span>';
+  const pill = st === 'live' ? `<span class="hb-pill live">LIVE${s.inn ? ' · ' + esc(s.inn) : ''}</span>` : st === 'final' ? `<span class="hb-pill">${esc(hbFinTxt(s).toUpperCase())}</span>` : '<span class="hb-pill dim">UPCOMING</span>';
   const k = st === 'final' ? null : hbProj(g);
   return `<article class="hb-game"><div class="hb-head"><span>Week ${g.wk} · Game ${g.gid.slice(g.gid.indexOf('g') + 1)}</span>${pill}</div>${hbSide(g, 'away', s)}${hbSide(g, 'home', s)}
    ${st === 'final' || st === 'live' ? '' : `<div class="hb-proj" data-hbproj="${g.gid}">${k ? hbProjHtml(g, k) : '<span class="note">Set both lineups to see a projection.</span>'}</div>`}
@@ -5408,7 +5408,53 @@ function hbPlayerRec(o) {
   const p = pit ? { p: name, ip, h: hbNum(r.ha), er: hbNum(r.er), bb: hbNum(r.pbb), so: hbNum(r.k), w: hbNum(r.w), l: hbNum(r.l), sv: hbNum(r.sv), bs: hbNum(r.bs), started: hbNum(r.started) ? 1 : 0, gs: hbNum(r.gs), mvp: hbNum(r.mvp) } : null;
   return { team: hbTeamName(r.team), bat: b.ab || b.h || b.bb || b.rbi || b.sx || b.bc || b.e || b.outs || b.so || b.bt ? b : null, pit: p };
 }
+/* ---- Box Score Finder sheet: paste the cells straight from the spreadsheet (tab-separated), no AI step ---- */
+function hbParseFinder(txt) {
+  const rows = String(txt || '').split(/\r?\n/).map(l => l.split('\t').map(c => c.trim())), c = (r, i) => (r && i >= 0 && r[i]) || '';
+  const abAt = r => r.findIndex((x, i) => i > 0 && hbK(x) === 'ab' && hbK(r[i + 1]) === '1b' && r[i - 1]);
+  if (!rows.some(r => abAt(r) > 0)) return null;
+  const notes = [], tbls = [], lines = [], meta = {};
+  const nameOf = raw => hbTeamName(raw) || raw;
+  rows.forEach((r, ri) => {
+    const a = abAt(r);
+    if (a > 0) { // a player table: the team name sits just left of "AB", the player names run down the same column
+      const team = r[a - 1], recs = [];
+      for (let j = ri + 1; j < rows.length && c(rows[j], a - 1) && abAt(rows[j]) < 0; j++) {
+        const o = { team, player: c(rows[j], a - 1) }; for (let k = a; k < r.length; k++) if (r[k] && c(rows[j], k) !== '') o[r[k]] = c(rows[j], k);
+        const rec = hbPlayerRec(o); if (rec) { if (!rec.team) rec.team = team; recs.push(rec); }
+      }
+      tbls.push({ team: nameOf(team), recs }); return;
+    }
+    const i = r.findIndex((x, k) => x === '1' && r[k + 1] === '2' && r[k + 2] === '3'); // the inning-by-inning table
+    if (i > 0) {
+      const col = L => r.findIndex((x, k) => k > i + 8 && x.toUpperCase() === L);
+      const R = col('R'), H = col('H'), E = col('E');
+      for (let j = ri + 1; j < rows.length && c(rows[j], i - 1); j++) { const w = rows[j]; lines.push({ raw: c(w, i - 1), name: nameOf(c(w, i - 1)), inn: Array.from({ length: 9 }, (_, k) => c(w, i + k)), ex: c(w, i + 9), r: hbNum(c(w, R)), h: hbNum(c(w, H)), e: hbNum(c(w, E)) }); }
+      return;
+    }
+    const nx = () => rows[ri + 1] || [];
+    const f = r.findIndex(x => hbK(x) === 'field'); if (f >= 0 && r.some(x => hbK(x) === 'time') && !meta.field) { meta.field = c(nx(), f); meta.time = c(nx(), r.findIndex(x => hbK(x) === 'time')); }
+    const s = r.findIndex(x => hbK(x) === 'season'), w = r.findIndex(x => hbK(x) === 'week');
+    if (s >= 0 && w >= 0 && !r.some(x => hbK(x) === 'hometeam') && !meta.wk) meta.wk = +c(nx(), w) || 0;
+    if (r.some(x => hbK(x) === 'hometeam') && r.some(x => hbK(x) === 'awayteam')) { // the sheet's own game row (its home and away may not match the schedule)
+      let v = null; for (let j = ri + 1; j < Math.min(rows.length, ri + 4) && !v; j++) if (rows[j].some(x => x !== '')) v = rows[j];
+      if (v) { const g = L => { const k = r.findIndex(x => hbK(x) === hbK(L)); return k >= 0 ? c(v, k) : ''; }; meta.wk = +g('week') || meta.wk || 0; meta.away = g('awayTeam') ? nameOf(g('awayTeam')) : null; meta.home = g('homeTeam') ? nameOf(g('homeTeam')) : null; meta.inn = +g('inningsPlayed') || 0; if (g('field')) meta.field = g('field'); if (g('time')) meta.time = g('time'); }
+    }
+  });
+  if (lines.length < 2) return { games: [], notes: ['I could not find the inning-by-inning table (the row that reads 1 2 3 … R H E with the two team lines under it). Copy from the top of the sheet down through the last player row.'] };
+  const games = [];
+  for (let q = 0; q + 1 < lines.length; q += 2) {
+    const A = lines[q], B = lines[q + 1], first = q === 0;
+    let N = (first && meta.inn) || 0; if (!N) lines.slice(q, q + 2).forEach(L => { L.inn.forEach((v, k) => { if (v !== '') N = Math.max(N, k + 1); }); if (L.ex !== '') N = Math.max(N, 10); });
+    for (const L of [A, B]) { L.line = L.inn.slice(0, Math.min(N, 9)).map(v => v === '' ? 'x' : hbNum(v)); if (N > 9) L.line.push(hbNum(L.ex)); const sum = L.line.reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0); if (sum !== L.r) notes.push(`Check: ${L.name}'s innings add up to ${sum} but the sheet says ${L.r} runs.`); }
+    const g = { players: [], gid: null, wk: first ? meta.wk || 0 : 0, away: first ? meta.away : null, home: first ? meta.home : null, pair: [A.name, B.name], byTeam: { [A.name]: A, [B.name]: B }, field: first ? meta.field : null, time: first ? meta.time : null, innings: N, status: 'final' };
+    tbls.filter(t => t.team === A.name || t.team === B.name).forEach(t => t.recs.forEach(rc => { rc.team = t.team; g.players.push(rc); }));
+    games.push(g);
+  }
+  return { games, notes };
+}
 function hbParseBot(txt) {
+  const fin = hbParseFinder(txt); if (fin) return fin;
   txt = String(txt || '').trim(); const games = [], notes = [];
   const mkGame = o => { const g = { players: [] }; const get = (...ks) => { for (const k of ks) for (const kk of Object.keys(o)) if (hbK(kk) === hbK(k) && o[kk] !== '' && o[kk] != null) return o[kk]; return null; };
     g.gid = get('gid', 'gameID') && !/^\d+$/.test(String(get('gid', 'gameID'))) ? get('gid', 'gameID') : null; g.wk = +get('week', 'wk') || 0; g.away = hbTeamName(get('away', 'awayTeam')); g.home = hbTeamName(get('home', 'homeTeam'));
@@ -5446,12 +5492,19 @@ async function hbBotImport(txt, who) {
   const { games, notes } = hbParseBot(txt), log = notes.slice(); let n = 0;
   if (!games.length && !notes.length) log.push('Nothing to import. Paste the rows from the Game Stats Generator or the bot\'s JSON.');
   for (const x of games) {
-    const g = hbRef({ gid: x.gid, wk: x.wk, away: x.away || (x.pair && x.pair[0]), home: x.home || (x.pair && x.pair[1]) }) || (x.pair && HB_GAMES.find(y => (!x.wk || y.wk === x.wk) && ((y.away === x.pair[0] && y.home === x.pair[1]) || (y.home === x.pair[0] && y.away === x.pair[1]))));
-    if (!g) { log.push(`No game found for ${x.away || (x.pair && x.pair[0]) || '?'} vs ${x.home || (x.pair && x.pair[1]) || '?'} (week ${x.wk || '?'}).`); continue; }
+    let g = hbRef({ gid: x.gid, wk: x.wk, away: x.away || (x.pair && x.pair[0]), home: x.home || (x.pair && x.pair[1]) }), flip = false;
+    // the game on the field picks its own home and away; the league schedule is what counts. Match the same two teams in either order.
+    if (!g && !x.gid && x.away && x.home) { const g2 = hbRef({ wk: x.wk, away: x.home, home: x.away }); if (g2) { g = g2; flip = true; } }
+    if (!g && x.pair) { const c2 = HB_GAMES.filter(y => (!x.wk || y.wk === x.wk) && ((y.away === x.pair[0] && y.home === x.pair[1]) || (y.home === x.pair[0] && y.away === x.pair[1]))); if (c2.length > 1) { log.push(`${x.pair[0]} and ${x.pair[1]} play more than once. Put the week in the paste (the Week cell under Season).`); continue; } g = c2[0] || null; }
+    if (g && x.away && x.home && x.away === g.home && x.home === g.away) flip = true;
+    if (!g) { const bad = (x.pair || [x.away, x.home]).filter(t => t && !TEAMS.includes(t)); log.push(`No game found for ${x.away || (x.pair && x.pair[0]) || '?'} vs ${x.home || (x.pair && x.pair[1]) || '?'} (week ${x.wk || '?'}).${bad.length ? ' ' + bad.join(' and ') + ' is not a team name on this site. If a team was renamed, record the rebrand in Setup first.' : ''}`); continue; }
+    if (flip) log.push(`The sheet lists ${x.away || x.pair[0]} as ${x.away ? 'away' : 'a team'} but the schedule has ${g.away} at ${g.home}. Everything was recorded the schedule's way.`);
+    if (x.byTeam) { const A = x.byTeam[g.away], H = x.byTeam[g.home]; if (!A || !H) { log.push(`${g.away} at ${g.home}: the team names in the paste do not match this game.`); continue; } x.as = A.r; x.hs = H.r; x.line = { away: A.line, home: H.line }; x.eA = A.e; x.eH = H.e; flip = false; }
+    if (flip) { const sw = (o, a, b) => { const t = o[a]; o[a] = o[b]; o[b] = t; }; sw(x, 'as', 'hs'); sw(x, 'eA', 'eH'); if (x.line) x.line = { away: x.line.home, home: x.line.away }; }
     if (!hbBxCan(g.wk)) { log.push(`Week ${g.wk} is locked for you. Unlock it with its password first.`); continue; }
     const old = HB.scores[g.gid] || {}, d = Object.assign({}, old, { gid: g.gid, wk: g.wk, away: g.away, home: g.home, t: Date.now(), src: who || 'bot', by: LV.uid || '' });
     if (x.field) d.stadium = x.field; if (x.time) d.time = x.time; if (x.inn) d.inn = x.inn;
-    if (x.line) d.line = x.line; if (x.eA != null) d.eA = hbNum(x.eA); if (x.eH != null) d.eH = hbNum(x.eH);
+    if (x.line) d.line = x.line; if (x.innings) d.innings = x.innings; else if (x.line) d.innings = Math.max((x.line.away || []).length, (x.line.home || []).length); if (x.eA != null) d.eA = hbNum(x.eA); if (x.eH != null) d.eH = hbNum(x.eH);
     // the first team in the sheet is away; if the paste lists the teams the other way round, swap the sides
     let as = x.as, hs = x.hs; if (as != null && hs != null) { d.as = as; d.hs = hs; if (!x.status) d.status = 'final'; }
     if (x.status) d.status = String(x.status).toLowerCase();
@@ -5459,6 +5512,7 @@ async function hbBotImport(txt, who) {
     if (x.players.length || x.rawBox) { const box = x.rawBox || { away: { bat: [], pit: [] }, home: { bat: [], pit: [] } };
       if (!x.rawBox) for (const r of x.players) { const side = r.team === g.away ? 'away' : r.team === g.home ? 'home' : null; if (!side) { log.push(`${(r.bat || r.pit).p}: team does not match this game.`); continue; } if (r.bat) box[side].bat.push(r.bat); if (r.pit) box[side].pit.push(r.pit); }
       for (const sd of ['away', 'home']) { const tm = sd === 'away' ? g.away : g.home; ['bat', 'pit'].forEach(kk => ((box[sd] || {})[kk] || []).forEach(x => { if (x && x.p) x.p = hbCanon(x.p, tm, g.wk, log); })); }
+      if (x.byTeam) for (const sd of ['away', 'home']) { const T = x.byTeam[g[sd]], hh = ((box[sd] || {}).bat || []).reduce((q, b) => q + (+b.h || 0), 0); log.push(`${g[sd]}: read ${((box[sd] || {}).bat || []).length} batters and ${((box[sd] || {}).pit || []).length} pitchers.`); if (T && hh !== T.h) log.push(`Check: ${g[sd]}'s player rows add up to ${hh} hits but the sheet says ${T.h}. Look at that team's rows.`); }
       d.box = box; }
     if (!d.status) d.status = 'final';
     if (await hbPut('sscores/' + g.gid, d)) { n++; log.push(`Week ${g.wk}: ${g.away} ${d.as == null ? '–' : d.as}, ${g.home} ${d.hs == null ? '–' : d.hs} saved${d.box ? ' with box score' : ''}.`); }
@@ -5556,22 +5610,24 @@ function hbBoxEdit(gid) {
   const nI = (id, v, ph) => `<input type="number" step="any" min="0" id="${id}" value="${v == null || v === 0 ? '' : v}" placeholder="${ph}" style="width:100%;min-width:0;padding:4px">`;
   const side = k => {
     const l = hbLineup(g[k], g.wk), ids = l ? l.slots : [], old = (s.box && s.box[k]) || {}, ob = {}, op = {}; (old.bat || []).forEach(x => { x = Object.assign({}, x, { p: hbCanon(x.p, g[k], g.wk) }); ob[x.p] = x; }); (old.pit || []).forEach(x => { x = Object.assign({}, x, { p: hbCanon(x.p, g[k], g.wk) }); op[x.p] = x; });
-    const pit = ids.filter(i => l.pos[i] === 'P').map(hbSn); Object.keys(op).forEach(n => { if (!pit.includes(n)) pit.push(n); });
-    const bt = ids.map(hbSn); Object.keys(ob).forEach(n => { if (!bt.includes(n)) bt.push(n); });
-    return `<h3 class="hb-h3">${hbLogo(g[k])}${esc(g[k])}</h3><div class="tbl-wrap"><table><thead><tr><th class="l">Batter</th>${['AB', 'R', 'H', 'RBI', 'HR', 'BB', 'SO'].map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${bt.map((n, i) => `<tr data-bxn="${esc(n)}" data-bxk="${k}" data-bxt="b"><td class="l">${esc(n)}</td>${['ab', 'r', 'h', 'rbi', 'hr', 'bb', 'so'].map(f => `<td>${nI('bx_' + k + '_b' + i + '_' + f, (ob[n] || {})[f], '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-     <div class="tbl-wrap"><table><thead><tr><th class="l">Pitcher</th>${['IP', 'H', 'R', 'ER', 'BB', 'SO'].map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${pit.map((n, i) => `<tr data-bxn="${esc(n)}" data-bxk="${k}" data-bxt="p"><td class="l">${esc(n)}</td>${['ip', 'h', 'r', 'er', 'bb', 'so'].map(f => `<td>${nI('bx_' + k + '_p' + i + '_' + f, (op[n] || {})[f], '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    const pit = Object.keys(op); ids.filter(i => l.pos[i] === 'P').map(hbSn).forEach(n => { if (!pit.includes(n)) pit.push(n); });
+    const bt = Object.keys(ob); ids.map(hbSn).forEach(n => { if (!bt.includes(n)) bt.push(n); });
+    const stars = hbBoxStarIds(g, s, k), stc = n => `<td><input type="checkbox" class="bxstar" aria-label="Starred: ${esc(n)}" ${stars.includes(hbPid(n)) ? 'checked' : ''}></td>`;
+    return `<h3 class="hb-h3">${hbLogo(g[k])}${esc(g[k])}</h3><div class="tbl-wrap"><table><thead><tr><th class="l">Batter</th>${['AB', 'R', 'H', 'RBI', 'HR', 'BB', 'SO'].map(x => `<th>${x}</th>`).join('')}<th title="Starred this week">★</th></tr></thead><tbody>${bt.map((n, i) => `<tr data-bxn="${esc(n)}" data-bxk="${k}" data-bxt="b"><td class="l">${esc(n)}</td>${['ab', 'r', 'h', 'rbi', 'hr', 'bb', 'so'].map(f => `<td>${nI('bx_' + k + '_b' + i + '_' + f, (ob[n] || {})[f], '')}</td>`).join('')}${stc(n)}</tr>`).join('')}</tbody></table></div>
+     <div class="tbl-wrap"><table><thead><tr><th class="l">Pitcher</th>${['IP', 'H', 'R', 'ER', 'BB', 'SO'].map(x => `<th>${x}</th>`).join('')}<th title="Starred this week">★</th></tr></thead><tbody>${pit.map((n, i) => `<tr data-bxn="${esc(n)}" data-bxk="${k}" data-bxt="p"><td class="l">${esc(n)}</td>${['ip', 'h', 'r', 'er', 'bb', 'so'].map(f => `<td>${nI('bx_' + k + '_p' + i + '_' + f, (op[n] || {})[f], '')}</td>`).join('')}${stc(n)}</tr>`).join('')}</tbody></table></div>`;
   };
-  hbModal(`<h2 class="hb-mh">Week ${g.wk} box score</h2><div class="hb-qs" style="grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:8px"><label class="hb-f">${esc(g.away)} runs<input type="number" min="0" id="bxAs" value="${s.as == null ? '' : s.as}"></label><label class="hb-f">${esc(g.home)} runs<input type="number" min="0" id="bxHs" value="${s.hs == null ? '' : s.hs}"></label>
-   <label class="hb-f">Status<select id="bxSt">${['final', 'live', 'scheduled'].map(x => `<option ${x === (s.status || 'final') ? 'selected' : ''}>${x}</option>`).join('')}</select></label><label class="hb-f">Stadium<select id="bxSd">${HB_STADS.map(n => `<option ${n === (s.stadium || (m && m.pick)) ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
-   ${side('away')}${side('home')}<div style="margin-top:10px"><button class="primary" data-hb="bxsave" data-g="${gid}">Save box score</button></div>`);
+  hbModal(`<h2 class="hb-mh">Week ${g.wk} box score</h2><div class="hb-qs" style="grid-template-columns:repeat(5,1fr);margin-bottom:8px"><label class="hb-f">${esc(g.away)} runs<input type="number" min="0" id="bxAs" value="${s.as == null ? '' : s.as}"></label><label class="hb-f">${esc(g.home)} runs<input type="number" min="0" id="bxHs" value="${s.hs == null ? '' : s.hs}"></label>
+   <label class="hb-f">Status<select id="bxSt">${['final', 'live', 'scheduled'].map(x => `<option ${x === (s.status || 'final') ? 'selected' : ''}>${x}</option>`).join('')}</select></label><label class="hb-f">Innings<input type="number" min="1" id="bxIn" value="${hbInn(s) || ''}" title="Over 9 shows as Final/10, Final/11 …"></label><label class="hb-f">Stadium<select id="bxSd">${HB_STADS.map(n => `<option ${n === (s.stadium || (m && m.pick)) ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
+   <div class="note" style="margin-bottom:6px">The ★ boxes start from each team's saved lineup for the week. Tick or untick them to correct who was starred.</div>${side('away')}${side('home')}<div style="margin-top:10px"><button class="primary" data-hb="bxsave" data-g="${gid}">Save box score</button></div>`);
 }
 async function hbBoxSave(gid) {
   const g = HB_GAMES.find(x => x.gid === gid), A = $('#bxAs').value, H = $('#bxHs').value, st = $('#bxSt').value; if (st === 'final' && (A === '' || H === '' || +A === +H)) { toast('Enter both scores. Ties are not allowed.', 'bad'); return; }
   const box = { away: { bat: [], pit: [] }, home: { bat: [], pit: [] } };
   document.querySelectorAll('#hbModal tr[data-bxn]').forEach(tr => { const k = tr.dataset.bxk, t = tr.dataset.bxt, o = { p: tr.dataset.bxn }; let any = false;
-    tr.querySelectorAll('input').forEach(inp => { const f = inp.id.split('_').pop(), v = parseFloat(inp.value); o[f] = isNaN(v) ? 0 : v; if (v) any = true; });
+    tr.querySelectorAll('input[type=number]').forEach(inp => { const f = inp.id.split('_').pop(), v = parseFloat(inp.value); o[f] = isNaN(v) ? 0 : v; if (v) any = true; });
     const prev = (((HB.scores[gid] || {}).box || {})[k] || {})[t === 'b' ? 'bat' : 'pit'] || [], was = prev.find(x => x.p === o.p); if (any) box[k][t === 'b' ? 'bat' : 'pit'].push(Object.assign({}, was || {}, o)); });
-  const old = HB.scores[gid] || {}, d = { gid, wk: g.wk, away: g.away, home: g.home, status: st, as: A === '' ? null : +A, hs: H === '' ? null : +H, stadium: $('#bxSd').value, box, t: Date.now(), src: 'manual' }; if (old.line) d.line = old.line;
+  const stars = { away: [], home: [] }; document.querySelectorAll('#hbModal tr[data-bxn]').forEach(tr => { const cb = tr.querySelector('.bxstar'); if (cb && cb.checked && !stars[tr.dataset.bxk].includes(tr.dataset.bxn)) stars[tr.dataset.bxk].push(tr.dataset.bxn); });
+  const old = HB.scores[gid] || {}, inn = parseInt($('#bxIn').value, 10), d = Object.assign({}, old, { gid, wk: g.wk, away: g.away, home: g.home, status: st, as: A === '' ? null : +A, hs: H === '' ? null : +H, stadium: $('#bxSd').value, box, stars, innings: inn > 0 ? inn : null, t: Date.now(), src: old.src || 'manual' });
   if (await hbPut('sscores/' + gid, d)) { toast('Box score saved.', 'good'); $('#hbModal').hidden = true; }
 }
 async function hbRecordTrade() {
@@ -5585,18 +5641,27 @@ async function hbRecordTrade() {
 
 /* ---- modals ---- */
 function hbModal(html) { let m = $('#hbModal'); if (!m) { m = document.createElement('div'); m.id = 'hbModal'; m.className = 'hb-modal'; document.body.appendChild(m); } m.innerHTML = `<div class="hb-mbox">${html}<div style="margin-top:12px"><button data-hb="close">Close</button></div></div>`; m.hidden = false; }
+const hbInn = s => +s.innings || (s.line ? Math.max((s.line.away || []).length, (s.line.home || []).length) : 0);
+// "Final" for a normal nine, "Final/10" for extra innings (or "Final/7" when the game was cut short)
+const hbFinTxt = s => { const n = hbInn(s); return n && n !== 9 ? 'Final/' + n : 'Final'; };
+// who was starred for a team in a game: the commissioner's override on the box score, else that week's saved (or locked) lineup
+function hbBoxStarIds(g, s, k) {
+  if (s.stars && Array.isArray(s.stars[k])) return s.stars[k].map(hbPid).filter(i => i != null);
+  const sn_ = HB.snaps[hbSnap(g.wk, g[k])]; if (sn_ && sn_.slots) return sn_.stars || [];
+  const l = hbLineup(g[k], g.wk); return l ? l.stars || [] : [];
+}
 function hbTbl(title, rows, cols, nm) {
   const cs = cols.filter(c => !c[2] || rows.some(x => +x[c[1]] > 0)), f = (c, x) => c[3] ? c[3](x[c[1]] || 0) : (x[c[1]] || 0);
   return `<div class="tbl-wrap"><table><thead><tr><th class="l">${title}</th>${cs.map(c => `<th>${c[0]}</th>`).join('')}</tr></thead><tbody>${rows.map(x => `<tr><td class="l">${nm(x)}${x.mvp ? ' <span class="chip g" title="Game MVP">MVP</span>' : ''}${x.started ? ' <span class="note">GS</span>' : ''}</td>${cs.map(c => `<td class="num">${f(c, x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 function hbBox(gid) {
   const g = HB_GAMES.find(x => x.gid === gid), s = HB.scores[gid]; if (!s) return;
-  const line = s.line ? `<div class="tbl-wrap"><table><thead><tr><th class="l"></th>${(s.line.away || []).map((_, i) => `<th>${i + 1}</th>`).join('')}<th>R</th></tr></thead><tbody><tr><td class="l"><b>${esc(g.away)}</b></td>${(s.line.away || []).map(v => `<td class="num">${v}</td>`).join('')}<td class="num"><b>${s.as}</b></td></tr><tr><td class="l"><b>${esc(g.home)}</b></td>${(s.line.home || []).map(v => `<td class="num">${v}</td>`).join('')}<td class="num"><b>${s.hs}</b></td></tr></tbody></table></div>` : '';
-  const nm = x => { const id = hbPid(x.p); return id != null ? `${ico(P[id], 18)}<span class="pclick" data-pid="${id}">${esc(x.p)}</span>` : esc(x.p); };
-  const side = k => { const b = s.box && s.box[k]; if (!b) return ''; return `<h3 class="hb-h3">${hbLogo(g[k])}${esc(g[k])}</h3>
+  const line = s.line ? `<div class="tbl-wrap"><table><thead><tr><th class="l"></th>${(s.line.away || []).map((_, i) => `<th>${i === 9 && hbInn(s) > 10 ? '10+' : i + 1}</th>`).join('')}<th>R</th></tr></thead><tbody><tr><td class="l"><b>${esc(g.away)}</b></td>${(s.line.away || []).map(v => `<td class="num">${v}</td>`).join('')}<td class="num"><b>${s.as}</b></td></tr><tr><td class="l"><b>${esc(g.home)}</b></td>${(s.line.home || []).map(v => `<td class="num">${v}</td>`).join('')}<td class="num"><b>${s.hs}</b></td></tr></tbody></table></div>` : '';
+  const nm0 = x => { const id = hbPid(x.p); return id != null ? `${ico(P[id], 18)}<span class="pclick" data-pid="${id}">${esc(x.p)}</span>` : esc(x.p); };
+  const side = k => { const b = s.box && s.box[k]; if (!b) return ''; const stars = hbBoxStarIds(g, s, k), nm = x => nm0(x) + (stars.includes(hbPid(x.p)) ? ' <b class="hb-s" title="Starred this week">★</b>' : ''); return `<h3 class="hb-h3">${hbLogo(g[k])}${esc(g[k])}${stars.length ? ` <span class="note">★ ${stars.map(hbSn).map(esc).join(', ')} starred</span>` : ''}</h3>
    ${(b.bat || []).length ? hbTbl('Batter', b.bat, [['AB', 'ab'], ['R', 'r', 1], ['H', 'h'], ['2B', 'b2', 1], ['3B', 'b3', 1], ['HR', 'hr'], ['RBI', 'rbi'], ['BB', 'bb'], ['SO', 'so'], ['Sexy', 'sx', 1], ['BC', 'bc', 1], ['E', 'e', 1]], nm) : ''}
    ${(b.pit || []).length ? hbTbl('Pitcher', b.pit, [['IP', 'ip', 0, v => (+v).toFixed(1)], ['H', 'h'], ['R', 'r', 1], ['ER', 'er'], ['BB', 'bb'], ['SO', 'so'], ['W', 'w', 1], ['L', 'l', 1], ['SV', 'sv', 1]], nm) : ''}`; };
-  hbModal(`<h2 class="hb-mh">${esc(g.away)} <span class="num">${s.as}</span> – <span class="num">${s.hs}</span> ${esc(g.home)}</h2><div class="note">${esc(s.status === 'final' ? 'Final' : s.inn || s.status)}${s.stadium ? ' · ' + esc(s.stadium) : ''}</div>${line}${side('away')}${side('home')}`);
+  hbModal(`<h2 class="hb-mh">${esc(g.away)} <span class="num">${s.as}</span> – <span class="num">${s.hs}</span> ${esc(g.home)}</h2><div class="note">${esc(s.status === 'final' ? hbFinTxt(s) : s.inn || s.status)}${s.stadium ? ' · ' + esc(s.stadium) : ''}</div>${line}${side('away')}${side('home')}`);
 }
 function hbLineups(gid) {
   const g = HB_GAMES.find(x => x.gid === gid);
