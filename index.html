@@ -417,6 +417,50 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
 .fa-claims{display:flex;gap:4px;flex-wrap:wrap}
 .fa-act{display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
 .fa-act select{max-width:150px}
+.hb-head[data-gm],.hb-side[data-gm]{cursor:pointer}
+.hb-side[data-gm]:hover{background:var(--surface2)}
+.gm{display:grid;gap:0}
+.gm-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.gm-hd{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.gm-tm{display:flex;align-items:center;gap:12px;min-width:0}
+.gm-tm.home{flex-direction:row-reverse;text-align:right}
+.gm-tn{min-width:0}.gm-tn b{display:block;font-size:19px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gm-tn span{font-size:12px;color:var(--muted)}
+.gm-sc{font-family:var(--f-display);font-weight:800;font-size:52px;line-height:1;font-variant-numeric:tabular-nums;min-width:1.2ch;text-align:center}
+.gm-tm.lose .gm-sc,.gm-tm.lose .gm-tn b{color:var(--muted)}
+.gm-mid{display:grid;gap:3px;text-align:center;justify-items:center;max-width:220px}
+.gm-mid b{font-family:var(--f-display);font-size:15px;letter-spacing:.14em}.gm-mid b.live{color:#fff;background:var(--bad);border-radius:3px;padding:1px 8px}
+.gm-mid span{font-size:12px;color:var(--muted)}
+.gm-pred{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}
+.gm-pred>div:not(.gm-pb){display:grid;justify-items:center}.gm-pred b{font-size:30px;font-family:var(--f-display)}.gm-pred span{font-size:12px;color:var(--muted)}
+.gm-pb{height:14px;border-radius:99px;background:var(--surface2);overflow:hidden;display:flex}.gm-pb i{display:block;height:100%}
+.gm-sub{display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+.gm-two2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px}
+.gm-lead2{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}.gm-lead2>div{display:grid;gap:6px;min-width:0}
+.gm-lead{display:grid;grid-template-columns:1fr auto 1fr;gap:6px 12px;align-items:center}
+.gm-lead>.gm-lab{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:center;padding:0 4px}
+.gm-lead-h{margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:6px}.gm-lh{display:flex;align-items:center;gap:6px}.gm-lead-h .gm-lh:last-child{justify-content:flex-end}
+.gm-lr{display:flex;align-items:center;gap:7px;min-width:0}.gm-lr .num{margin-left:auto;font-weight:700;white-space:nowrap}
+.gm-lead>.gm-lr:nth-child(3n){flex-direction:row-reverse}.gm-lead>.gm-lr:nth-child(3n) .num{margin-left:0;margin-right:auto}
+.gm-two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.gm-lc{display:grid;gap:6px}
+.gm-cmp{display:grid;gap:9px}
+.gm-cr{display:grid;grid-template-columns:70px 1fr 70px;gap:10px;align-items:center}
+.gm-cr>b{font-size:15px;font-variant-numeric:tabular-nums}.gm-cr>b:first-child{text-align:left}.gm-cr>b:last-child{text-align:right}.gm-cr>b.best{color:var(--ink)}.gm-cr>b:not(.best){color:var(--muted);font-weight:500}
+.gm-cm{display:grid;gap:3px;text-align:center}.gm-cm>span{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.gm-cb{height:6px;border-radius:99px;overflow:hidden;display:flex;background:var(--surface2)}.gm-cb i{display:block;height:100%}
+.gm-th{margin-bottom:4px;font-size:13px}.gm-th>span{display:flex;align-items:center;gap:6px}.gm-th>span:last-child{justify-content:flex-end}
+.gm-last{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;align-items:center;text-align:left;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer}
+.gm-last:hover{background:var(--surface2)}.gm-last .note{grid-column:2}.gm-last.none{display:flex;gap:8px;cursor:default}
+.gm-wl{font-family:var(--f-display);font-weight:800;width:22px;height:22px;border-radius:5px;display:grid;place-items:center;font-size:13px;color:#fff;background:var(--muted)}.gm-wl.w{background:var(--good)}.gm-wl.l{background:var(--bad)}
+.gm-ln{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.gm-tabs{display:flex;gap:4px;margin:14px 0 0;border-bottom:2px solid var(--line);overflow-x:auto}
+.gm-tabs button{border:0;background:none;padding:9px 14px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;border-radius:0;white-space:nowrap}
+.gm-tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--bulb)}
+.gm-tp{border-top-left-radius:0;border-top-right-radius:0}
+.gm-ls td,.gm-ls th{min-width:28px}
+.gm-news{display:grid;gap:12px;padding:12px}
+@media(max-width:640px){.gm-hd{grid-template-columns:1fr;justify-items:stretch}.gm-tm.home{flex-direction:row}.gm-mid{max-width:none;order:-1}.gm-sc{margin-left:auto;font-size:40px}.gm-two{grid-template-columns:1fr}.gm-cr{grid-template-columns:54px 1fr 54px}}
+.gm-th{grid-template-columns:1fr 1fr}.gm-th>span{white-space:nowrap}.gm-th>span b{overflow:hidden;text-overflow:ellipsis}
+.gm-lead2>div{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 </style>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -5048,8 +5092,9 @@ function hbProj(g) {
   const key = g.gid + JSON.stringify([A.lineup.map(p => p.id), H.lineup.map(p => p.id), A.staff.map(s => s.p.id), H.staff.map(s => s.p.id)]);
   if (HB.proj[key]) return HB.proj[key];
   const a = Core.prepSide(A), h = Core.prepSide(H), rng = Core.mulberry(7 + g.wk * 31), N = 400; let hw = 0, hr = 0, ar = 0;
-  for (let i = 0; i < N; i++) { const [x, y] = Core.game(h, a, rng, null); hr += x; ar += y; if (x > y) hw++; }
-  return HB.proj[key] = { hw: hw / N, hr: hr / N, ar: ar / N, cha: A.chem.good - A.chem.bad, chh: H.chem.good - H.chem.bad };
+  const res = [];
+  for (let i = 0; i < N; i++) { const [x, y] = Core.game(h, a, rng, null); hr += x; ar += y; res.push([x, y]); if (x > y) hw++; }
+  return HB.proj[key] = { res, hw: hw / N, hr: hr / N, ar: ar / N, cha: A.chem.good - A.chem.bad, chh: H.chem.good - H.chem.bad };
 }
 
 
@@ -5113,7 +5158,7 @@ function hbProjHtml(g, k) { const ap = Math.round((1 - k.hw) * 100), hp = 100 - 
   <div class="hb-pr"><span>Avg runs <b class="num">${k.ar.toFixed(1)}</b></span><span>Chem <b class="num">${k.cha}</b> vs <b class="num">${k.chh}</b></span><span>Avg runs <b class="num">${k.hr.toFixed(1)}</b></span></div>`; }
 function hbSide(g, side, s) {
   const t = g[side], sc = s && s.status !== 'scheduled' ? (side === 'away' ? s.as : s.hs) : null, oth = s ? (side === 'away' ? s.hs : s.as) : null, lose = s && s.status === 'final' && sc < oth;
-  return `<div class="hb-side ${hbMe() === t ? 'me' : ''}">${hbLogo(t, true)}<div class="hb-tn"><b>${esc(t)}</b><span>${hbRec(t)} · ${side === 'away' ? 'Away' : 'Home'}</span></div><div class="hb-sc ${lose ? 'lose' : ''}">${sc == null ? '–' : sc}</div></div>`;
+  return `<div class="hb-side ${hbMe() === t ? 'me' : ''}" data-gm="open" data-g="${g.gid}" title="Open the game page">${hbLogo(t, true)}<div class="hb-tn"><b>${esc(t)}</b><span>${hbRec(t)} · ${side === 'away' ? 'Away' : 'Home'}</span></div><div class="hb-sc ${lose ? 'lose' : ''}">${sc == null ? '–' : sc}</div></div>`;
 }
 function hbStad(g, s) {
   const m = HB.maps[g.gid], fin = s && s.status === 'final';
@@ -5134,9 +5179,9 @@ function hbCard(g) {
   const s = HB.scores[g.gid], st = s ? s.status : 'scheduled';
   const pill = st === 'live' ? `<span class="hb-pill live">LIVE${s.inn ? ' · ' + esc(s.inn) : ''}</span>` : st === 'final' ? `<span class="hb-pill">${esc(hbFinTxt(s).toUpperCase())}</span>` : '<span class="hb-pill dim">UPCOMING</span>';
   const k = st === 'final' ? null : hbProj(g);
-  return `<article class="hb-game"><div class="hb-head"><span>Week ${g.wk} · Game ${g.gid.slice(g.gid.indexOf('g') + 1)}</span>${pill}</div>${hbSide(g, 'away', s)}${hbSide(g, 'home', s)}
+  return `<article class="hb-game"><div class="hb-head" data-gm="open" data-g="${g.gid}" role="button" tabindex="0" title="Open the game page"><span>Week ${g.wk} · Game ${g.gid.slice(g.gid.indexOf('g') + 1)}</span>${pill}</div>${hbSide(g, 'away', s)}${hbSide(g, 'home', s)}
    ${st === 'final' || st === 'live' ? '' : `<div class="hb-proj" data-hbproj="${g.gid}">${k ? hbProjHtml(g, k) : '<span class="note">Set both lineups to see a projection.</span>'}</div>`}
-   ${hbStad(g, s)}<div class="hb-st" style="display:flex;gap:6px"><button class="hb-mini" data-hb="lineups" data-g="${g.gid}">Lineups</button>${s && (s.box || s.line) ? `<button class="hb-mini" data-hb="box" data-g="${g.gid}">Box score</button>` : ''}</div></article>`;
+   ${hbStad(g, s)}<div class="hb-st" style="display:flex;gap:6px;flex-wrap:wrap"><button class="hb-mini primary" data-gm="open" data-g="${g.gid}">Game page</button><button class="hb-mini" data-hb="lineups" data-g="${g.gid}">Lineups</button>${s && (s.box || s.line) ? `<button class="hb-mini" data-hb="box" data-g="${g.gid}">Box score</button>` : ''}</div></article>`;
 }
 function hbWeekBar(key, cur) { return `<div class="hb-weeks">${HB_WEEKS.map(x => `<button data-hbweek="${x}" data-hbkey="${key}" aria-pressed="${x === cur}" class="${x === hbCur() ? 'cur' : ''}">${x}</button>`).join('')}</div>`; }
 function hbMatchups() {
@@ -5654,13 +5699,14 @@ function hbTbl(title, rows, cols, nm) {
   const cs = cols.filter(c => !c[2] || rows.some(x => +x[c[1]] > 0)), f = (c, x) => c[3] ? c[3](x[c[1]] || 0) : (x[c[1]] || 0);
   return `<div class="tbl-wrap"><table><thead><tr><th class="l">${title}</th>${cs.map(c => `<th>${c[0]}</th>`).join('')}</tr></thead><tbody>${rows.map(x => `<tr><td class="l">${nm(x)}${x.mvp ? ' <span class="chip g" title="Game MVP">MVP</span>' : ''}</td>${cs.map(c => `<td class="num">${f(c, x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
-function hbBox(gid) {
+function hbBox(gid, mode) {
   const g = HB_GAMES.find(x => x.gid === gid), s = HB.scores[gid]; if (!s) return;
   const line = s.line ? `<div class="tbl-wrap"><table><thead><tr><th class="l"></th>${(s.line.away || []).map((_, i) => `<th>${i === 9 && hbInn(s) > 10 ? '10+' : i + 1}</th>`).join('')}<th>R</th></tr></thead><tbody><tr><td class="l"><b>${esc(g.away)}</b></td>${(s.line.away || []).map(v => `<td class="num">${v}</td>`).join('')}<td class="num"><b>${s.as}</b></td></tr><tr><td class="l"><b>${esc(g.home)}</b></td>${(s.line.home || []).map(v => `<td class="num">${v}</td>`).join('')}<td class="num"><b>${s.hs}</b></td></tr></tbody></table></div>` : '';
   const nm0 = x => { const id = hbPid(x.p); return id != null ? `${ico(P[id], 18)}<span class="pclick" data-pid="${id}">${esc(x.p)}</span>` : esc(x.p); };
   const side = k => { const b = s.box && s.box[k]; if (!b) return ''; const stars = hbBoxStarIds(g, s, k), nm = x => nm0(x) + (stars.includes(hbPid(x.p)) ? ' <b class="hb-s" title="Starred this week">★</b>' : ''); return `<h3 class="hb-h3">${hbLogo(g[k])}${esc(g[k])}${stars.length ? ` <span class="note">★ ${stars.map(hbSn).map(esc).join(', ')} starred</span>` : ''}</h3>
    ${(b.bat || []).length ? hbTbl('Batter', b.bat.map(x => Object.assign({}, x, { b1: x.b1 != null ? x.b1 : Math.max(0, (+x.h || 0) - (+x.b2 || 0) - (+x.b3 || 0) - (+x.hr || 0)) })), [['AB', 'ab'], ['R', 'r', 1], ['H', 'h'], ['1B', 'b1'], ['2B', 'b2'], ['3B', 'b3'], ['HR', 'hr'], ['RBI', 'rbi'], ['BB', 'bb'], ['SO', 'so'], ['Sexy', 'sx'], ['BC', 'bc'], ['BT', 'bt'], ['E', 'e'], ['Outs', 'outs'], ['Score', 'gs']], nm) : ''}
    ${(b.pit || []).length ? hbTbl('Pitcher', b.pit, [['IP', 'ip', 0, v => (+v).toFixed(1)], ['GS', 'started'], ['W', 'w'], ['L', 'l'], ['SV', 'sv'], ['BS', 'bs'], ['K', 'so'], ['BB', 'bb'], ['H', 'h'], ['R', 'r', 1], ['ER', 'er'], ['Score', 'gs']], nm) : ''}`; };
+  if (mode === 'sides') return `${side('away')}${side('home')}`; if (mode === 'line') return line;
   hbModal(`<h2 class="hb-mh">${esc(g.away)} <span class="num">${s.as}</span> – <span class="num">${s.hs}</span> ${esc(g.home)}</h2><div class="note">${esc(s.status === 'final' ? hbFinTxt(s) : s.inn || s.status)}${s.stadium ? ' · ' + esc(s.stadium) + (s.time ? ' (' + esc(s.time) + ')' : '') : ''}</div>${line}${side('away')}${side('home')}`);
 }
 function hbLineups(gid) {
@@ -7327,6 +7373,179 @@ document.addEventListener('click', async e => {
   if (tr.got.every(g => !g.length)) { toast('List at least one player or pick.', 'bad'); return; }
   if (await hbPut('league/past_trades', { list: PT.list.concat(tr) })) { toast('Trade added to Season ' + tr.s + ' history.', 'good'); root.querySelectorAll('textarea').forEach(t => t.value = ''); }
 });
+/* ============ GAME PAGES (ESPN-style): upcoming = predictor, odds, leaders, team stats, last game; posted = news, line score, box score, leaders, team stats ============ */
+const GM = { tab: 'news' };
+const gmG = gid => HB_GAMES.find(g => g.gid === gid);
+const gmFin = s => !!(s && s.status === 'final' && s.as != null && s.hs != null);
+const gmN = v => +v || 0;
+const gmPl = name => { const id = hbPid(name); return id != null ? `${ico(P[id], 22)}<b class="pclick" data-pid="${id}">${esc(hbSn(id))}</b>` : `<b>${esc(String(name).replace(/ \(.*/, ''))}</b>`; };
+const gmAm = p => { p = Math.min(0.97, Math.max(0.03, p)); const v = p >= 0.5 ? Math.round(-100 * p / (1 - p)) : Math.round(100 * (1 - p) / p); return v > 0 ? '+' + v : String(v); };
+const gmLum = hex => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return 0.5; const n = parseInt(m[1], 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; };
+// a team colour that shows up on the grey bars: its primary, unless that is nearly black, then its secondary
+const gmCol = t => { const c = TEAMC[t] || {}; return gmLum(c.p) < 0.2 && c.s && gmLum(c.s) > gmLum(c.p) ? c.s : (c.p || '#888'); };
+const gmAvg = (h, ab) => ab ? (h / ab).toFixed(3).replace(/^0/, '') : '.000';
+const gmVenue = (g, s) => {
+  if (s && s.stadium) return s.stadium + (s.time ? ' (' + s.time + ')' : '');
+  const m = HB.maps[g.gid]; return m && m.pick ? hbStName(m.pick, m.tod) : 'Stadium not picked yet';
+};
+
+// a team's season through (not including) a week, from the posted games and box scores
+function gmTeamSeason(t, beforeWk) {
+  const o = { t, gp: 0, w: 0, l: 0, rs: 0, ra: 0, ab: 0, h: 0, hr: 0, rbi: 0, bb: 0, so: 0, sx: 0, bc: 0, bt: 0, e: 0, ip: 0, er: 0, k: 0, bx: 0 };
+  for (const g of HB_GAMES) {
+    if (g.away !== t && g.home !== t) continue; if (beforeWk && g.wk >= beforeWk) continue;
+    const s = HB.scores[g.gid]; if (!gmFin(s)) continue;
+    const side = g.away === t ? 'away' : 'home', f = side === 'away' ? s.as : s.hs, a = side === 'away' ? s.hs : s.as;
+    o.gp++; o.rs += f; o.ra += a; f > a ? o.w++ : o.l++;
+    const b = s.box && s.box[side]; if (!b) continue; o.bx++;
+    for (const q of b.bat || []) { o.ab += gmN(q.ab); o.h += gmN(q.h); o.hr += gmN(q.hr); o.rbi += gmN(q.rbi); o.bb += gmN(q.bb); o.so += gmN(q.so); o.sx += gmN(q.sx); o.bc += gmN(q.bc); o.bt += gmN(q.bt); o.e += gmN(q.e); }
+    for (const q of b.pit || []) { o.ip += gmN(q.ip); o.er += gmN(q.er); o.k += gmN(q.so); }
+  }
+  return o;
+}
+// the box score of one side of one game, added up
+function gmBoxTot(s, side) {
+  const b = (s.box && s.box[side]) || {}, o = { ab: 0, h: 0, hr: 0, rbi: 0, bb: 0, so: 0, sx: 0, bc: 0, bt: 0, e: 0, outs: 0, ip: 0, er: 0, k: 0, has: !!s.box };
+  for (const q of b.bat || []) for (const f of ['ab', 'h', 'hr', 'rbi', 'bb', 'so', 'sx', 'bc', 'bt', 'e', 'outs']) o[f] += gmN(q[f]);
+  for (const q of b.pit || []) { o.ip += gmN(q.ip); o.er += gmN(q.er); o.k += gmN(q.so); }
+  return o;
+}
+function gmLast(t, wk, vs) {
+  const l = HB_GAMES.filter(g => (g.away === t || g.home === t) && g.wk < wk && gmFin(HB.scores[g.gid]) && (!vs || g.away === vs || g.home === vs)).sort((a, b) => b.wk - a.wk);
+  return l[0] || null;
+}
+function gmLastHtml(t, g0) {
+  const g = gmLast(t, g0.wk); if (!g) return `<div class="gm-last none">${hbLogo(t)}<span class="note">No games played yet.</span></div>`;
+  const s = HB.scores[g.gid], away = g.away === t, f = away ? s.as : s.hs, a = away ? s.hs : s.as, opp = away ? g.home : g.away;
+  return `<button class="gm-last" data-gm="open" data-g="${g.gid}"><span class="gm-wl ${f > a ? 'w' : 'l'}">${f > a ? 'W' : 'L'}</span><span class="gm-ln"><b>${f}-${a}</b> ${away ? 'at' : 'vs'} ${hbLogo(opp)}${esc(opp)}</span><span class="note">Week ${g.wk} · ${esc(hbFinTxt(s))}${s.stadium ? ' · ' + esc(s.stadium) : ''}</span></button>`;
+}
+
+// ---- side-by-side comparison with bars ----
+function gmCmp(g, rows) {
+  let ca = gmCol(g.away), ch = gmCol(g.home); if (ca === ch) ch = '#8a94a6';
+  return `<div class="gm-cmp">${rows.map(([lab, a, b, fmt, low]) => {
+    const A = +a || 0, B = +b || 0, tot = A + B, pa = tot ? (A / tot) * 100 : 50, bestA = low ? A < B : A > B, bestB = low ? B < A : B > A, f = fmt || (x => x);
+    return `<div class="gm-cr"><b class="${bestA ? 'best' : ''}">${f(a)}</b><div class="gm-cm"><span>${lab}</span><div class="gm-cb"><i style="width:${pa}%;background:${ca}"></i><i style="width:${100 - pa}%;background:${ch}"></i></div></div><b class="${bestB ? 'best' : ''}">${f(b)}</b></div>`;
+  }).join('')}</div>`;
+}
+const gmHead2 = g => `<div class="gm-cr gm-th"><span>${hbLogo(g.away)}<b>${esc(g.away)}</b></span><span><b>${esc(g.home)}</b>${hbLogo(g.home)}</span></div>`;
+
+// ---- upcoming game ----
+function gmOddsHtml(g, k) {
+  if (!k || !k.res) return '<div class="pad note">Set both lineups to see odds.</div>';
+  const hw = k.hw, favHome = hw >= 0.5, res = k.res, N = res.length;
+  const cover = res.filter(([x, y]) => (favHome ? x - y : y - x) >= 2).length / N;           // favorite -1.5
+  const tot = res.map(([x, y]) => x + y).sort((a, b) => a - b), line = Math.floor(tot[Math.floor(N / 2)]) + 0.5, over = tot.filter(v => v > line).length / N;
+  const rl = (home) => home === favHome ? ['-1.5', cover] : ['+1.5', 1 - cover];
+  const row = home => { const t = home ? g.home : g.away, p = home ? hw : 1 - hw, [rln, rlp] = rl(home);
+    return `<tr><td class="l">${hbLogo(t)}<b>${esc(t)}</b></td><td class="num">${gmAm(p)}</td><td class="num">${rln} <span class="muted">(${gmAm(rlp)})</span></td><td class="num">${home ? 'U' : 'O'} ${line} <span class="muted">(${gmAm(home ? 1 - over : over)})</span></td></tr>`; };
+  return `<div class="tbl-wrap"><table><thead><tr><th class="l">Team</th><th>Moneyline</th><th>Run line</th><th>Total</th></tr></thead><tbody>${row(false)}${row(true)}</tbody></table></div>
+   <div class="pad note">Made-up odds from ${N} simulated games of these two lineups. For fun, not betting advice.</div>`;
+}
+function gmProbable(t, wk) {
+  const l = hbLineup(t, wk); if (!l) return null; const id = l.slots.find(i => l.pos[i] === 'P'); return id == null ? null : id;
+}
+function gmSeasonLeaders(g) {
+  const rowsOf = t => (typeof stLiveRows === 'function' ? stLiveRows() : []).filter(r => r.t === t && r.G);
+  const A = rowsOf(g.away), B = rowsOf(g.home);
+  if (!A.length && !B.length) {
+    const top = t => hbRoster(t).slice().sort((a, b) => P[b].bat - P[a].bat).slice(0, 3);
+    const col = t => `<div class="gm-lc">${top(t).map(id => `<div class="gm-lr">${ico(P[id], 22)}<b class="pclick" data-pid="${id}">${esc(hbSn(id))}</b><span class="num">${P[id].bat.toFixed(2)}</span></div>`).join('') || '<span class="note">No roster</span>'}</div>`;
+    return `<div class="pad note" style="padding-bottom:0">No box scores yet, so these are each team's best bats by rating. Season leaders fill in as games post.</div><div class="gm-two">${col(g.away)}${col(g.home)}</div>`;
+  }
+  const best = (rows, f, min) => rows.filter(r => f(r) != null && (min == null || f(r) > min)).sort((a, b) => f(b) - f(a))[0];
+  const cats = [
+    ['Batting average', r => r.AB >= 6 ? r.H / r.AB : null, r => gmAvg(r.H, r.AB), 0],
+    ['Home runs', r => r.HR, r => r.HR, 0], ['RBI', r => r.RBI, r => r.RBI, 0], ['Hits', r => r.H, r => r.H, 0],
+    ['Sexy plays', r => r.SP, r => r.SP, 0], ['Strikeouts', r => r.K, r => r.K, 0], ['Wins', r => r.W, r => r.W, 0],
+    ['ERA', r => r.IP >= 3 ? -(r.ER * 9 / r.IP) : null, r => (r.ER * 9 / r.IP).toFixed(2), null]];
+  const cell = (rows, c) => { const r = best(rows, c[1], c[3]); return r ? `<div class="gm-lr">${r.pid >= 0 ? ico(P[r.pid], 22) : ''}<b ${r.pid >= 0 ? `class="pclick" data-pid="${r.pid}"` : ''}>${esc(String(r.nm).replace(/ \(.*/, ''))}</b><span class="num">${c[2](r)}</span></div>` : '<div class="gm-lr"><span class="muted">–</span></div>'; };
+  return `<div class="gm-lead">${cats.map(c => `${cell(A, c)}<span class="gm-lab">${c[0]}</span>${cell(B, c)}`).join('')}</div>`;
+}
+function gmUpcoming(g, s) {
+  const k = hbProj(g), A = gmTeamSeason(g.away, g.wk), H = gmTeamSeason(g.home, g.wk);
+  const ap = k ? Math.round((1 - k.hw) * 100) : null, hp = k ? 100 - ap : null, pp = (t) => { const id = gmProbable(t, g.wk); return id == null ? '<span class="note">Lineup not set</span>' : `<span class="gm-lr">${ico(P[id], 22)}<b class="pclick" data-pid="${id}">${esc(hbSn(id))}</b></span>`; };
+  const rate = (a, b) => b ? a / b : 0, cmpRows = [
+    ['Runs / game', rate(A.rs, A.gp), rate(H.rs, H.gp), x => (+x).toFixed(1)], ['Runs allowed / game', rate(A.ra, A.gp), rate(H.ra, H.gp), x => (+x).toFixed(1), 1],
+    ['Run differential', A.rs - A.ra, H.rs - H.ra, x => (x > 0 ? '+' : '') + x], ['Batting average', rate(A.h, A.ab), rate(H.h, H.ab), x => gmAvg(x, 1)], ['Home runs', A.hr, H.hr], ['RBI', A.rbi, H.rbi], ['Walks', A.bb, H.bb],
+    ['Strikeouts (bat)', A.so, H.so, x => x, 1], ['Sexy plays', A.sx, H.sx], ['Buddy catches', A.bc, H.bc], ['Errors', A.e, H.e, x => x, 1], ['ERA', rate(A.er * 9, A.ip), rate(H.er * 9, H.ip), x => (+x).toFixed(2), 1], ['Pitcher strikeouts', A.k, H.k]];
+  return `<div class="panel"><h2>Matchup predictor <span>${k ? '400 simulated games of the saved lineups' : 'needs both lineups'}</span></h2><div class="pad">${k ? `
+    <div class="gm-pred"><div><b class="num">${ap}%</b><span>${esc(g.away)}</span></div><div class="gm-pb"><i style="width:${ap}%;background:${gmCol(g.away)}"></i><i style="width:${hp}%;background:${gmCol(g.home) === gmCol(g.away) ? '#8a94a6' : gmCol(g.home)}"></i></div><div><b class="num">${hp}%</b><span>${esc(g.home)}</span></div></div>
+    <div class="gm-sub"><span>Projected runs <b class="num">${k.ar.toFixed(1)}</b></span><span>Chemistry <b class="num">${k.cha}</b> vs <b class="num">${k.chh}</b></span><span>Projected runs <b class="num">${k.hr.toFixed(1)}</b></span></div>` : '<span class="note">Set both lineups to see a prediction.</span>'}</div></div>
+  <div class="panel" style="margin-top:14px"><h2>Game odds</h2>${gmOddsHtml(g, k)}</div>
+  <div class="gm-two2" style="margin-top:14px">
+   <div class="panel"><h2>Probable pitchers</h2><div class="pad gm-lead2"><div>${hbLogo(g.away)}${pp(g.away)}</div><div>${hbLogo(g.home)}${pp(g.home)}</div></div></div>
+   <div class="panel"><h2>Last game</h2><div class="pad gm-lead2"><div>${gmLastHtml(g.away, g)}</div><div>${gmLastHtml(g.home, g)}</div></div></div></div>
+  <div class="panel" style="margin-top:14px"><h2>Season stat leaders <span>${esc(g.away)} | ${esc(g.home)}</span></h2><div class="pad">${gmSeasonLeaders(g)}</div></div>
+  <div class="panel" style="margin-top:14px"><h2>Team stats <span>Season ${typeof RB !== 'undefined' && RB.cur ? RB.cur : 6}, before this game</span></h2><div class="pad">${gmHead2(g)}${A.gp || H.gp ? gmCmp(g, cmpRows) : '<span class="note">Team stats appear after the first games post.</span>'}</div></div>`;
+}
+
+// ---- posted game ----
+function gmLine(g, s) {
+  const ta = gmBoxTot(s, 'away'), th = gmBoxTot(s, 'home'), n = s.line ? Math.max((s.line.away || []).length, (s.line.home || []).length) : 0;
+  const hd = Array.from({ length: n }, (_, i) => `<th>${i === 9 && hbInn(s) > 10 ? '10+' : i + 1}</th>`).join('');
+  const r = (side, t, tt, sc) => `<tr><td class="l">${hbLogo(t)}<b>${esc(t)}</b></td>${Array.from({ length: n }, (_, i) => `<td class="num">${s.line && s.line[side][i] != null ? s.line[side][i] : ''}</td>`).join('')}<td class="num"><b>${sc}</b></td><td class="num">${tt.has ? tt.h : '–'}</td><td class="num">${s[side === 'away' ? 'eA' : 'eH'] != null ? s[side === 'away' ? 'eA' : 'eH'] : tt.has ? tt.e : '–'}</td></tr>`;
+  return `<div class="tbl-wrap"><table class="gm-ls"><thead><tr><th class="l"></th>${hd}<th>R</th><th>H</th><th>E</th></tr></thead><tbody>${r('away', g.away, ta, s.as)}${r('home', g.home, th, s.hs)}</tbody></table></div>`;
+}
+function gmLeadersPost(g, s) {
+  const per = side => { const b = (s.box && s.box[side]) || {}, bat = (b.bat || []), pit = (b.pit || []);
+    const top = (arr, f) => arr.filter(q => f(q) > 0).sort((a, b2) => f(b2) - f(a))[0];
+    const gs = bat.concat(pit).filter(q => gmN(q.gs) > 0).sort((a, b2) => gmN(b2.gs) - gmN(a.gs))[0], mv = bat.concat(pit).find(q => gmN(q.mvp));
+    const hit = top(bat, q => gmN(q.h) * 10 - (gmN(q.ab) - gmN(q.h)) * 0.01), hr = top(bat, q => gmN(q.hr)), rbi = top(bat, q => gmN(q.rbi)), sx = top(bat, q => gmN(q.sx)), bc = top(bat, q => gmN(q.bc));
+    const pt = pit.slice().sort((a, b2) => gmN(b2.ip) - gmN(a.ip))[0];
+    return { mv, gs, hit, hr, rbi, sx, bc, pt };
+  };
+  const A = per('away'), H = per('home');
+  const cell = (q, txt) => q ? `<div class="gm-lr">${gmPl(q.p)}<span class="num">${txt(q)}</span></div>` : '<div class="gm-lr"><span class="muted">–</span></div>';
+  const cats = [
+    ['Game MVP', 'mv', q => 'MVP' + (gmN(q.gs) ? ' · ' + q.gs : '')], ['Top game score', 'gs', q => q.gs],
+    ['Hits', 'hit', q => `${gmN(q.h)}-${gmN(q.ab)}`], ['Home runs', 'hr', q => q.hr], ['RBI', 'rbi', q => q.rbi], ['Sexy plays', 'sx', q => q.sx], ['Buddy catches', 'bc', q => q.bc],
+    ['Pitching', 'pt', q => `${(+q.ip || 0).toFixed(1)} IP · ${gmN(q.so)} K · ${gmN(q.er)} ER${gmN(q.w) ? ' · W' : gmN(q.l) ? ' · L' : gmN(q.sv) ? ' · SV' : ''}`]]
+    .filter(c => A[c[1]] || H[c[1]]);
+  if (!cats.length) return '<div class="pad note">Leaders appear once the box score is entered.</div>';
+  return `<div class="pad"><div class="gm-lead gm-lead-h"><span class="gm-lh">${hbLogo(g.away)}<b>${esc(g.away)}</b></span><span></span><span class="gm-lh">${hbLogo(g.home)}<b>${esc(g.home)}</b></span></div><div class="gm-lead">${cats.map(c => `${cell(A[c[1]], c[2])}<span class="gm-lab">${c[0]}</span>${cell(H[c[1]], c[2])}`).join('')}</div></div>`;
+}
+function gmTeamPost(g, s) {
+  const a = gmBoxTot(s, 'away'), h = gmBoxTot(s, 'home'); if (!a.has) return '<div class="pad note">No box score yet for this game.</div>';
+  const rows = [['Runs', s.as, s.hs], ['Hits', a.h, h.h], ['Errors', a.e, h.e, null, 1], ['At-bats', a.ab, h.ab], ['Batting average', a.ab ? a.h / a.ab : 0, h.ab ? h.h / h.ab : 0, x => gmAvg(x, 1)], ['Home runs', a.hr, h.hr], ['RBI', a.rbi, h.rbi], ['Walks', a.bb, h.bb], ['Strikeouts (bat)', a.so, h.so, null, 1],
+    ['Sexy plays', a.sx, h.sx], ['Buddy catches', a.bc, h.bc], ['Buddy tosses', a.bt, h.bt], ['Outs recorded', a.outs, h.outs], ['Pitcher strikeouts', a.k, h.k], ['Earned runs allowed', a.er, h.er, null, 1]].filter(r => (+r[1] || +r[2]) || r[0] === 'Runs');
+  return `<div class="pad">${gmHead2(g)}${gmCmp(g, rows.map(r => [r[0], r[1], r[2], r[3] || (x => x), r[4]]))}</div>`;
+}
+function gmNews(g) {
+  const its = (typeof nwItems === 'function' ? nwItems() : []).filter(it => String(it.id).indexOf('gm' + g.gid) === 0 && !(NW.hidden && NW.hidden.has(it.id))).sort((a, b) => a.ts - b.ts);
+  const st = its.filter(x => x.type !== 'cheep'), ch = its.filter(x => x.type === 'cheep');
+  if (!its.length) return '<div class="pad note">Recaps and reactions show up here once the game is posted.</div>';
+  return `<div class="gm-news"><div class="nw-main">${st.map(nwCard).join('')}</div>${ch.length ? `<div class="panel"><h2>Cheeps</h2><div class="nw-chl">${ch.map(nwCheepHtml).join('')}</div></div>` : ''}</div>`;
+}
+function gmPosted(g, s) {
+  const tabs = [['news', 'News'], ['box', 'Box Score'], ['lead', 'Game Leaders'], ['team', 'Team Stats']], body = {
+    news: () => gmNews(g), box: () => `<div class="pad">${hbBox(g.gid, 'sides')}</div>`, lead: () => gmLeadersPost(g, s), team: () => gmTeamPost(g, s) };
+  return `<div class="panel"><h2>Line score <span>${esc(hbFinTxt(s))}</span></h2>${gmLine(g, s)}</div>
+   <div class="gm-tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" aria-selected="${GM.tab === k}" data-gm="tab" data-t="${k}">${l}</button>`).join('')}</div>
+   <div class="panel gm-tp">${(body[GM.tab] || body.news)()}</div>`;
+}
+
+function gmPage() {
+  const g = gmG(HB.game); if (!g) { HB.game = null; return ''; }
+  const s = HB.scores[g.gid], fin = gmFin(s), live = s && s.status === 'live', tm = (side) => {
+    const t = g[side], sc = s && (fin || live) ? (side === 'away' ? s.as : s.hs) : null, oth = s ? (side === 'away' ? s.hs : s.as) : null, win = fin && sc > oth, r = hbStandings().find(x => x.t === t) || {};
+    return `<div class="gm-tm ${side} ${win ? 'win' : fin ? 'lose' : ''}">${hbLogo(t, true)}<div class="gm-tn"><b>${esc(t)}</b><span>${r.w || 0}-${r.l || 0} · ${side === 'away' ? 'Away' : 'Home'}</span></div><div class="gm-sc">${sc == null ? '' : sc}</div></div>`; };
+  const status = fin ? `<b>${esc(hbFinTxt(s).toUpperCase())}</b>` : live ? `<b class="live">LIVE${s.inn ? ' · ' + esc(s.inn) : ''}</b>` : `<b>WEEK ${g.wk}</b><span>Upcoming</span>`;
+  return `<div class="gm"><div class="gm-top"><button class="hb-mini" data-gm="back">← Scoreboard</button><span class="note">Week ${g.wk} · Game ${g.gid.slice(g.gid.indexOf('g') + 1)}</span></div>
+   <div class="gm-hd">${tm('away')}<div class="gm-mid">${status}<span>${esc(gmVenue(g, s))}</span></div>${tm('home')}</div>
+   ${fin ? gmPosted(g, s) : `<div style="margin-bottom:14px">${hbStad(g, s)}</div>${gmUpcoming(g, s)}`}</div>`;
+}
+
+const gmOrigMatchups = HB_VIEWS.hm;
+HB_VIEWS.hm = function () { return HB.game && gmG(HB.game) ? gmPage() : gmOrigMatchups(); };
+document.addEventListener('click', e => {
+  const n = e.target.closest('.gm [data-nwx]'); if (n) { setTimeout(() => renderHub(), 0); return; }
+  const t = e.target.closest('[data-gm]'); if (!t || e.target.closest('.pclick')) return; const a = t.dataset.gm;
+  if (a === 'open') { const g = gmG(t.dataset.g); if (!g) return; HB.game = g.gid; HB.week = g.wk; GM.tab = 'news'; renderHub(); try { window.scrollTo({ top: 0 }); } catch (x) {} }
+  else if (a === 'back') { HB.game = null; renderHub(); }
+  else if (a === 'tab') { GM.tab = t.dataset.t; renderHub(); }
+});
+document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-gm="open"]')) { e.preventDefault(); e.target.click(); } });
 /* ============ REBRANDS: the commissioner changes a team's name, logo and colors; the whole site follows, history stays put ============ */
 const RB_NICK0 = { 'Toadstool Titans': 'Titans', 'Sluggin Heat': 'Heat' };
 RB.ui = { team: '', name: '', nick: '', p: '#336699', s: '#ffd23f', logo: '', lw: 0, lh: 0, busy: false, file: '' };
