@@ -5458,7 +5458,7 @@ function hbParseBot(txt) {
   txt = String(txt || '').trim(); const games = [], notes = [];
   const mkGame = o => { const g = { players: [] }; const get = (...ks) => { for (const k of ks) for (const kk of Object.keys(o)) if (hbK(kk) === hbK(k) && o[kk] !== '' && o[kk] != null) return o[kk]; return null; };
     g.gid = get('gid', 'gameID') && !/^\d+$/.test(String(get('gid', 'gameID'))) ? get('gid', 'gameID') : null; g.wk = +get('week', 'wk') || 0; g.away = hbTeamName(get('away', 'awayTeam')); g.home = hbTeamName(get('home', 'homeTeam'));
-    g.field = get('field', 'stadium'); g.time = get('time'); g.status = get('status'); g.inn = get('inn');
+    g.field = get('field', 'stadium'); g.time = get('time'); g.innings = +get('inningsPlayed', 'innings_played') || 0; g.status = get('status'); g.inn = get('inn');
     const inn = side => { const a = get('innings' + side, side + 'Innings'); if (Array.isArray(a)) return a; const arr = []; for (let i = 1; i <= 9; i++) { const v = get(side + i); if (v != null) arr.push(/^x$/i.test(v) ? 'x' : hbNum(v)); } return arr.length ? arr : null; };
     const li = get('innings', 'line'); if (li && li.away && li.home) { g.line = { away: li.away.map(v => /^x$/i.test(v) ? 'x' : hbNum(v)), home: li.home.map(v => /^x$/i.test(v) ? 'x' : hbNum(v)) }; } else { const a = inn('away'), h = inn('home'); if (a && h) g.line = { away: a, home: h }; }
     const sum = a => a.reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0);
