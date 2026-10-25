@@ -5492,7 +5492,7 @@ function hbParseFinder(txt) {
     const A = lines[q], B = lines[q + 1], first = q === 0;
     let N = (first && meta.inn) || 0; if (!N) lines.slice(q, q + 2).forEach(L => { L.inn.forEach((v, k) => { if (v !== '') N = Math.max(N, k + 1); }); if (L.ex !== '') N = Math.max(N, 10); });
     for (const L of [A, B]) { L.line = L.inn.slice(0, Math.min(N, 9)).map(v => v === '' ? 'x' : hbNum(v)); if (N > 9) L.line.push(hbNum(L.ex)); const sum = L.line.reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0); if (sum !== L.r) notes.push(`Check: ${L.name}'s innings add up to ${sum} but the sheet says ${L.r} runs.`); }
-    const g = { players: [], gid: null, wk: first ? meta.wk || 0 : 0, away: first ? meta.away : null, home: first ? meta.home : null, pair: [A.name, B.name], byTeam: { [A.name]: A, [B.name]: B }, field: first ? meta.field : null, time: first ? meta.time : null, innings: N, status: 'final' };
+    const g = { players: [], gid: null, wk: first ? meta.wk || 0 : 0, away: first ? meta.away : null, home: first ? meta.home : null, pair: [A.name, B.name], played: { away: A.name, home: B.name }, byTeam: { [A.name]: A, [B.name]: B }, field: first ? meta.field : null, time: first ? meta.time : null, innings: N, status: 'final' };
     tbls.filter(t => t.team === A.name || t.team === B.name).forEach(t => t.recs.forEach(rc => { rc.team = t.team; g.players.push(rc); }));
     games.push(g);
   }
@@ -5544,12 +5544,13 @@ async function hbBotImport(txt, who) {
     if (g && x.away && x.home && x.away === g.home && x.home === g.away) flip = true;
     if (!g) { const bad = (x.pair || [x.away, x.home]).filter(t => t && !TEAMS.includes(t)); log.push(`No game found for ${x.away || (x.pair && x.pair[0]) || '?'} vs ${x.home || (x.pair && x.pair[1]) || '?'} (week ${x.wk || '?'}).${bad.length ? ' ' + bad.join(' and ') + ' is not a team name on this site. If a team was renamed, record the rebrand in Setup first.' : ''}`); continue; }
     if (flip) log.push(`The sheet lists ${x.away || x.pair[0]} as ${x.away ? 'away' : 'a team'} but the schedule has ${g.away} at ${g.home}. Everything was recorded the schedule's way.`);
+    const played = x.played || (x.away && x.home ? { away: x.away, home: x.home } : null);
     if (x.byTeam) { const A = x.byTeam[g.away], H = x.byTeam[g.home]; if (!A || !H) { log.push(`${g.away} at ${g.home}: the team names in the paste do not match this game.`); continue; } x.as = A.r; x.hs = H.r; x.line = { away: A.line, home: H.line }; x.eA = A.e; x.eH = H.e; flip = false; }
     if (flip) { const sw = (o, a, b) => { const t = o[a]; o[a] = o[b]; o[b] = t; }; sw(x, 'as', 'hs'); sw(x, 'eA', 'eH'); if (x.line) x.line = { away: x.line.home, home: x.line.away }; }
     if (!hbBxCan(g.wk)) { log.push(`Week ${g.wk} is locked for you. Unlock it with its password first.`); continue; }
     const old = HB.scores[g.gid] || {}, d = Object.assign({}, old, { gid: g.gid, wk: g.wk, away: g.away, home: g.home, t: Date.now(), src: who || 'bot', by: LV.uid || '' });
     if (x.field) d.stadium = x.field; if (x.time) d.time = x.time; if (x.inn) d.inn = x.inn;
-    if (x.line) d.line = x.line; if (x.innings) d.innings = x.innings; else if (x.line) d.innings = Math.max((x.line.away || []).length, (x.line.home || []).length); if (x.eA != null) d.eA = hbNum(x.eA); if (x.eH != null) d.eH = hbNum(x.eH);
+    if (x.line) d.line = x.line; if (played && ((played.away === g.away && played.home === g.home) || (played.away === g.home && played.home === g.away))) d.played = played; if (x.innings) d.innings = x.innings; else if (x.line) d.innings = Math.max((x.line.away || []).length, (x.line.home || []).length); if (x.eA != null) d.eA = hbNum(x.eA); if (x.eH != null) d.eH = hbNum(x.eH);
     // the first team in the sheet is away; if the paste lists the teams the other way round, swap the sides
     let as = x.as, hs = x.hs; if (as != null && hs != null) { d.as = as; d.hs = hs; if (!x.status) d.status = 'final'; }
     if (x.status) d.status = String(x.status).toLowerCase();
@@ -5687,8 +5688,10 @@ async function hbRecordTrade() {
 /* ---- modals ---- */
 function hbModal(html) { let m = $('#hbModal'); if (!m) { m = document.createElement('div'); m.id = 'hbModal'; m.className = 'hb-modal'; document.body.appendChild(m); } m.innerHTML = `<div class="hb-mbox">${html}<div style="margin-top:12px"><button data-hb="close">Close</button></div></div>`; m.hidden = false; }
 const hbInn = s => +s.innings || (s.line ? Math.max((s.line.away || []).length, (s.line.home || []).length) : 0);
-// "Final" for a normal nine, "Final/10" for extra innings (or "Final/7" when the game was cut short)
-const hbFinTxt = s => { const n = hbInn(s); return n && n !== 9 ? 'Final/' + n : 'Final'; };
+// "Final" for the league's normal 7 innings (or fewer); "Final/9", "Final/10" and so on when it went longer
+const hbFinTxt = s => { const n = hbInn(s); return n > 7 ? 'Final/' + n : 'Final'; };
+// teams in the order they batted in the game that was played (the sheet's away team first); the schedule's home and away still decide stadium picks and standings
+const hbPlayedOrder = (g, s) => s && s.played && s.played.away === g.home && s.played.home === g.away ? ['home', 'away'] : ['away', 'home'];
 // who was starred for a team in a game: the commissioner's override on the box score, else that week's saved (or locked) lineup
 function hbBoxStarIds(g, s, k) {
   if (s.stars && Array.isArray(s.stars[k])) return s.stars[k].map(hbPid).filter(i => i != null);
@@ -5701,7 +5704,8 @@ function hbTbl(title, rows, cols, nm) {
 }
 function hbBox(gid, mode) {
   const g = HB_GAMES.find(x => x.gid === gid), s = HB.scores[gid]; if (!s) return;
-  const line = s.line ? `<div class="tbl-wrap"><table><thead><tr><th class="l"></th>${(s.line.away || []).map((_, i) => `<th>${i === 9 && hbInn(s) > 10 ? '10+' : i + 1}</th>`).join('')}<th>R</th></tr></thead><tbody><tr><td class="l"><b>${esc(g.away)}</b></td>${(s.line.away || []).map(v => `<td class="num">${v}</td>`).join('')}<td class="num"><b>${s.as}</b></td></tr><tr><td class="l"><b>${esc(g.home)}</b></td>${(s.line.home || []).map(v => `<td class="num">${v}</td>`).join('')}<td class="num"><b>${s.hs}</b></td></tr></tbody></table></div>` : '';
+  const lrow = k => `<tr><td class="l"><b>${esc(g[k])}</b></td>${(s.line[k] || []).map(v => `<td class="num">${v}</td>`).join('')}<td class="num"><b>${k === 'away' ? s.as : s.hs}</b></td></tr>`;
+  const line = s.line ? `<div class="tbl-wrap"><table><thead><tr><th class="l"></th>${(s.line.away || []).map((_, i) => `<th>${i === 9 && hbInn(s) > 10 ? '10+' : i + 1}</th>`).join('')}<th>R</th></tr></thead><tbody>${hbPlayedOrder(g, s).map(lrow).join('')}</tbody></table></div>` : '';
   const nm0 = x => { const id = hbPid(x.p); return id != null ? `${ico(P[id], 18)}<span class="pclick" data-pid="${id}">${esc(x.p)}</span>` : esc(x.p); };
   const side = k => { const b = s.box && s.box[k]; if (!b) return ''; const stars = hbBoxStarIds(g, s, k), nm = x => nm0(x) + (stars.includes(hbPid(x.p)) ? ' <b class="hb-s" title="Starred this week">★</b>' : ''); return `<h3 class="hb-h3">${hbLogo(g[k])}${esc(g[k])}${stars.length ? ` <span class="note">★ ${stars.map(hbSn).map(esc).join(', ')} starred</span>` : ''}</h3>
    ${(b.bat || []).length ? hbTbl('Batter', b.bat.map(x => Object.assign({}, x, { b1: x.b1 != null ? x.b1 : Math.max(0, (+x.h || 0) - (+x.b2 || 0) - (+x.b3 || 0) - (+x.hr || 0)) })), [['AB', 'ab'], ['R', 'r', 1], ['H', 'h'], ['1B', 'b1'], ['2B', 'b2'], ['3B', 'b3'], ['HR', 'hr'], ['RBI', 'rbi'], ['BB', 'bb'], ['SO', 'so'], ['Sexy', 'sx'], ['BC', 'bc'], ['BT', 'bt'], ['E', 'e'], ['Outs', 'outs'], ['Score', 'gs']], nm) : ''}
@@ -7482,10 +7486,12 @@ function gmUpcoming(g, s) {
 
 // ---- posted game ----
 function gmLine(g, s) {
-  const ta = gmBoxTot(s, 'away'), th = gmBoxTot(s, 'home'), n = s.line ? Math.max((s.line.away || []).length, (s.line.home || []).length) : 0;
+  const tot = { away: gmBoxTot(s, 'away'), home: gmBoxTot(s, 'home') }, n = s.line ? Math.max((s.line.away || []).length, (s.line.home || []).length) : 0, order = hbPlayedOrder(g, s);
   const hd = Array.from({ length: n }, (_, i) => `<th>${i === 9 && hbInn(s) > 10 ? '10+' : i + 1}</th>`).join('');
-  const r = (side, t, tt, sc) => `<tr><td class="l">${hbLogo(t)}<b>${esc(t)}</b></td>${Array.from({ length: n }, (_, i) => `<td class="num">${s.line && s.line[side][i] != null ? s.line[side][i] : ''}</td>`).join('')}<td class="num"><b>${sc}</b></td><td class="num">${tt.has ? tt.h : '–'}</td><td class="num">${s[side === 'away' ? 'eA' : 'eH'] != null ? s[side === 'away' ? 'eA' : 'eH'] : tt.has ? tt.e : '–'}</td></tr>`;
-  return `<div class="tbl-wrap"><table class="gm-ls"><thead><tr><th class="l"></th>${hd}<th>R</th><th>H</th><th>E</th></tr></thead><tbody>${r('away', g.away, ta, s.as)}${r('home', g.home, th, s.hs)}</tbody></table></div>`;
+  const r = side => { const t = g[side], tt = tot[side], e = s[side === 'away' ? 'eA' : 'eH'];
+    return `<tr><td class="l">${hbLogo(t)}<b>${esc(t)}</b></td>${Array.from({ length: n }, (_, i) => `<td class="num">${s.line && s.line[side][i] != null ? s.line[side][i] : ''}</td>`).join('')}<td class="num"><b>${side === 'away' ? s.as : s.hs}</b></td><td class="num">${tt.has ? tt.h : '–'}</td><td class="num">${e != null ? e : tt.has ? tt.e : '–'}</td></tr>`; };
+  const flipped = order[0] === 'home';
+  return `<div class="tbl-wrap"><table class="gm-ls"><thead><tr><th class="l"></th>${hd}<th>R</th><th>H</th><th>E</th></tr></thead><tbody>${order.map(r).join('')}</tbody></table></div>${flipped ? `<div class="pad note">Listed in batting order: ${esc(g.home)} batted first in the game that was played. The league schedule has ${esc(g.away)} at ${esc(g.home)}, which still decides stadium picks.</div>` : ''}`;
 }
 function gmLeadersPost(g, s) {
   const per = side => { const b = (s.box && s.box[side]) || {}, bat = (b.bat || []), pit = (b.pit || []);
