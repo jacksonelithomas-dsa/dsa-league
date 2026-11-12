@@ -131,6 +131,16 @@ td .dbtn{padding:2px 8px;font-size:12px}
 .meter .big{font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1}
 
 /* draft board grid */
+.aw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:12px}
+.aw-card{border:1px solid #d9a521;border-left:6px solid var(--tc,#d9a521);border-radius:10px;background:linear-gradient(180deg,rgba(240,190,40,.14),transparent 70%),var(--surface);padding:10px 12px;display:grid;gap:8px;min-width:0}
+.aw-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.aw-kind{font:800 11px var(--f-body);text-transform:uppercase;letter-spacing:.1em;color:#a87800;background:rgba(240,190,40,.25);border-radius:5px;padding:2px 7px}
+.aw-name{font:800 18px var(--f-display);text-transform:uppercase}
+.aw-team{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);margin-left:auto}
+.aw-tbl{overflow:auto}.aw-tbl table{font-size:12px;width:100%;border-collapse:collapse}.aw-tbl th,.aw-tbl td{padding:3px 6px;text-align:center;white-space:nowrap;border-bottom:1px solid var(--line)}
+.aw-tbl th{font:700 10.5px var(--f-body);color:var(--muted);text-transform:uppercase}.aw-tbl td.l,.aw-tbl th.l{text-align:left}
+.aw-wk{display:grid;gap:8px;margin-bottom:12px}.aw-wk h4{margin:0;font-size:13px}
+.aw-past{display:grid;gap:4px;font-size:13px}
 .db-seg{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
 .db-seg button{border:1px solid var(--line);border-radius:999px;background:var(--surface);padding:7px 14px;font-weight:700;font-size:13px;cursor:pointer}
 .db-seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink,#fff);border-color:transparent}
@@ -3299,7 +3309,7 @@ function renderHistory(s) {
   const o = HIST2.seasons[HS.s];
   $('#hsSeg').innerHTML = seg0;
   let trH = ''; try { trH = hsTradesHtml(HS.s); } catch (e) { console.warn('trades', e); }
-  if (!o) { $('#hsBody').innerHTML = `<div class="hsbanner">Season ${HS.s} is the current draft, so there are no results yet. These are the trades made for it.</div>${trH}`; return; }
+  if (!o) { $('#hsBody').innerHTML = `<div class="hsbanner">Season ${HS.s} is in progress, so there are no final results yet.</div>${typeof awHistHtml === 'function' ? awHistHtml(HS.s) : ''}${trH}`; return; }
   const seed = Object.fromEntries(o.seeds.map(x => [x.team, x.seed]));
   const st = o.standings.map(r => `<tr class="${r.team === o.champion ? 'champ' : ''}"><td class="l">${esc(r.rk)}</td><td class="l">${hsTeam(r.team)}${esc(r.team)}</td><td>${esc(r.rec)}</td><td>${seed[r.team] ? '#' + seed[r.team] : '—'}</td><td class="l">${hsResult(HS.s, r.team)}</td></tr>`).join('');
   const aw = HIST2.awards.filter(a => a.s === HS.s && !/^Week /.test(a.a) && a.a !== 'All-Star');
@@ -3310,7 +3320,7 @@ function renderHistory(s) {
   <div class="hscols"><section><h3>Final standings <span class="pfmuted" style="text-transform:none;letter-spacing:0;font-weight:400">in order of playoff finish, with regular-season records and playoff seeds</span></h3><div class="tbl-wrap" style="max-height:none"><table class="pftbl"><thead><tr><th class="l">Rank</th><th class="l">Team</th><th data-tip="${esc(TIPS.h_REC)}">Record</th><th data-tip="${esc(TIPS.h_SEED)}">Seed</th><th class="l">Result</th></tr></thead><tbody>${st}</tbody></table></div></section>
   <section><h3>Playoffs</h3><div class="hsbr"><div class="hsr"><h4>Wild card <small>one game</small></h4>${o.wc.map(m => hsSeries(m, `#${m.sa} v #${m.sb}`)).join('')}</div><div class="hsr"><h4>Semifinals <small>best of 3</small></h4>${o.semi.map(m => hsSeries(m, '')).join('')}</div><div class="hsr"><h4>Finals <small>best of 5</small></h4>${hsSeries(o.final, '')}</div></div>
   <h3>Championship roster</h3><div class="hsros">${roster}</div><p class="pfnote">Players who appeared for the champions in the box scores (Season 2 box scores start at week 11; Season 1 uses the draft). Click a player for his profile.</p></section></div>
-  <h3>${HS.s === 1 ? 'Season 1' : 'Season ' + HS.s} awards</h3><div class="hsawall">${awHtml}${hsExtra(o, aw)}</div>${pfAllStars(as)}${trH}`;
+  <h3>${HS.s === 1 ? 'Season 1' : 'Season ' + HS.s} awards</h3><div class="hsawall">${awHtml}${hsExtra(o, aw)}</div>${pfAllStars(as)}${typeof awHistHtml === 'function' ? awHistHtml(HS.s) : ''}${trH}`;
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-hs]'); if (b) renderHistory(b.dataset.hs === 'h2h' ? 'h2h' : +b.dataset.hs); });
 { const pf = document.getElementById('pfmt'); if (pf) { const sync = () => { const s6 = pf.value === 's6'; const po = document.getElementById('po'); if (po) po.disabled = s6; }; pf.addEventListener('change', sync); sync(); } }
@@ -5015,6 +5025,7 @@ const hbConfOf = t => Object.keys(HB_CONF).find(c => HB_CONF[c].includes(t));
 const HB_S7_PRESET = { '1|Jazz': 'Sluggin Heat', '2|Jazz': 'Sluggin Heat', '3|Jazz': 'Sluggin Heat', '4|Sluggin Heat': 'Jazz' };
 const HB_GAMES = (() => { const c = {}; return HB_SCHED.map(([wk, away, home]) => { c[wk] = (c[wk] || 0) + 1; return { gid: 'w' + wk + 'g' + c[wk], wk: +wk, away, home }; }); })();
 const HB_WEEKS = [...new Set(HB_GAMES.map(g => g.wk))].sort((a, b) => a - b);
+const hbDeadline = () => (typeof HB !== 'undefined' && HB.cfg && +HB.cfg.deadline) || HB_DEADLINE_WEEK;
 const HB_MIN_ROSTER = 9, HB_DEADLINE_WEEK = 4, HB_MAX_STARS = 2, HB_POS = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
 const HB_XY = { P: [50, 55], C: [50, 86], '1B': [78, 62], '2B': [64, 38], SS: [36, 38], '3B': [22, 62], LF: [15, 19], CF: [50, 9], RF: [85, 19] };
 const HB_SUBS = [['lineup', 'My Lineup'], ['matchups', 'Matchups'], ['rosters', 'Rosters'], ['standings', 'Standings'], ['trades', 'Trades']];
@@ -5227,7 +5238,7 @@ function hbWeekBar(key, cur) { return `<div class="hb-weeks">${HB_WEEKS.map(x =>
 function hbMatchups() {
   const w = HB.week || hbCur(); HB.week = w; const me = hbMe();
   const mine = me ? HB_GAMES.find(g => g.wk === w && (g.away === me || g.home === me)) : null;
-  return `<div class="panel"><h2>Weeks <span>${HB.cfg && HB.cfg.locked ? 'Lineups are locked for week ' + hbCur() : 'Week ' + hbCur() + ' is the current week'}</span></h2><div class="pad">${hbWeekBar('week', w)}</div></div>
+  return `<div class="panel"><h2>Weeks <span>${HB.cfg && HB.cfg.locked ? 'Lineups are locked for week ' + hbCur() : 'Week ' + hbCur() + ' is the current week'}</span></h2><div class="pad">${hbWeekBar('week', w)}</div></div>${typeof awPanel === 'function' ? awPanel(w) : ''}
   ${mine ? `<div class="panel" style="margin-top:14px"><h2>Your game <span>${esc(me)}</span></h2><div class="hb-grid pad">${hbCard(mine)}</div></div>` : ''}
   <div class="panel" style="margin-top:14px"><h2>${mine ? 'Rest of the week' : 'All games'}</h2><div class="hb-grid pad">${HB_GAMES.filter(g => g.wk === w && g !== mine).map(hbCard).join('')}</div></div>`;
 }
@@ -5244,8 +5255,11 @@ function hbLeaders() {
 // Match a name from a paste (AI, sheet or bot) to the site's player, however it was written: case, punctuation, "(Blue Mii)" or not.
 // Players on the team win ties, so a Mii is never turned into a new player. Returns the short name the box score editor uses.
 const hbNk = s => String(s || '').toLowerCase().replace(/\(.*?\)/g, m => m.replace(/[()]/g, ' ')).replace(/[^a-z0-9]/g, '');
+/* names that mean a player already in the pool (key = the name squeezed by hbNk). Add more here if another alias turns up. */
+const HB_NAME_ALIAS = { redshyguy: 'Shy Guy', shyguyred: 'Shy Guy' };
+const hbAliasName = n => HB_NAME_ALIAS[hbNk(n)] || n;
 function hbCanon(raw, team, wk, notes) {
-  const name = String(raw || '').trim(); if (!name) return name; const k = hbNk(name), noP = hbNk(name.replace(/\(.*?\)/g, ''));
+  const name = hbAliasName(String(raw || '').trim()); if (!name) return name; const k = hbNk(name), noP = hbNk(name.replace(/\(.*?\)/g, ''));
   let ros = []; try { ros = hbRoster(team) || []; } catch (e) {}
   const full = i => hbNk(P[i].name), short = i => hbNk(hbSn(i)), all = P.map((p, i) => i);
   const pick = (ids, why) => { if (!ids.length) return null; const on = ids.filter(i => ros.includes(i)); const i = (on[0] != null ? on[0] : ids[0]); if (notes && why && hbSn(i) !== name) notes.push(`${name} (${team}) matched to ${P[i].name}.`); return hbSn(i); };
@@ -5257,7 +5271,7 @@ function hbCanon(raw, team, wk, notes) {
   if (notes) notes.push(`Could not match "${name}" (${team}) to any player, so it was kept as typed and will show as a new player.`);
   return name;
 }
-const hbPid = name => { const i = P.findIndex(p => p.name === name || hbSnName(p) === name); return i < 0 ? null : i; };
+const hbPid = name => { name = hbAliasName(name); const i = P.findIndex(p => p.name === name || hbSnName(p) === name); return i < 0 ? null : i; };
 const hbSnName = p => String(p.name).replace(/ \(.*/, '');
 function hbStTable(rows, title, sub) {
   return `<div class="panel"><h2>${title} <span>${sub || ''}</span></h2><div class="tbl-wrap"><table><thead><tr><th class="l">Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th><th>CONF</th><th>RS</th><th>RA</th><th>DIFF</th><th>STRK</th></tr></thead><tbody>
@@ -5370,7 +5384,7 @@ function hbRostersView() {
 }
 
 /* ---- trades (players and Season 7 picks) ---- */
-const hbTradeOpen = () => (hbCur() < HB_DEADLINE_WEEK && !(HB.cfg && HB.cfg.tradesClosed));
+const hbTradeOpen = () => (hbCur() < hbDeadline() && !(HB.cfg && HB.cfg.tradesClosed));
 function hbS7Order() {
   const st = hbStandings(), worst = st.slice().reverse().map(r => r.t), bottom = worst.slice(0, 4), rest = worst.slice(4), lot = HB.lottery && HB.lottery.order && HB.lottery.order.length === 4 ? HB.lottery.order : null;
   return { worst, bottom, r1: (lot || bottom).concat(rest), lot, played: st.some(r => r.gp > 0) };
@@ -5387,7 +5401,7 @@ function hbCheckTrade(o) {
   if (A.length < HB_MIN_ROSTER) bad.push(`${o.from} would have ${A.length} players (the minimum is ${HB_MIN_ROSTER}).`);
   if (B.length < HB_MIN_ROSTER) bad.push(`${o.to} would have ${B.length} players (the minimum is ${HB_MIN_ROSTER}).`);
   if (!cap(A)) bad.push(`${o.from} would have no captain.`); if (!cap(B)) bad.push(`${o.to} would have no captain.`);
-  if (!hbTradeOpen()) bad.push(`The trade deadline has passed (10 PM before week ${HB_DEADLINE_WEEK} games).`);
+  if (!hbTradeOpen()) bad.push(`The trade deadline has passed (10 PM before week ${hbDeadline()} games).`);
   return bad;
 }
 const hbEmptyOffer = o => !o.give.length && !o.get.length && !(o.giveS7 || []).length && !(o.getS7 || []).length;
@@ -5424,7 +5438,7 @@ function hbTrades() {
   const me = hbMe(), T = HB.trade, inc = HB.offers.filter(o => !o.multi && o.status === 'pending' && o.to === me), out = HB.offers.filter(o => !o.multi && o.status === 'pending' && o.from === me), log = HB.tlog.slice().sort((a, b) => b.t - a.t);
   let compose = '<div class="panel"><div class="pad note">Join a team to make offers.</div></div>';
   if (me) { if (!T.to || T.to === me) T.to = TEAMS.find(t => t !== me);
-    compose = `<div class="panel"><h2>Make an offer <span>${esc(me)}</span></h2><div class="pad" style="display:grid;gap:10px">${hbTradeOpen() ? '' : `<div class="banner warn" style="margin:0">The trade deadline (10 PM before week ${HB_DEADLINE_WEEK} games) has passed.</div>`}
+    compose = `<div class="panel"><h2>Make an offer <span>${esc(me)}</span></h2><div class="pad" style="display:grid;gap:10px">${hbTradeOpen() ? '' : `<div class="banner warn" style="margin:0">The trade deadline (10 PM before week ${hbDeadline()} games) has passed.</div>`}
      <label class="hb-f">Trade with<select id="hbTo">${TEAMS.filter(t => t !== me).map(t => `<option ${t === T.to ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
      <div class="hb-two"><div><b>You give</b>${hbPl(hbRoster(me), 'give', T.give, hbS7Of(me), 'giveS7', T.giveS7)}</div><div><b>You get</b>${hbPl(hbRoster(T.to), 'get', T.get, hbS7Of(T.to), 'getS7', T.getS7)}</div></div>
      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="primary" data-hb="send" ${T.give.size || T.get.size || T.giveS7.size || T.getS7.size ? '' : 'disabled'}>Send offer</button><span class="note">Each team keeps at least ${HB_MIN_ROSTER} players and a captain. Season 7 picks can be traded too.</span></div></div></div>`; }
@@ -5453,8 +5467,9 @@ function hbCommishView() {
   const w = hbCur(), gs = HB_GAMES.filter(g => g.wk === w), n = TEAMS.reduce((a, t) => a + hbBase()[t].length, 0), ord = hbS7Order();
   return `<div class="panel" style="margin-bottom:14px"><h2>Season admin <span>week, locks, rosters, results and the Season 7 lottery</span></h2><div class="hb-two pad">
    <div style="display:grid;gap:10px"><b>Week and lineups</b><label class="hb-f">Current week<select id="hbWeek">${HB_WEEKS.map(x => `<option ${x === w ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+    <label class="hb-f">Trade deadline<select id="hbDeadline">${HB_WEEKS.slice(1).concat([99]).map(x => `<option value="${x}" ${x === hbDeadline() ? 'selected' : ''}>${x === 99 ? 'No deadline' : '10 PM before week ' + x + ' games'}</option>`).join('')}</select></label>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="${HB.cfg && HB.cfg.locked ? '' : 'primary'}" data-hb="lock">${HB.cfg && HB.cfg.locked ? 'Unlock lineups' : 'Lock lineups for week ' + w}</button><button data-hb="closetrades">${HB.cfg && HB.cfg.tradesClosed ? 'Reopen trades' : 'Close trades now'}</button></div>
-    <div class="note">Locking saves every team's lineup for the week and stops edits to that week. Later weeks stay open. Trades close automatically from week ${HB_DEADLINE_WEEK}.</div></div>
+    <div class="note">Locking saves every team's lineup for the week and stops edits to that week. Later weeks stay open. ${hbDeadline() >= 99 ? 'There is no trade deadline; use Close trades now to stop trading.' : 'Trades close automatically at 10 PM before week ' + hbDeadline() + ' games.'}</div></div>
    <div style="display:grid;gap:10px"><b>Rosters</b><div class="note">Always live: every roster is the draft's roster (keepers, picks and in-draft trades) plus the season trades, so this app and the draft room can never disagree. ${n} players across the league.</div>
     <b>Season 7 lottery</b><div class="note">Bottom four now: ${ord.bottom.map(esc).join(', ')}. ${ord.lot ? 'Drawn order: ' + ord.lot.map(esc).join(', ') + '.' : 'Not drawn yet.'}</div>
     <b>Backup</b><div class="note">Downloads every pick, trade, score, lineup, stadium pick and setting as one file. Do it before big changes and after each week.</div><div><button class="primary" data-hb="backup">Download backup</button></div>
@@ -5463,7 +5478,7 @@ function hbCommishView() {
     ${hbBotSpec()}
     <textarea id="hbRes" style="min-height:150px;font:12px var(--f-mono);width:100%"></textarea><div><button class="primary" data-hb="importres">Import box scores</button></div>${hbBotLog()}</div>
    <div><b>Quick score entry</b>${gs.map(g => { const s = HB.scores[g.gid] || {}; return `<div class="hb-offer"><div><b>${esc(g.away)}</b> at <b>${esc(g.home)}</b> <span class="chip">${esc(s.status || 'scheduled')}</span></div>
-     <div class="hb-qs"><input type="number" min="0" id="hbqa_${g.gid}" value="${s.as == null ? '' : s.as}" aria-label="${esc(g.away)} runs" placeholder="Away"><input type="number" min="0" id="hbqh_${g.gid}" value="${s.hs == null ? '' : s.hs}" aria-label="${esc(g.home)} runs" placeholder="Home"><button class="primary" data-hb="qfinal" data-g="${g.gid}">Final</button><button data-hb="bxedit" data-g="${g.gid}">Box score</button><button data-hb="qclear" data-g="${g.gid}">Clear</button></div></div>`; }).join('')}</div></div></div>` + hbCmTrade();
+     <div class="hb-qs"><input type="number" min="0" id="hbqa_${g.gid}" value="${s.as == null ? '' : s.as}" aria-label="${esc(g.away)} runs" placeholder="Away"><input type="number" min="0" id="hbqh_${g.gid}" value="${s.hs == null ? '' : s.hs}" aria-label="${esc(g.home)} runs" placeholder="Home"><button class="primary" data-hb="qfinal" data-g="${g.gid}">Final</button><button data-hb="bxedit" data-g="${g.gid}">Box score</button><button data-hb="qclear" data-g="${g.gid}">Clear</button></div></div>`; }).join('')}</div></div></div>` + (typeof awAdminHtml === 'function' ? awAdminHtml() : '') + hbCmTrade();
 }
 function hbCmTrade() {
   const A = HB.cfrom && TEAMS.includes(HB.cfrom) ? HB.cfrom : (HB.cfrom = TEAMS[0]), T = HB.trade; if (!T.to || T.to === A) T.to = TEAMS.find(t => t !== A);
@@ -5780,7 +5795,7 @@ function hbAfter(view) {
   if (view !== 'hm') return;
   clearTimeout(hbAfter.t); hbAfter.t = setTimeout(() => { const w = HB.week || hbCur(); for (const g of HB_GAMES.filter(x => x.wk === w)) { const s = HB.scores[g.gid]; if (s && s.status === 'final') continue; const k = hbProj(g), el = document.querySelector(`[data-hbproj="${g.gid}"]`); if (k && el) el.innerHTML = hbProjHtml(g, k); } }, 30);
 }
-function hbSched() { HB.rn = null; clearTimeout(hbSched.t); hbSched.t = setTimeout(() => { const tab = hbActiveTab(); if (tab === 'board' && typeof dbRender === 'function') { dbRender(); return; } if (!(HB_VIEWS[tab] || tab === 'hub' || tab === 'setup')) return; const m = $('#hbModal'); if (m && !m.hidden) return; const ae = document.activeElement; if (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName) && ae.closest('#hubView,#hbAdmin,#tab-hl,#tab-hm,#tab-hr,#tab-hs,#tab-ht,#tab-hsim,#tab-cm,#tab-bx,#tab-stats,#tab-fa') && !ae.matches('[data-hbtr]')) return; renderHub(); }, 80); }
+function hbSched() { HB.rn = null; clearTimeout(hbSched.t); hbSched.t = setTimeout(() => { const tab = hbActiveTab(); if (tab === 'history' && typeof renderHistory === 'function' && typeof HS !== 'undefined' && HS.s === (RB.cur || 6)) { try { renderHistory(); } catch (e) {} return; } if (tab === 'board' && typeof dbRender === 'function') { dbRender(); return; } if (!(HB_VIEWS[tab] || tab === 'hub' || tab === 'setup')) return; const m = $('#hbModal'); if (m && !m.hidden) return; const ae = document.activeElement; if (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName) && ae.closest('#hubView,#hbAdmin,#tab-hl,#tab-hm,#tab-hr,#tab-hs,#tab-ht,#tab-hsim,#tab-cm,#tab-bx,#tab-stats,#tab-fa') && !ae.matches('[data-hbtr]')) return; renderHub(); }, 80); }
 function hubStart() {
   if (HB.started || !LV.db) return; HB.started = true; const db = LV.db;
   const on = (path, f, col) => (col ? db.collection(path) : db.doc(path)).onSnapshot(s => { f(s); hbSched(); }, dbErr);
@@ -5848,6 +5863,7 @@ document.addEventListener('change', e => {
   if (t.id === 'hbLTeam') { HB.lteam = t.value; HE.team = null; renderHub(); }
   else if (t.id === 'hbTo') { HB.trade.to = t.value; HB.trade.get.clear(); HB.trade.getS7.clear(); renderHub(); }
   else if (t.dataset.hbtr) { const set = HB.trade[t.dataset.hbtr], v = t.dataset.hbtr.endsWith('S7') ? t.value : +t.value; t.checked ? set.add(v) : set.delete(v); renderHub(); }
+  else if (t.id === 'hbDeadline') { const v = +t.value; hbPut('season/config', Object.assign({}, HB.cfg || {}, { deadline: v })).then(ok => ok && toast(v >= 99 ? 'No trade deadline.' : 'Trade deadline: 10 PM before week ' + v + ' games.', 'good')); }
   else if (t.id === 'hbWeek') { hbPut('season/config', Object.assign({}, HB.cfg || {}, { week: +t.value })).then(ok => ok && toast('Week ' + t.value + ' is now current.', 'good')); }
 });
 
@@ -7262,6 +7278,77 @@ document.addEventListener('change', e => {
   else if (a === 'cq') { if (t.value) stAddByName(t.value); }
 });
 if (typeof HB_VIEWS !== 'undefined') HB_VIEWS.stats = statsView;
+/* ============ WEEKLY AWARDS: the commissioner names a Week MVP and a Week MVMii (best Mii); they show on Matchups and History
+   with every stat the player had that week. Saved in season/config.wkAw = { week: { mvp: { p, t }, mvmii: { p, t } } }. ============ */
+const AW_KINDS = [['mvp', 'Week MVP'], ['mvmii', 'Week MVMii']];
+const awAll = () => (HB.cfg && HB.cfg.wkAw) || {};
+const awIsMii = (nm, pid) => pid >= 0 ? !!P[pid].mii : /mii\)\s*$/i.test(nm);
+function awLines(wk) {
+  const m = new Map();
+  for (const g of HB_GAMES.filter(x => x.wk === wk)) {
+    const sc = HB.scores[g.gid]; if (!sc || !sc.box) continue;
+    for (const side of ['away', 'home']) {
+      const b = sc.box[side]; if (!b) continue; const team = g[side];
+      const get = raw => { const j = hbPid(raw), nm = j == null ? hbAliasName(String(raw)) : P[j].name, k = (j == null ? 'n' + nm : 'p' + j) + '|' + team; let o = m.get(k);
+        if (!o) { o = { k, pid: j == null ? -1 : j, nm, team, gids: new Set(), pit: false }; ['AB', 'H', 'b1', 'b2', 'b3', 'HR', 'RBI', 'BB', 'SO', 'SP', 'BC', 'BT', 'E', 'OUT', 'IP', 'HA', 'ER', 'PBB', 'K', 'W', 'L', 'SV', 'BS', 'GS', 'GSc', 'MVP'].forEach(f => o[f] = 0); m.set(k, o); }
+        o.gids.add(g.gid); return o; };
+      for (const x of b.bat || []) { const o = get(x.p), b2 = stN(x.b2), b3 = stN(x.b3), hr = stN(x.hr), b1 = x.b1 != null ? stN(x.b1) : Math.max(0, stN(x.h) - b2 - b3 - hr);
+        o.AB += stN(x.ab); o.b1 += b1; o.b2 += b2; o.b3 += b3; o.HR += hr; o.H += b1 + b2 + b3 + hr; o.RBI += stN(x.rbi); o.BB += stN(x.bb); o.SO += stN(x.so); o.SP += stN(x.sx); o.BC += stN(x.bc); o.BT += stN(x.bt); o.E += stN(x.e); o.OUT += stN(x.outs); o.MVP += stN(x.mvp); }
+      const gs = new Map(); for (const x of (b.pit || []).concat(b.bat || [])) if (+x.gs > 0) gs.set(x.p, +x.gs); gs.forEach((v, nm) => { get(nm).GSc += v; });
+      for (const x of b.pit || []) { const o = get(x.p); o.pit = true; o.IP += stN(x.ip); o.HA += stN(x.h); o.ER += stN(x.er); o.PBB += stN(x.bb); o.K += stN(x.so); o.W += stN(x.w); o.L += stN(x.l); o.SV += stN(x.sv); o.BS += stN(x.bs); o.GS += stN(x.started) ? 1 : 0; if (!(b.bat || []).some(y => y.p === x.p)) o.MVP += stN(x.mvp); }
+    }
+  }
+  return [...m.values()].map(o => Object.assign(o, { G: o.gids.size, mii: awIsMii(o.nm, o.pid) })).sort((a, b) => b.GSc - a.GSc || b.H - a.H);
+}
+const awFind = (wk, a) => { if (!a || !a.p) return null; const L = awLines(wk), j = hbPid(a.p), hit = o => (j != null ? o.pid === j : o.nm === hbAliasName(a.p)); return L.find(o => hit(o) && o.team === a.t) || L.find(hit) || null; };
+const awIP = ip => { const w = Math.floor(ip + 1e-9), f = Math.round((ip - w) * 3); return f >= 3 ? (w + 1) + '.0' : w + '.' + f; };
+function awStats(o) {
+  const avg = o.AB ? (o.H / o.AB).toFixed(3).replace(/^0/, '') : '—', slg = o.AB ? ((o.b1 + 2 * o.b2 + 3 * o.b3 + 4 * o.HR) / o.AB).toFixed(3).replace(/^0/, '') : '—';
+  const row = (lab, cells) => `<table><thead><tr><th class="l">${lab}</th>${cells.map(c => `<th>${c[0]}</th>`).join('')}</tr></thead><tbody><tr><td class="l">Week</td>${cells.map(c => `<td>${c[1]}</td>`).join('')}</tr></tbody></table>`;
+  const bat = [['G', o.G], ['AB', o.AB], ['H', o.H], ['1B', o.b1], ['2B', o.b2], ['3B', o.b3], ['HR', o.HR], ['RBI', o.RBI], ['BB', o.BB], ['SO', o.SO], ['AVG', avg], ['SLG', slg]];
+  const fld = [['Sexy Plays', o.SP], ['Buddy Catch', o.BC], ['Buddy Toss', o.BT], ['Errors', o.E], ['Outs', o.OUT], ['Game Score', Math.round(o.GSc)], ['Game MVP', o.MVP]];
+  const pit = [['IP', awIP(o.IP)], ['Starts', o.GS], ['W', o.W], ['L', o.L], ['SV', o.SV], ['BS', o.BS], ['K', o.K], ['BB', o.PBB], ['H', o.HA], ['ER', o.ER], ['ERA', o.IP ? (o.ER * 7 / o.IP).toFixed(2) : '—'], ['WHIP', o.IP ? ((o.PBB + o.HA) / o.IP).toFixed(2) : '—']];
+  return `<div class="aw-tbl">${row('Hitting', bat)}${row('Fielding', fld)}${o.pit ? row('Pitching', pit) : ''}</div>`;
+}
+function awCard(wk, kind, a) {
+  const o = awFind(wk, a), pid = o ? o.pid : (hbPid(a.p) ?? -1), t = a.t || (o && o.team) || '', lab = AW_KINDS.find(k => k[0] === kind)[1];
+  return `<div class="aw-card" style="--tc:${(TEAMC[t] || {}).p || '#d9a521'}"><div class="aw-top"><span class="aw-kind">🏆 Week ${wk} ${lab.replace('Week ', '')}${kind === 'mvmii' ? ' (best Mii)' : ''}</span>
+   <span class="aw-name">${pid >= 0 ? `<span class="pclick" data-pid="${pid}">${esc(P[pid].name)}</span>` : esc(a.p)}</span>${t ? `<span class="aw-team">${hbLogo(t)}${esc(t)}</span>` : ''}</div>
+   ${o ? awStats(o) : '<div class="note">No box score stats for this player in that week yet.</div>'}</div>`;
+}
+const awCardsFor = wk => { const x = awAll()[wk] || {}; return AW_KINDS.filter(([k]) => x[k] && x[k].p).map(([k]) => awCard(wk, k, x[k])).join(''); };
+function awPanel(wk) {
+  const c = awCardsFor(wk); if (!c) return '';
+  return `<div class="panel" style="margin-top:14px"><h2>Week ${wk} awards <span>Named by the commissioner, with every stat from the week</span></h2><div class="pad aw-grid">${c}</div></div>`;
+}
+function awHistHtml(s) {
+  if (s === ((typeof RB !== 'undefined' && RB.cur) || 6)) {
+    const wks = Object.keys(awAll()).map(Number).filter(w => awCardsFor(w)).sort((a, b) => b - a);
+    return `<h3>Season ${s} weekly awards</h3>${wks.length ? wks.map(w => `<div class="aw-wk"><h4>Week ${w}</h4><div class="aw-grid">${awCardsFor(w)}</div></div>`).join('') : '<p class="pfnote">No weekly awards yet. The commissioner names a Week MVP and Week MVMii in the Commish tab.</p>'}`;
+  }
+  const wa = (HIST2.awards || []).filter(a => a.s === s && /^Week /.test(a.a)); if (!wa.length) return '';
+  const wn = a => +((a.a.match(/\d+/) || [0])[0]);
+  return `<h3>Season ${s} weekly awards</h3><div class="aw-past">${wa.slice().sort((a, b) => wn(a) - wn(b)).map(a => `<div class="hsaw"><b>${esc(a.a)}</b> ${hsPlayerLink(a.p, a.id)} <small class="pfmuted">${esc(a.t)}</small></div>`).join('')}</div><p class="pfnote">From the league history workbook (no weekly stat lines are kept for past seasons).</p>`;
+}
+function awAdminHtml() {
+  const posted = HB_WEEKS.filter(w => HB_GAMES.some(g => g.wk === w && HB.scores[g.gid] && HB.scores[g.gid].box));
+  if (HB.awWk == null) HB.awWk = posted.length ? posted[posted.length - 1] : hbCur();
+  const wk = HB.awWk, L = awLines(wk), cur = awAll()[wk] || {};
+  const sel = (kind, list) => { const a = cur[kind], on = a && awFind(wk, a); return `<select id="aw_${kind}"><option value="">None</option>${list.map(o => `<option value="${esc(o.k)}" ${on && on.k === o.k ? 'selected' : ''}>${esc(o.nm)} (${esc(o.team)}) · GS ${Math.round(o.GSc)}${o.AB ? ' · ' + o.H + '-' + o.AB : ''}${o.HR ? ', ' + o.HR + ' HR' : ''}${o.pit ? ' · ' + awIP(o.IP) + ' IP' : ''}</option>`).join('')}</select>`; };
+  const done = Object.keys(awAll()).map(Number).sort((a, b) => a - b).filter(w => Object.values(awAll()[w] || {}).some(x => x && x.p));
+  return `<div class="panel" style="margin-top:14px"><h2>Weekly awards <span>Week MVP and Week MVMii (best Mii). They show on Matchups and History with the player's stats for the week.</span></h2><div class="pad" style="display:grid;gap:10px">
+   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end"><label class="hb-f">Week<select id="awWk">${HB_WEEKS.map(w => `<option value="${w}" ${w === wk ? 'selected' : ''}>Week ${w}${posted.includes(w) ? '' : ' (no box scores yet)'}</option>`).join('')}</select></label>
+    <label class="hb-f">Week MVP${sel('mvp', L)}</label><label class="hb-f">Week MVMii (best Mii)${sel('mvmii', L.filter(o => o.mii))}</label><button class="primary" data-aw="save">Save week ${wk} awards</button></div>
+   ${L.length ? '<div class="note">Lists are everyone with a box score line that week, best game score first.</div>' : `<div class="note">Post the week ${wk} box scores first. The lists come from them.</div>`}
+   <div class="note">${done.length ? 'Awards saved: ' + done.map(w => 'Week ' + w + ': ' + AW_KINDS.filter(([k]) => (awAll()[w] || {})[k] && awAll()[w][k].p).map(([k, n]) => n.replace('Week ', '') + ' ' + esc(awAll()[w][k].p)).join(', ')).join(' · ') : 'No weekly awards saved yet.'}</div></div></div>`;
+}
+document.addEventListener('change', e => { if (e.target.id === 'awWk') { HB.awWk = +e.target.value; renderHub(); } });
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-aw=save]'); if (!b || !hbAdmin()) return;
+  const wk = HB.awWk, L = awLines(wk), pick = id => { const v = (document.getElementById(id) || {}).value, o = v && L.find(x => x.k === v); return o ? { p: o.nm, t: o.team } : null; };
+  const rec = { mvp: pick('aw_mvp'), mvmii: pick('aw_mvmii') }, all = Object.assign({}, awAll()); all[wk] = rec;
+  hbPut('season/config', Object.assign({}, HB.cfg || {}, { wkAw: all })).then(ok => ok && toast('Week ' + wk + ' awards saved.', 'good'));
+});
 /* ============ DRAFT BOARDS: next season's picks (who owns each one), the live draft, and every past draft ============
    Past drafts come from the league history workbook (each player's draft team, round and overall pick, Seasons 1-5).
    Next season's order is projected from the standings (round 1 picks 1-4 are the lottery), and the owner of every pick
@@ -7436,7 +7523,7 @@ function mtCheck(teams, legs) {
   const bad = [];
   if (teams.length < 3 || teams.length > 4) bad.push('A multi-team trade needs 3 or 4 teams.');
   if (!legs.length) bad.push('Move at least one player or pick.');
-  if (!hbTradeOpen()) bad.push(`The trade deadline has passed (10 PM before week ${HB_DEADLINE_WEEK} games).`);
+  if (!hbTradeOpen()) bad.push(`The trade deadline has passed (10 PM before week ${hbDeadline()} games).`);
   const R = {}; teams.forEach(t => R[t] = hbRoster(t).slice());
   for (const l of legs) {
     if (l.s7) { if (hbS7Owner(l.s7.r, l.s7.o) !== l.from) bad.push('A Season 7 pick in this offer has changed hands.'); continue; }
