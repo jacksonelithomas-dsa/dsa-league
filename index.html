@@ -131,6 +131,41 @@ td .dbtn{padding:2px 8px;font-size:12px}
 .meter .big{font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1}
 
 /* draft board grid */
+.db-seg{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+.db-seg button{border:1px solid var(--line);border-radius:999px;background:var(--surface);padding:7px 14px;font-weight:700;font-size:13px;cursor:pointer}
+.db-seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink,#fff);border-color:transparent}
+.db-seg .db-next{border-color:var(--accent)}
+.db-bar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;font-size:12.5px;color:var(--muted)}
+.db-bar label{display:flex;gap:6px;align-items:center;color:var(--ink);font-weight:600}
+.db-key{display:inline-flex;align-items:center;gap:5px}.db-key i{display:inline-block;width:14px;height:14px;border-radius:4px;border:1px solid var(--line)}
+.db-wrap{overflow:auto;padding:12px 14px 14px}
+.db-grid{display:grid;grid-template-columns:44px repeat(var(--cols,10),minmax(122px,1fr));gap:6px;min-width:calc(44px + var(--cols,10) * 128px)}
+.db-rd{font:800 12px var(--f-mono);color:var(--muted);display:flex;align-items:center;justify-content:center;text-transform:uppercase}
+.db-hd{font:700 11px var(--f-body);color:var(--muted);text-align:center;text-transform:uppercase;letter-spacing:.06em;padding-bottom:2px}
+.db-c{position:relative;border:1px solid var(--line);border-left:5px solid var(--tc,var(--line));border-radius:8px;padding:6px 8px 7px;background:var(--surface);min-width:0;display:grid;gap:2px;font-size:12px;transition:opacity .15s}
+.db-c .db-n{display:flex;justify-content:space-between;gap:4px;font:700 11px var(--f-mono);color:var(--muted)}
+.db-c .db-o{display:flex;align-items:center;gap:5px;font-weight:800;font-size:13px;min-width:0}
+.db-c .db-o b{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.15;font-size:12.5px}
+.db-c .db-via{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:4px;min-width:0;line-height:1.15;flex-wrap:wrap}
+.db-c .db-p{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.db-c.tr{background:linear-gradient(0deg,var(--surface),var(--surface)) padding-box;box-shadow:inset 0 0 0 1px var(--bulb)}
+.db-c.tr .db-via{color:var(--bulb);font-weight:700}
+.db-c.lot{background:var(--mine)}
+.db-c.me{outline:2px solid var(--accent);outline-offset:1px}
+.db-c.dim{opacity:.28}
+.db-c.gap{border-style:dashed;border-left-width:1px;color:var(--muted);background:transparent}
+.db-tag{font:700 9.5px var(--f-body);text-transform:uppercase;letter-spacing:.06em;border-radius:4px;padding:1px 5px;background:var(--surface2);color:var(--ink)}
+.db-c.tr .db-tag.t{background:var(--bulb);color:#111}
+.db-own{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:10px;padding:12px 14px 14px}
+.db-team{border:1px solid var(--line);border-top:4px solid var(--tc,var(--line));border-radius:8px;padding:8px 10px;display:grid;gap:6px;background:var(--surface);cursor:pointer;text-align:left}
+.db-team.on{outline:2px solid var(--accent)}
+.db-team h4{margin:0;display:flex;align-items:center;gap:6px;font-size:14px}
+.db-team h4 .num{margin-left:auto;font:800 20px var(--f-display)}
+.db-team .db-pks{display:flex;flex-wrap:wrap;gap:4px}
+.db-team .db-pk{font:700 11px var(--f-mono);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.db-team .db-pk.in{border-color:var(--bulb);background:var(--bulb);color:#111}
+.db-team .db-pk.out{text-decoration:line-through;opacity:.55}
+.db-team .note{font-size:11.5px}
 .dboard{overflow:auto}
 .dboard table{font-size:12px;min-width:980px;width:100%;table-layout:fixed}
 .dboard td,.dboard th{text-align:left;vertical-align:top;border:1px solid var(--line);white-space:normal;overflow-wrap:anywhere;padding:6px}
@@ -551,8 +586,11 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
   </section>
 
   <section id="tab-board" hidden>
+    <div class="db-seg" id="dbSeg" role="tablist" aria-label="Draft boards"></div><div id="dbOther"></div>
+    <div id="dbCur">
     <div class="panel"><h2>Draft Board <span>Columns are pick slots, rows are rounds. Your picks are highlighted. Click a pick to see why it was made.</span></h2><div class="banner info" id="pickDetail" hidden style="margin:12px 14px 0"></div><div class="dboard" id="dboard" style="padding-top:12px"></div></div>
     <div class="panel" style="margin-top:14px"><h2>Team ratings <span>Projected runs per game above an average club, from the current rosters</span></h2><div class="tbl-wrap" style="max-height:none"><table id="ratings"><thead></thead><tbody></tbody></table></div></div>
+    </div>
   </section>
 
   <section id="tab-rosters" hidden>
@@ -1824,6 +1862,7 @@ function renderBoard() {
     h += '</tr>';
   }
   $('#dboard').innerHTML = h + '</tbody></table>';
+  if (typeof dbRender === 'function') dbRender(true);
 }
 function renderRatings() {
   const rows = TEAMS.map(tm => { const r = rosterOf(tm); const t = buildFor(tm, r); return { tm, n: r.length, picks: ORDER.filter(o => o.team === tm).length, s: teamScoreFor(tm, r), cap: r.some(p => p.cap), of: t.of.ok, chem: t.chem }; }).sort((a, b) => b.s - a.s);
@@ -1882,6 +1921,7 @@ function showTab(name) {
   if (['hub', 'hl', 'hm', 'hr', 'hs', 'ht', 'fa', 'news', 'stats', 'hsim', 'bx', 'cm', 'setup'].includes(name) && typeof renderHub === 'function') { hubStart(); renderHub(); }
   if (name === 'history' && typeof renderHistory === 'function') renderHistory();
   if (name === 'rosters') renderRostersTab();
+  if (name === 'board') { try { if (typeof hubStart === 'function') hubStart(); } catch (e) {} if (typeof dbRender === 'function') dbRender(); }
   if (name === 'trades') { renderTrades(true); if (typeof renderFinder === 'function') renderFinder(); }
   if (name === 'watch' && typeof renderWatch === 'function') renderWatch();
   try { history.replaceState(null, '', '#' + name); } catch (e) {}
@@ -5491,7 +5531,7 @@ function hbParseFinder(txt) {
   for (let q = 0; q + 1 < lines.length; q += 2) {
     const A = lines[q], B = lines[q + 1], first = q === 0;
     let N = (first && meta.inn) || 0; if (!N) lines.slice(q, q + 2).forEach(L => { L.inn.forEach((v, k) => { if (v !== '') N = Math.max(N, k + 1); }); if (L.ex !== '') N = Math.max(N, 10); });
-    for (const L of [A, B]) { L.line = L.inn.slice(0, Math.min(N, 9)).map(v => v === '' ? 'x' : hbNum(v)); if (N > 9) L.line.push(hbNum(L.ex)); const sum = L.line.reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0); if (sum !== L.r) notes.push(`Check: ${L.name}'s innings add up to ${sum} but the sheet says ${L.r} runs.`); }
+    for (const L of [A, B]) { L.line = L.inn.slice(0, Math.min(N, 9)).map(v => v === '' || /^x$/i.test(v) ? 'x' : hbNum(v)); if (N > 9) L.line.push(/^x$/i.test(L.ex) ? 'x' : hbNum(L.ex)); const sum = L.line.reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0); if (sum !== L.r) notes.push(`Check: ${L.name}'s innings add up to ${sum} but the sheet says ${L.r} runs.`); }
     const g = { players: [], gid: null, wk: first ? meta.wk || 0 : 0, away: first ? meta.away : null, home: first ? meta.home : null, pair: [A.name, B.name], played: { away: A.name, home: B.name }, byTeam: { [A.name]: A, [B.name]: B }, field: first ? meta.field : null, time: first ? meta.time : null, innings: N, status: 'final' };
     tbls.filter(t => t.team === A.name || t.team === B.name).forEach(t => t.recs.forEach(rc => { rc.team = t.team; g.players.push(rc); }));
     games.push(g);
@@ -5740,7 +5780,7 @@ function hbAfter(view) {
   if (view !== 'hm') return;
   clearTimeout(hbAfter.t); hbAfter.t = setTimeout(() => { const w = HB.week || hbCur(); for (const g of HB_GAMES.filter(x => x.wk === w)) { const s = HB.scores[g.gid]; if (s && s.status === 'final') continue; const k = hbProj(g), el = document.querySelector(`[data-hbproj="${g.gid}"]`); if (k && el) el.innerHTML = hbProjHtml(g, k); } }, 30);
 }
-function hbSched() { HB.rn = null; clearTimeout(hbSched.t); hbSched.t = setTimeout(() => { const tab = hbActiveTab(); if (!(HB_VIEWS[tab] || tab === 'hub' || tab === 'setup')) return; const m = $('#hbModal'); if (m && !m.hidden) return; const ae = document.activeElement; if (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName) && ae.closest('#hubView,#hbAdmin,#tab-hl,#tab-hm,#tab-hr,#tab-hs,#tab-ht,#tab-hsim,#tab-cm,#tab-bx,#tab-stats,#tab-fa') && !ae.matches('[data-hbtr]')) return; renderHub(); }, 80); }
+function hbSched() { HB.rn = null; clearTimeout(hbSched.t); hbSched.t = setTimeout(() => { const tab = hbActiveTab(); if (tab === 'board' && typeof dbRender === 'function') { dbRender(); return; } if (!(HB_VIEWS[tab] || tab === 'hub' || tab === 'setup')) return; const m = $('#hbModal'); if (m && !m.hidden) return; const ae = document.activeElement; if (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName) && ae.closest('#hubView,#hbAdmin,#tab-hl,#tab-hm,#tab-hr,#tab-hs,#tab-ht,#tab-hsim,#tab-cm,#tab-bx,#tab-stats,#tab-fa') && !ae.matches('[data-hbtr]')) return; renderHub(); }, 80); }
 function hubStart() {
   if (HB.started || !LV.db) return; HB.started = true; const db = LV.db;
   const on = (path, f, col) => (col ? db.collection(path) : db.doc(path)).onSnapshot(s => { f(s); hbSched(); }, dbErr);
@@ -5828,6 +5868,7 @@ function hbLayout() {
     else if (!fin && !first && cur && !HB_PRE.includes(cur)) showTab('draft');
   }
   const cm = btn('cm'); if (cm) { const show = fin && hbAdmin(); if (cm.hidden === show) cm.hidden = !show; if (!show && hbActiveTab() === 'cm') showTab('hl'); }
+  const fa = btn('fa'); if (fa && fin) { const show = hbCur() <= HB_WEEKS[0]; if (fa.hidden === show) fa.hidden = !show; if (!show && hbActiveTab() === 'fa') showTab('hl'); } /* free agency closes once week 1 is over */
 }
 function hbSetupTag() {
   const keep = /^(Draft priorities|Sound|How the model works|Commissioner mode)/i;
@@ -6991,7 +7032,9 @@ const ST_PRESET = {
   Essentials: ['G', 'AB', 'AVG', 'HR', 'RBI', 'OPS', 'OPp', 'SP', 'ONM'], Hitting: ST_COLS.filter(c => c[2] === 'Hitting').map(c => c[0]), Fielding: ['G'].concat(ST_COLS.filter(c => c[2] === 'Fielding').map(c => c[0])),
   Pitching: ST_COLS.filter(c => c[2] === 'Pitching').map(c => c[0]), 'Awards and ONM': ST_COLS.filter(c => c[2] === 'Awards and ONM').map(c => c[0]), Everything: ST_COLS.map(c => c[0])
 };
-const ST = { mode: 'career', season: 'all', q: '', team: '', cur: '', role: 'all', cols: ST_PRESET.Essentials.slice(), filters: [], sort: { k: 'ONM', d: -1 }, shown: 60, cmp: [], cq: '', open: false };
+const TS_X = [['WP', 'Win %', 'Team', 1, '3', 'Wins divided by wins plus losses (pitching decisions)'], ['RS', 'Runs scored', 'Team', 1, 'i', 'Runs scored, from the posted scores (Season 6 on)'], ['RA', 'Runs allowed', 'Team', -1, 'i', 'Runs allowed, from the posted scores (Season 6 on)'], ['RD', 'Run diff', 'Team', 1, 'i', 'Runs scored minus runs allowed (Season 6 on)']];
+const TS_COLS = TS_X.concat(ST_COLS), TS_BY = Object.fromEntries(TS_COLS.map(c => [c[0], c]));
+const ST = { tseason: String(typeof RB !== 'undefined' && RB.cur ? RB.cur : 6), tcols: TS_COLS.map(c => c[0]), mode: 'career', season: 'all', q: '', team: '', cur: '', role: 'all', cols: ST_PRESET.Essentials.slice(), filters: [], sort: { k: 'ONM', d: -1 }, shown: 60, cmp: [], cq: '', open: false };
 const stN = x => +x || 0;
 const ST_SUM = ['G', 'AB', 'b1', 'b2', 'b3', 'H', 'HR', 'RBI', 'BB', 'SO', 'SP', 'BC', 'BT', 'E', 'OUT', 'App', 'GS', 'IP', 'W', 'L', 'SV', 'BS', 'K', 'PBB', 'HA', 'ER', 'MVP', 'GSc'];
 
@@ -7048,9 +7091,46 @@ function stCareerRows(seasonRows) {
   });
 }
 const stKey = r => r.key || (r.pid >= 0 ? 'p' + r.pid : 'n' + r.nm);
+/* ---- team stats: every player line added up by team (and season); team G is the most games any of its players played ---- */
+const ST_ONM = ['OH', 'OF', 'OP', 'ONM'];
+function stTeamRows(sr, which) {
+  const lg = {}, by = new Map(), live = typeof RB !== 'undefined' && RB.cur ? RB.cur : 6;
+  for (const r of sr) { const L = lg[r.s] || (lg[r.s] = { ab: 0, h: 0, tb: 0 }); L.ab += r.AB; L.h += r.H; L.tb += r.b1 + 2 * r.b2 + 3 * r.b3 + 4 * r.HR; }
+  for (const r of sr) {
+    const c = nwTeamCanon(r.t); if (!c) continue;
+    const k = c + '|' + r.s; let o = by.get(k);
+    if (!o) { o = stBlank(r.s, -1, '', c); o.canon = c; o.gmax = 0; o.gsG = 0; o.gsAny = false; o.names = {}; ST_ONM.forEach(f => o[f] = null); o.GSc = 0; by.set(k, o); }
+    ST_SUM.forEach(f => { if (f !== 'G' && f !== 'GSc') o[f] += stN(r[f]); });
+    o.gmax = Math.max(o.gmax, stN(r.G)); o.names[r.t] = (o.names[r.t] || 0) + stN(r.G) + 1;
+    if (r.GSc != null) { o.GSc += stN(r.GSc); o.gsG += stN(r.G); o.gsAny = true; }
+    ST_ONM.forEach(f => { if (r[f] != null) o[f] = (o[f] || 0) + stN(r[f]); });
+  }
+  const rs = {}; // runs from the posted scores of the live season
+  try { for (const g of HB_GAMES) { const sc = HB.scores[g.gid]; if (!sc || sc.status !== 'final' || sc.as == null || sc.hs == null) continue; for (const [t, f, a] of [[g.away, +sc.as, +sc.hs], [g.home, +sc.hs, +sc.as]]) { const x = rs[t] || (rs[t] = { f: 0, a: 0 }); x.f += f; x.a += a; } } } catch (e) {}
+  const fin = (o, opsBase) => {
+    o.G = o.gmax; if (!o.gsAny) o.GSc = null; const d = stDerive(o);
+    d.AGS = o.gsAny && o.gsG ? o.GSc / o.gsG : null; d.WP = o.W + o.L > 0 ? o.W / (o.W + o.L) : null;
+    d.OPp = d.OPS != null && opsBase > 0 ? Math.round(d.OPS / opsBase * 100) : null;
+    ST_ONM.forEach(f => d[f] = o[f]); d.RS = o.RS; d.RA = o.RA; d.RD = o.RS != null && o.RA != null ? o.RS - o.RA : null;
+    d.canon = o.canon; d.team = true; d.pid = -1; d.key = 't|' + o.canon + '|' + o.s; d.tcs = [o.canon]; return d;
+  };
+  const seasonal = [...by.values()].map(o => {
+    o.t = Object.keys(o.names).sort((a, b) => o.names[b] - o.names[a])[0] || o.canon; o.nm = o.s === live ? o.canon : o.t;
+    if (o.s === live && rs[o.canon]) { o.RS = rs[o.canon].f; o.RA = rs[o.canon].a; } else { o.RS = null; o.RA = null; }
+    const L = lg[o.s]; o.gmax = o.gmax || 0; return o;
+  });
+  if (which === 'all') {
+    const fr = new Map();
+    for (const o of seasonal) { let c = fr.get(o.canon); if (!c) { c = stBlank(live, -1, o.canon, o.canon); c.canon = o.canon; c.gmax = 0; c.gsG = 0; c.gsAny = false; c.GSc = 0; c.seasons = []; ST_ONM.forEach(f => c[f] = null); c.RS = null; c.RA = null; fr.set(o.canon, c); }
+      ST_SUM.forEach(f => { if (f !== 'G' && f !== 'GSc') c[f] += o[f]; }); c.gmax += o.gmax; c.gsG += o.gsG; if (o.gsAny) { c.GSc += o.GSc; c.gsAny = true; } c.seasons.push(o.s);
+      ST_ONM.forEach(f => { if (o[f] != null) c[f] = (c[f] || 0) + o[f]; }); }
+    return [...fr.values()].map(c => { const d = fin(c, SLGCAR); d.seasons = c.seasons.sort((a, b) => a - b); d.lastS = live; d.key = 't|' + c.canon; return d; });
+  }
+  return seasonal.filter(o => which === 'every' || o.s === +which).map(o => { const L = lg[o.s]; return fin(o, L && L.ab > 0 ? (L.h + L.tb) / L.ab : 0); });
+}
 function stRows() {
   const sr = stSeasonRows(); sr.forEach(r => { r.tcs = [nwTeamCanon(r.t)].filter(Boolean); r.key = stKey(r); });
-  let rows = ST.mode === 'career' ? stCareerRows(sr) : sr.filter(r => ST.season === 'all' || r.s === +ST.season);
+  let rows = ST.mode === 'team' ? stTeamRows(sr, ST.tseason) : ST.mode === 'career' ? stCareerRows(sr) : sr.filter(r => ST.season === 'all' || r.s === +ST.season);
   return { rows, all: sr };
 }
 function stFmt(v, f) { if (v == null || (typeof v === 'number' && isNaN(v))) return '—'; if (f === 'i') return String(Math.round(v)); if (f === '3') return v.toFixed(3).replace(/^0\./, '.').replace(/^-0\./, '-.'); if (f === '2') return v.toFixed(2); return v.toFixed(1); }
@@ -7063,31 +7143,36 @@ function stApply(rows) {
   const q = ST.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
   let out = rows.filter(r => {
     const nm = r.nm.toLowerCase(); if (q.some(w => nm.indexOf(w) < 0)) return false;
-    if (ST.team && !(r.tcs || []).includes(ST.team)) return false;
-    if (ST.cur && stCurTeamOf(r.pid) !== (ST.cur === '_fa' ? null : ST.cur)) return false;
-    if (ST.role === 'hit' && !(r.AB > 0)) return false; if (ST.role === 'pit' && !(r.IP > 0)) return false;
+    if (ST.mode !== 'team' && ST.team && !(r.tcs || []).includes(ST.team)) return false;
+    if (ST.mode !== 'team' && ST.cur && stCurTeamOf(r.pid) !== (ST.cur === '_fa' ? null : ST.cur)) return false;
+    if (ST.mode !== 'team' && ST.role === 'hit' && !(r.AB > 0)) return false; if (ST.mode !== 'team' && ST.role === 'pit' && !(r.IP > 0)) return false;
     for (const f of ST.filters) { if (f.v === '' || f.v == null || isNaN(+f.v)) continue; const v = r[f.k]; if (v == null) return false; if (f.op === '>=' && !(v >= +f.v)) return false; if (f.op === '<=' && !(v <= +f.v)) return false; if (f.op === '=' && Math.abs(v - +f.v) > 1e-9) return false; }
     return true;
   });
   const k = ST.sort.k, d = ST.sort.d; out.sort((a, b) => { const x = k === 'nm' ? a.nm : a[k], y = k === 'nm' ? b.nm : b[k]; if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1; return (typeof x === 'string' ? x.localeCompare(y) : x - y) * d; });
   return out;
 }
-const stCols = () => ST_COLS.filter(c => ST.cols.includes(c[0]));
+const stAllCols = () => ST.mode === 'team' ? TS_COLS : ST_COLS;
+const stSelCols = () => ST.mode === 'team' ? ST.tcols : ST.cols;
+const stCols = () => stAllCols().filter(c => stSelCols().includes(c[0]));
+const stColBy = k => (ST.mode === 'team' ? TS_BY : ST_BY)[k];
 function stTeamCell(r) { const past = r.lastS != null ? r.lastS : r.s; const t = r.t || '—'; return `<span class="tdot tlg" style="background:${t === '—' ? 'var(--surface2)' : pfLogoAt(t, past)}"></span>${pfTeamHtml(t, past)}`; }
 function stNameCell(r) { return r.pid >= 0 ? `<span class="pclick" data-pid="${r.pid}">${esc(r.nm)}</span>` : esc(r.nm); }
 function stCtlHtml() {
   const seg = (k, arr) => `<div class="st-seg">${arr.map(([v, n]) => `<button data-st="${k}" data-v="${v}" aria-pressed="${ST[k] === v}">${n}</button>`).join('')}</div>`;
+  const tm = ST.mode === 'team', allC = stAllCols(), selC = stSelCols(), cur6 = typeof RB !== 'undefined' && RB.cur ? RB.cur : 6;
+  const tss = [...Array(cur6)].map((_, i) => String(cur6 - i)).concat(['every', 'all']).map(v => `<option value="${v}" ${ST.tseason === v ? 'selected' : ''}>${v === 'every' ? 'Every season (one row per team per season)' : v === 'all' ? 'All seasons combined' : +v === cur6 ? 'Season ' + v + ' (live)' : 'Season ' + v}</option>`).join('');
   const ss = ['all', 1, 2, 3, 4, 5, 6].map(v => `<option value="${v}" ${String(ST.season) === String(v) ? 'selected' : ''}>${v === 'all' ? 'All seasons' : v === 6 ? 'Season 6 (live)' : 'Season ' + v}</option>`).join('');
-  const groups = [...new Set(ST_COLS.map(c => c[2]))];
-  const flt = ST.filters.map((f, i) => `<div class="st-flt"><select data-st="fk" data-i="${i}">${ST_COLS.map(c => `<option value="${c[0]}" ${f.k === c[0] ? 'selected' : ''}>${esc(c[1])}</option>`).join('')}</select><select data-st="fo" data-i="${i}">${['>=', '<=', '='].map(o => `<option value="${o}" ${f.op === o ? 'selected' : ''}>${o === '>=' ? 'at least' : o === '<=' ? 'at most' : 'exactly'}</option>`).join('')}</select><input type="number" step="any" data-st="fv" data-i="${i}" value="${esc(f.v)}" placeholder="value"><button data-st="fx" data-i="${i}" aria-label="Remove filter">×</button></div>`).join('');
-  return `<div class="st-row">${seg('mode', [['career', 'Career stats'], ['season', 'Season stats']])}${ST.mode === 'season' ? `<label>Season<select data-st="season">${ss}</select></label>` : ''}
-   <label>Search players<input type="search" data-st="q" value="${esc(ST.q)}" placeholder="Name" style="min-width:180px"></label>
-   <label>Team<select data-st="team"><option value="">All teams</option>${TEAMS.map(t => `<option value="${esc(t)}" ${ST.team === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
+  const groups = [...new Set(allC.map(c => c[2]))];
+  const flt = ST.filters.map((f, i) => `<div class="st-flt"><select data-st="fk" data-i="${i}">${allC.map(c => `<option value="${c[0]}" ${f.k === c[0] ? 'selected' : ''}>${esc(c[1])}</option>`).join('')}</select><select data-st="fo" data-i="${i}">${['>=', '<=', '='].map(o => `<option value="${o}" ${f.op === o ? 'selected' : ''}>${o === '>=' ? 'at least' : o === '<=' ? 'at most' : 'exactly'}</option>`).join('')}</select><input type="number" step="any" data-st="fv" data-i="${i}" value="${esc(f.v)}" placeholder="value"><button data-st="fx" data-i="${i}" aria-label="Remove filter">×</button></div>`).join('');
+  return `<div class="st-row">${seg('mode', [['career', 'Career stats'], ['season', 'Season stats'], ['team', 'Team stats']])}${ST.mode === 'season' ? `<label>Season<select data-st="season">${ss}</select></label>` : ''}${tm ? `<label>Season<select data-st="tseason">${tss}</select></label>` : ''}
+   <label>${tm ? 'Search teams' : 'Search players'}<input type="search" data-st="q" value="${esc(ST.q)}" placeholder="Name" style="min-width:180px"></label>
+   ${tm ? '' : `<label>Team<select data-st="team"><option value="">All teams</option>${TEAMS.map(t => `<option value="${esc(t)}" ${ST.team === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
    <label>Current team<select data-st="cur"><option value="">Any</option>${TEAMS.map(t => `<option value="${esc(t)}" ${ST.cur === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}<option value="_fa" ${ST.cur === '_fa' ? 'selected' : ''}>Free agents</option></select></label>
-   <label>Players<select data-st="role">${[['all', 'Everyone'], ['hit', 'Hitters (have at-bats)'], ['pit', 'Pitchers (have innings)']].map(([v, n]) => `<option value="${v}" ${ST.role === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label></div>
+   <label>Players<select data-st="role">${[['all', 'Everyone'], ['hit', 'Hitters (have at-bats)'], ['pit', 'Pitchers (have innings)']].map(([v, n]) => `<option value="${v}" ${ST.role === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>`}</div>
    <div style="display:grid;gap:6px"><b>Stat filters</b>${flt || '<span class="note">No stat filters. Add one to narrow the list, like HR at least 30.</span>'}<div><button data-st="fadd">Add a stat filter</button> ${ST.filters.length ? '<button data-st="fclear">Clear filters</button>' : ''}</div></div>
    <div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><b>Stats shown</b>${Object.keys(ST_PRESET).map(n => `<button class="st-add" data-st="preset" data-v="${esc(n)}">${esc(n)}</button>`).join('')}<button class="st-add ${ST.open ? 'on' : ''}" data-st="colopen">Pick stats…</button></div>
-   ${ST.open ? `<div class="st-cols">${groups.map(gp => `<b>${esc(gp)}</b>${ST_COLS.filter(c => c[2] === gp).map(c => `<label title="${esc(c[5])}"><input type="checkbox" data-st="col" data-v="${c[0]}" ${ST.cols.includes(c[0]) ? 'checked' : ''}> ${esc(c[1])}</label>`).join('')}`).join('')}</div>` : ''}</div>`;
+   ${ST.open ? `<div class="st-cols">${groups.map(gp => `<b>${esc(gp)}</b>${allC.filter(c => c[2] === gp).map(c => `<label title="${esc(c[5])}"><input type="checkbox" data-st="col" data-v="${c[0]}" ${selC.includes(c[0]) ? 'checked' : ''}> ${esc(c[1])}</label>`).join('')}`).join('')}</div>` : ''}</div>`;
 }
 function stEntities(all) { const m = new Map(); all.forEach(r => { const k = stKey(r); if (!m.has(k)) m.set(k, r.nm); }); return m; }
 function stCmpHtml(res) {
@@ -7107,7 +7192,15 @@ function stCmpHtml(res) {
   return `<div class="st-row"><label>Add a player to compare<input list="stDl" data-st="cq" value="${esc(ST.cq)}" placeholder="Start typing a name" style="min-width:220px"></label><datalist id="stDl">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist><button class="primary" data-st="cadd">Add</button>${ST.cmp.length ? '<button data-st="cclear">Clear all</button>' : ''}</div>
    <div>${chips || '<span class="note">Search a player above, or press Compare on any row. The stats shown are the ones ticked under Stats shown. The best value in each row is highlighted.</span>'}</div>${table}`;
 }
+function stTeamResHtml(res) {
+  const rows = stApply(res.rows), sc = stCols(), every = ST.tseason === 'every', all = ST.tseason === 'all';
+  const th = (k, l, tip, left) => `<th data-st="sort" data-v="${k}" class="${left ? 'l ' : ''}${ST.sort.k === k ? 'on' : ''}" title="${esc(tip || '')}">${esc(l)}${ST.sort.k === k ? (ST.sort.d > 0 ? ' ▲' : ' ▼') : ''}</th>`;
+  const head = `<tr>${th('nm', 'Team', 'Sort by name', 1)}${every ? th('s', 'Season', '', 1) : ''}${all ? '<th class="l">Seasons</th>' : ''}${sc.map(c => th(c[0], c[1], c[5])).join('')}</tr>`;
+  const body = rows.map(r => `<tr class="${typeof hbMe === 'function' && hbMe() === r.canon ? 'me' : ''}"><td class="l" style="white-space:nowrap">${stTeamCell(r)}</td>${every ? `<td class="l">S${r.s}</td>` : ''}${all ? `<td class="l">${r.seasons.map(s => 'S' + s).join(' ')}</td>` : ''}${sc.map(c => `<td class="num">${stFmt(r[c[0]], c[4])}</td>`).join('')}</tr>`).join('');
+  return `<div class="note" style="padding:0 0 8px">${rows.length} ${every ? 'team seasons' : 'teams'}. Team totals add up every player's line for that team. G is the most games any player played for the team. Win % uses pitching wins and losses. ${all ? 'Old team names count toward the team that replaced them.' : ''} Click a column to sort.</div><div class="tbl-wrap"><table class="st-tbl"><thead>${head}</thead><tbody>${body || `<tr><td colspan="${sc.length + 2}" class="l note">No teams match.</td></tr>`}</tbody></table></div>`;
+}
 function stResHtml(res) {
+  if (ST.mode === 'team') return stTeamResHtml(res);
   const rows = stApply(res.rows), sc = stCols(), shown = rows.slice(0, ST.shown), seasonMode = ST.mode === 'season';
   const th = (k, l, tip, left) => `<th data-st="sort" data-v="${k}" class="${left ? 'l ' : ''}${ST.sort.k === k ? 'on' : ''}" title="${esc(tip || '')}">${esc(l)}${ST.sort.k === k ? (ST.sort.d > 0 ? ' ▲' : ' ▼') : ''}</th>`;
   const head = `<tr><th class="l"></th>${th('nm', 'Player', 'Sort by name', 1)}${seasonMode ? th('s', 'Season', '', 1) : ''}<th class="l">${seasonMode ? 'Team' : 'Latest team'}</th>${sc.map(c => th(c[0], c[1], c[5])).join('')}</tr>`;
@@ -7116,15 +7209,16 @@ function stResHtml(res) {
 }
 function statsView() {
   const res = stRows();
-  return `<div class="panel"><h2>Stats <span>Career and season stats. Seasons 1-5 come from the league workbook, and Season 6 fills in from the box scores.</span></h2><div class="pad st-grid" id="stCtl">${stCtlHtml()}</div></div>
-  <div class="panel" style="margin-top:14px"><h2>Compare players <span>Pick players and see their stats side by side</span></h2><div class="pad st-grid" id="stCmp">${stCmpHtml(res)}</div></div>
-  <div class="panel" style="margin-top:14px"><h2>${ST.mode === 'career' ? 'Career stats' : ST.season === 'all' ? 'Season stats, every season' : 'Season ' + ST.season + ' stats'} <span>Click a stat name to sort</span></h2><div class="pad" id="stRes">${stResHtml(res)}</div></div>`;
+  const tm = ST.mode === 'team', tl = ST.tseason === 'all' ? 'Team stats, all seasons combined' : ST.tseason === 'every' ? 'Team stats, every season' : 'Season ' + ST.tseason + ' team stats';
+  return `<div class="panel"><h2>Stats <span>Career, season and team stats. Seasons 1-5 come from the league workbook, and Season 6 fills in from the box scores.</span></h2><div class="pad st-grid" id="stCtl">${stCtlHtml()}</div></div>
+  ${tm ? '<div id="stCmp" hidden></div>' : `<div class="panel" style="margin-top:14px"><h2>Compare players <span>Pick players and see their stats side by side</span></h2><div class="pad st-grid" id="stCmp">${stCmpHtml(res)}</div></div>`}
+  <div class="panel" style="margin-top:14px"><h2>${tm ? tl : ST.mode === 'career' ? 'Career stats' : ST.season === 'all' ? 'Season stats, every season' : 'Season ' + ST.season + ' stats'} <span>Click a stat name to sort</span></h2><div class="pad" id="stRes">${stResHtml(res)}</div></div>`;
 }
 function stRefresh(parts) {
   if (!document.getElementById('stRes')) { if (typeof renderHub === 'function') renderHub(); return; }
   const res = stRows();
   if (parts.includes('ctl')) document.getElementById('stCtl').innerHTML = stCtlHtml();
-  if (parts.includes('cmp')) document.getElementById('stCmp').innerHTML = stCmpHtml(res);
+  if (parts.includes('cmp') && ST.mode !== 'team') document.getElementById('stCmp').innerHTML = stCmpHtml(res);
   if (parts.includes('res')) document.getElementById('stRes').innerHTML = stResHtml(res);
   try { if (typeof rbNode === 'function') rbNode(document.getElementById('tab-stats')); } catch (e) {}
 }
@@ -7136,9 +7230,9 @@ function stAddByName(v) {
 }
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-st]'); if (!t || !t.closest('#tab-stats')) return; const a = t.dataset.st, v = t.dataset.v;
-  if (a === 'mode') { ST.mode = v; ST.shown = 60; ST.sort = { k: ST.mode === 'career' ? 'ONM' : 'HR', d: -1 }; renderHub(); }
-  else if (a === 'sort') { if (ST.sort.k === v) ST.sort.d = -ST.sort.d; else ST.sort = { k: v, d: v === 'nm' || (ST_BY[v] && ST_BY[v][3] < 0) ? 1 : -1 }; stRefresh(['res']); }
-  else if (a === 'preset') { ST.cols = ST_PRESET[v].slice(); stRefresh(['ctl', 'cmp', 'res']); }
+  if (a === 'mode') { ST.mode = v; ST.shown = 60; ST.sort = { k: ST.mode === 'team' ? 'WP' : ST.mode === 'career' ? 'ONM' : 'HR', d: -1 }; ST.filters = ST.filters.filter(f => stColBy(f.k)); renderHub(); }
+  else if (a === 'sort') { if (ST.sort.k === v) ST.sort.d = -ST.sort.d; else ST.sort = { k: v, d: v === 'nm' || v === 's' || (stColBy(v) && stColBy(v)[3] < 0) ? 1 : -1 }; stRefresh(['res']); }
+  else if (a === 'preset') { const ks = v === 'Everything' && ST.mode === 'team' ? TS_COLS.map(c => c[0]) : ST_PRESET[v].slice(); if (ST.mode === 'team') ST.tcols = (v === 'Essentials' ? ['WP', 'W', 'L', 'RS', 'RA', 'RD'] : []).concat(ks.filter(k => k !== 'G' || v !== 'Essentials')); else ST.cols = ks; stRefresh(['ctl', 'cmp', 'res']); }
   else if (a === 'colopen') { ST.open = !ST.open; stRefresh(['ctl']); }
   else if (a === 'fadd') { ST.filters.push({ k: 'HR', op: '>=', v: '' }); stRefresh(['ctl']); }
   else if (a === 'fx') { ST.filters.splice(+t.dataset.i, 1); ST.shown = 60; stRefresh(['ctl', 'res']); }
@@ -7158,15 +7252,98 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const t = e.target; if (!t.dataset || !t.dataset.st || !t.closest('#tab-stats')) return; const a = t.dataset.st;
   if (a === 'season') { ST.season = t.value; ST.shown = 60; renderHub(); }
+  else if (a === 'tseason') { ST.tseason = t.value; renderHub(); }
   else if (a === 'cur') { ST.cur = t.value; ST.shown = 60; stRefresh(['res']); }
   else if (a === 'team') { ST.team = t.value; ST.shown = 60; stRefresh(['res']); }
   else if (a === 'role') { ST.role = t.value; ST.shown = 60; stRefresh(['res']); }
   else if (a === 'fk') { ST.filters[+t.dataset.i].k = t.value; stRefresh(['res']); }
   else if (a === 'fo') { ST.filters[+t.dataset.i].op = t.value; stRefresh(['res']); }
-  else if (a === 'col') { const on = t.checked; ST.cols = ST_COLS.map(c => c[0]).filter(k => k === t.dataset.v ? on : ST.cols.includes(k)); stRefresh(['cmp', 'res']); }
+  else if (a === 'col') { const on = t.checked, sel = stSelCols(), nx = stAllCols().map(c => c[0]).filter(k => k === t.dataset.v ? on : sel.includes(k)); if (ST.mode === 'team') ST.tcols = nx; else ST.cols = nx; stRefresh(['cmp', 'res']); }
   else if (a === 'cq') { if (t.value) stAddByName(t.value); }
 });
 if (typeof HB_VIEWS !== 'undefined') HB_VIEWS.stats = statsView;
+/* ============ DRAFT BOARDS: next season's picks (who owns each one), the live draft, and every past draft ============
+   Past drafts come from the league history workbook (each player's draft team, round and overall pick, Seasons 1-5).
+   Next season's order is projected from the standings (round 1 picks 1-4 are the lottery), and the owner of every pick
+   comes from hbS7Owner, which replays every trade (draft-night deals, season trades and multi-team trades). */
+const DBV = { v: null, hl: null };
+const dbCur = () => (typeof RB !== 'undefined' && RB.cur) || 6;
+function dbPast() {
+  if (dbPast.c) return dbPast.c; const m = {};
+  for (const k in PHIST) for (const e of PHIST[k]) if (e.draft && e.draft.o) (m[e.s] = m[e.s] || []).push({ pid: +k, t: e.draft.t, r: e.draft.r, o: e.draft.o });
+  return dbPast.c = m;
+}
+const dbTc = t => (TEAMC[t] || {}).p || 'var(--line)';
+function dbRender(fromDraft) {
+  const sec = document.getElementById('tab-board'); if (!sec || sec.hidden) return;
+  let fin = false; try { fin = typeof done === 'function' && done(); } catch (e) {}
+  const cur = dbCur(), past = Object.keys(dbPast()).map(Number).filter(s => s < cur).sort((a, b) => b - a);
+  if (DBV.v == null) DBV.v = fin ? 'next' : cur;
+  if (fromDraft && DBV.v !== cur && DBV.v !== 'next' && !past.includes(DBV.v)) DBV.v = cur;
+  const opts = [['next', `Season ${cur + 1} picks`], [cur, `Season ${cur} draft`]].concat(past.map(s => [s, `Season ${s} draft`]));
+  document.getElementById('dbSeg').innerHTML = opts.map(([v, n]) => `<button class="${v === 'next' ? 'db-next' : ''}" data-dbv="${v}" aria-pressed="${String(DBV.v) === String(v)}">${esc(n)}</button>`).join('');
+  document.getElementById('dbCur').hidden = DBV.v !== cur;
+  const other = document.getElementById('dbOther');
+  if (DBV.v === cur) { other.innerHTML = ''; return; }
+  if (fromDraft && DBV.v !== 'next') return; // a past board does not change during the draft
+  other.innerHTML = DBV.v === 'next' ? dbNextHtml() : dbPastHtml(+DBV.v);
+}
+function dbNextHtml() {
+  const nx = dbCur() + 1; let ord;
+  try { ord = hbS7Order(); } catch (e) { return `<div class="panel"><div class="pad note">The Season ${nx} picks load with the season data. Open the Season Hub once, then come back.</div></div>`; }
+  const me = typeof hbMe === 'function' ? hbMe() : null; if (DBV.hl == null) DBV.hl = me || '';
+  const hl = DBV.hl, own = {}, cells = []; TEAMS.forEach(t => own[t] = { has: [], gone: [] });
+  for (let r = 1; r <= 9; r++) {
+    const row = r === 1 ? ord.r1 : ord.worst;
+    row.forEach((o, i) => {
+      const n = (r - 1) * 10 + i + 1, who = hbS7Owner(r, o), lot = r === 1 && i < 4, tr = who !== o;
+      own[who].has.push({ n, r, o, tr, lot }); if (tr) own[o].gone.push({ n, r, who });
+      const label = lot && !ord.lot ? 'Lottery' : '#' + n;
+      cells.push(`<div class="db-c ${tr ? 'tr' : ''} ${lot ? 'lot' : ''} ${me && who === me ? 'me' : ''} ${hl && who !== hl ? 'dim' : ''}" style="--tc:${dbTc(who)}" title="${esc(`Round ${r}, ${lot && !ord.lot ? 'lottery pick (1-4)' : 'pick ' + n}. ${o}'s own pick${tr ? ', now owned by ' + who : ''}.`)}">
+        <div class="db-n"><span>${label}</span>${tr ? '<span class="db-tag t">Traded</span>' : lot && ord.lot ? '<span class="db-tag">Lottery</span>' : ''}</div>
+        <div class="db-o">${hbLogo(who)}<b>${esc(who)}</b></div>
+        <div class="db-via">${tr ? `via ${hbLogo(o)}${esc(o)}` : 'Own pick'}</div></div>`);
+    });
+  }
+  const grid = [...Array(9)].map((_, r) => `<div class="db-rd">Rd ${r + 1}</div>${cells.slice(r * 10, r * 10 + 10).join('')}`).join('');
+  const head = `<div></div>${[...Array(10)].map((_, i) => `<div class="db-hd">Pick ${i + 1}</div>`).join('')}`;
+  const pk = (x, cls) => `<span class="db-pk ${cls}" title="${esc(cls === 'out' ? `Round ${x.r}, pick ${x.n}: traded to ${x.who}` : `Round ${x.r}, pick ${x.n}${x.tr ? ' (from ' + x.o + ')' : ''}`)}">${x.lot && !ord.lot ? 'L' : '#' + x.n}${cls === 'in' ? ' ' + esc(hbAbbr(x.o)) : ''}</span>`;
+  const teams = TEAMS.slice().sort((a, b) => own[b].has.length - own[a].has.length || own[a].has[0].n - own[b].has[0].n).map(t => {
+    const h = own[t].has, first = h.filter(x => x.r <= 2);
+    return `<button class="db-team ${hl === t ? 'on' : ''}" data-dbhl="${esc(t)}" style="--tc:${dbTc(t)}" aria-pressed="${hl === t}"><h4>${hbLogo(t)}${esc(t)}<span class="num" title="Picks owned">${h.length}</span></h4>
+      <div class="db-pks">${h.map(x => pk(x, x.tr ? 'in' : '')).join('')}</div>
+      ${own[t].gone.length ? `<div class="db-pks"><span class="note">Traded away:</span>${own[t].gone.map(x => pk(x, 'out')).join('')}</div>` : ''}
+      <div class="note">${first.length} pick${first.length === 1 ? '' : 's'} in rounds 1-2${h.length ? `, best is ${h[0].lot && !ord.lot ? 'a lottery pick' : '#' + h[0].n}` : ''}</div></button>`;
+  }).join('');
+  const nTr = cells.filter(c => c.includes('db-c tr')).length;
+  return `<div class="panel"><h2>Season ${nx} draft picks <span>Who owns every pick right now${ord.played ? ', in the order the current standings project' : ''}</span></h2>
+   <div class="pad" style="display:grid;gap:8px"><div class="note">Round 1 picks 1-4 go to a lottery among the four worst records${ord.lot ? ' (drawn, so they are set)' : ''}. Picks 5-10 and every later round follow the standings, worst record first, so the numbers move as games are played. ${ord.played ? '' : 'No games have been played yet, so the order is not set. '}Owners update the moment a trade goes through. ${nTr} of 90 picks have changed hands.</div>
+   <div class="db-bar"><label>Highlight<select id="dbHl"><option value="">All teams</option>${TEAMS.map(t => `<option value="${esc(t)}" ${hl === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
+   <span class="db-key"><i style="background:var(--surface);box-shadow:inset 0 0 0 1px var(--bulb)"></i>Traded pick</span><span class="db-key"><i style="background:var(--mine)"></i>Lottery pick</span>${me ? `<span class="db-key"><i style="outline:2px solid var(--accent)"></i>Your picks</span>` : ''}<span class="db-key">Left edge = owner's color</span></div></div>
+   <div class="db-wrap"><div class="db-grid">${head}${grid}</div></div></div>
+   <div class="panel" style="margin-top:14px"><h2>Picks by team <span>How many Season ${nx} picks each team holds. Gold picks came in by trade. Click a team to highlight its picks.</span></h2><div class="db-own">${teams}</div></div>`;
+}
+const hbAbbr = t => { const w = String(t).replace(/^the /i, '').split(/\s+/); return (w.length > 1 ? w.map(x => x[0]).join('') : w[0].slice(0, 3)).toUpperCase(); };
+function dbPastHtml(s) {
+  const L = (dbPast()[s] || []).slice().sort((a, b) => a.o - b.o); if (!L.length) return `<div class="panel"><div class="pad note">No draft is recorded for Season ${s}.</div></div>`;
+  const nT = new Set(L.map(x => x.t)).size, maxO = L[L.length - 1].o, by = new Map(L.map(x => [x.o, x]));
+  const rows = []; let rd = 1;
+  for (let o = 1; o <= maxO; o++) { const x = by.get(o); if (x) rd = x.r || Math.ceil(o / nT); (rows[rd] = rows[rd] || []).push(x || { o, gap: true }); }
+  const cols = Math.max(nT, ...rows.filter(Boolean).map(r => r.length));
+  const cell = x => x.gap ? `<div class="db-c gap"><div class="db-n"><span>#${x.o}</span></div><div class="note">Not recorded</div></div>`
+    : `<div class="db-c" style="--tc:${dbTc(nwTeamCanon(x.t) || '')}" title="${esc(`Round ${x.r || '?'}, pick ${x.o}: ${x.t} took ${P[x.pid].name}`)}"><div class="db-n"><span>#${x.o}</span>${x.r ? '' : '<span class="db-tag" title="Listed as round 0 in the history workbook">Rd 0</span>'}</div>
+       <div class="db-o"><span class="tdot" style="background:${pfLogoAt(x.t, s)}"></span><b>${pfTeamHtml(x.t, s)}</b></div><div class="db-p pclick" data-pid="${x.pid}">${esc(P[x.pid].name)}</div></div>`;
+  const grid = rows.map((r, i) => r ? `<div class="db-rd">Rd ${i}</div>${r.map(cell).join('')}${'<div></div>'.repeat(cols - r.length)}` : '').join('');
+  const head = `<div></div>${[...Array(cols)].map((_, i) => `<div class="db-hd">Pick ${i + 1}</div>`).join('')}`;
+  return `<div class="panel"><h2>Season ${s} draft <span>${nT} teams, ${L.length} picks recorded, team names as they were that season. Click a player for his profile.</span></h2>
+   <div class="pad note">From the league history workbook. Gaps are picks the workbook does not record (usually a Mii who is not in the player list).</div>
+   <div class="db-wrap"><div class="db-grid" style="--cols:${cols}">${head}${grid}</div></div></div>`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-dbv]'); if (b) { DBV.v = b.dataset.dbv === 'next' ? 'next' : +b.dataset.dbv; dbRender(); if (DBV.v === dbCur()) { try { renderBoard(); renderRatings(); } catch (x) {} } return; }
+  const h = e.target.closest('[data-dbhl]'); if (h) { DBV.hl = DBV.hl === h.dataset.dbhl ? '' : h.dataset.dbhl; dbRender(); }
+});
+document.addEventListener('change', e => { if (e.target.id === 'dbHl') { DBV.hl = e.target.value; dbRender(); } });
 /* ============ FREE AGENTS: undrafted players, team claims, commissioner assignments ============
    The pool is every player not on a season-hub roster. Teams file claims (league/fa_claim_<i>); the commissioner assigns or releases
    (league/fa_moves). Moves are replayed in hbReplay together with trades, so rosters everywhere stay in sync and nothing in the draft changes. */
