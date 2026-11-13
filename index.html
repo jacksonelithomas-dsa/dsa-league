@@ -5062,6 +5062,7 @@ function hbBase() {
 }
 function hbReplay() {
   const r = hbBase(), s7 = Object.assign({}, HB_S7_PRESET, (typeof S !== 'undefined' && S.s7) || {});
+  try { for (const x of ptS7Legs()) s7[x.k] = x.to; } catch (e) {}
   const log = HB.tlog.filter(l => !vetoed(l.id)).concat(((HB.fa && HB.fa.moves) || []).map(m => ({ t: m.t, legs: [{ pid: m.pid, from: m.from || 'FA', to: m.to || 'FA' }] }))).sort((a, b) => (a.t || 0) - (b.t || 0));
   for (const l of log) for (const g of l.legs || []) {
     if (g.from === 'FA' || g.to === 'FA') { if (g.from === 'FA') { const t = r[g.to]; if (t && !TEAMS.some(x => r[x].includes(g.pid))) t.push(g.pid); } else { const f = r[g.from]; if (f) { const i = f.indexOf(g.pid); if (i >= 0) f.splice(i, 1); } } continue; }
@@ -5832,7 +5833,7 @@ function hubStart() {
   on('smaps', s => { HB.maps = {}; s.docs.forEach(d => { const x = d.data(); if (x && x.gid) HB.maps[x.gid] = x; }); }, 1);
   on('sscores', s => { HB.scores = {}; s.docs.forEach(d => { const x = d.data(); if (x && x.gid) HB.scores[x.gid] = x; }); }, 1);
   on('ssnap', s => { HB.snaps = {}; s.docs.forEach(d => HB.snaps[d.id] = d.data()); }, 1);
-  on('league/past_trades', s => { PT.list = s.exists && s.data() && Array.isArray(s.data().list) ? s.data().list : []; try { if (hbActiveTab() === 'history' && typeof renderHistory === 'function') renderHistory(); } catch (e) {} });
+  on('league/past_trades', s => { PT.list = s.exists && s.data() && Array.isArray(s.data().list) ? s.data().list : []; HB.rn = null; hbSched(); try { if (hbActiveTab() === 'history' && typeof renderHistory === 'function') renderHistory(); } catch (e) {} });
   on('league/fa_moves', s => { HB.fa = s.exists ? s.data() : { moves: [] }; });
   TEAMS.forEach((t, i) => on('league/fa_claim_' + i, s => { HB.faClaims = HB.faClaims || {}; HB.faClaims[t] = s.exists && s.data() && Array.isArray(s.data().pids) ? s.data() : null; }));
   if (typeof rbOnSnap === 'function') on('league/rebrands', rbOnSnap);
@@ -7697,7 +7698,29 @@ function ptParse(txt, tr) {
   }
   return out;
 }
-const ptOrg = (txt, tr) => { const q = txt.toLowerCase().replace(/[^a-z0-9]/g, ''); return tr.teams.find(t => { const k = t.toLowerCase().replace(/[^a-z0-9]/g, ''); return k.includes(q) || q.includes(k); }) || ''; };
+const ptOrg = (txt, tr) => { const q = txt.toLowerCase().replace(/[^a-z0-9]/g, ''); return tr.teams.find(t => { const k = t.toLowerCase().replace(/[^a-z0-9]/g, ''); return k.includes(q) || q.includes(k); }) || ptTeam(txt) || ''; };
+/* a team name as typed (current, rebranded or an old name) -> the league's team */
+function ptTeam(txt) {
+  const q = String(txt || '').toLowerCase().replace(/^the\s+/, '').replace(/[^a-z0-9]/g, ''); if (!q) return null;
+  const k = n => n.toLowerCase().replace(/^the\s+/, '').replace(/[^a-z0-9]/g, '');
+  return TEAMS.find(t => k(t) === q) || (typeof rbKeyOf === 'function' && rbKeyOf(txt)) || (typeof nwTeamCanon === 'function' && TEAMS.includes(nwTeamCanon(txt)) && nwTeamCanon(txt)) || TEAMS.find(t => k(t).includes(q) || q.includes(k(t))) || null;
+}
+/* next season's picks named in this season's past trades: [{ k: 'round|original team', to }] in the order the trades were added */
+function ptS7Legs() {
+  const cur = (typeof RB !== 'undefined' && RB.cur) || 6, out = [];
+  for (const tr of PT.list || []) {
+    if (+tr.s !== cur) continue;
+    (tr.got || []).forEach((items, i) => {
+      const to = ptTeam(tr.teams[i]); if (!to) return;
+      for (const it of items || []) {
+        if (it.t !== 'pick') continue;
+        const m = String(it.label || '').match(/^S(\d+)\s+(.+?)\s+(?:(\d+)\.\d+|Rd\.?\s*(\d+))$/i); if (!m || +m[1] !== cur + 1) continue;
+        const org = ptTeam(m[2]) || ptTeam(it.org), r = +(m[3] || m[4]); if (org && r >= 1 && r <= 9) out.push({ k: r + '|' + org, to });
+      }
+    });
+  }
+  return out;
+}
 function ptPanelHtml() {
   if (!hbAdmin()) return '';
   const names = ptTeamNames(), opt = n => `<option>${esc(n)}</option>`, slot = i => `<div class="pt-slot" style="display:grid;gap:4px"><label class="hb-f">Team ${i + 1}${i > 1 ? ' (optional)' : ''}<select data-pt="team${i}">${i > 1 ? '<option value="">None</option>' : ''}${names.map(opt).join('')}</select></label>
@@ -7708,7 +7731,7 @@ function ptPanelHtml() {
    <label class="hb-f">When<input data-pt="phase" placeholder="Pre-Draft, Week 3, Offseason…" value="In-Season"><input data-pt="date" placeholder="Date (optional), e.g. October 3rd" style="margin-top:4px"></label></div>
    <div class="hb-two">${[0, 1, 2, 3].map(slot).join('')}</div>
    <datalist id="ptNames">${P.map(p => `<option value="${esc(p.name)}">`).join('')}</datalist>
-   <div class="note">List what each team receives. Players are matched by exact name; draft picks as <b>S6 Jazz 3.3</b> (season, original team, round.pick) or <b>S7 Jazz Rd 2</b>. Anything else is kept as plain text. Two teams is a normal trade; use up to four for a multi-team deal.</div>
+   <div class="note">List what each team receives. Players are matched by exact name; draft picks as <b>S6 Jazz 3.3</b> (season, original team, round.pick) or <b>S7 Jazz Rd 2</b>. Anything else is kept as plain text. Two teams is a normal trade; use up to four for a multi-team deal. A Season 6 trade with <b>S7</b> picks also moves those picks on the Season 7 draft board (players are not moved, since rosters already include draft trades).</div>
    <div><button class="primary" data-pt-go="add">Add to History</button></div>
    ${mine.length ? `<div><b>Added by you</b></div>${mine.map(x => `<div class="hb-offer"><div><b>Season ${x.s}</b> <span class="note">${esc([x.phase, x.date].filter(Boolean).join(' · '))}</span> ${esc(x.teams.join(', '))}</div><button data-pt-go="del" data-id="${esc(x.id)}">Remove</button></div>`).join('')}` : ''}</div></div>`;
 }
