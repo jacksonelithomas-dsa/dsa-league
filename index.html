@@ -44,6 +44,17 @@ select,input[type=text],input[type=number]{background:var(--surface);border:1px 
 .cell .v{font-family:var(--f-display);font-weight:800;font-size:24px;color:var(--bulb);line-height:1.05;text-shadow:0 0 10px rgba(242,169,0,.35)}
 .cell.team .v{font-size:20px}
 .cell.me .v{color:#fff}
+#seasonCells{display:none}
+.board.in-season #seasonCells{display:flex}
+.board.in-season #draftCells,.board.in-season #btnUndo,.board.in-season #btnSimToMe,.board.in-season #btnAutoAll{display:none!important}
+#seasonCells .cell{cursor:pointer;max-width:260px;transition:border-color .15s}
+#seasonCells .cell:hover{border-color:var(--bulb)}
+#seasonCells .cell .v{font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#seasonCells .cell .s{font-size:11.5px;color:#c9d4e2;line-height:1.25;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#seasonCells .cell.warn{border-color:#e05a4f;background:rgba(224,90,79,.14)}
+#seasonCells .cell.warn .v{color:#ff8a80;text-shadow:none}
+#seasonCells .cell.ok .v{color:#7fd88b;text-shadow:none}
+#seasonCells .cell.closed .v{color:#c9d4e2;text-shadow:none}
 .board-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
 .board-actions button{background:transparent;color:var(--board-ink);border-color:var(--bline,#34496a)}
 .board-actions button.primary{background:var(--bulb);color:#1b1300;border-color:var(--bulb)}
@@ -520,7 +531,8 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
 <header class="board">
   <div class="board-in">
     <div class="brand">Darkhorse Slugging Association<small>Mario Super Sluggers league · 10 teams · 9 rounds · <span id="whoami">Watching</span></small></div>
-    <div class="cells">
+    <div class="cells" id="seasonCells"></div>
+    <div class="cells" id="draftCells">
       <div class="cell"><div class="k">Round</div><div class="v num" id="sbRound">1</div></div>
       <div class="cell"><div class="k">Pick</div><div class="v num" id="sbPick">1</div></div>
       <div class="cell team"><div class="k">On the clock</div><div class="v" id="sbTeam">—</div></div>
@@ -5210,9 +5222,11 @@ function hbProjHtml(g, k) { const ap = Math.round((1 - k.hw) * 100), hp = 100 - 
   return `<div class="hb-pr"><span class="num">${ap}%</span><span>Simulated win chance</span><span class="num">${hp}%</span></div>
   <div class="hb-bar"><i style="width:${ap}%;background:${TEAMC[g.away].p}"></i><i style="width:${hp}%;background:${TEAMC[g.home].p}"></i></div>
   <div class="hb-pr"><span>Avg runs <b class="num">${k.ar.toFixed(1)}</b></span><span>Chem <b class="num">${k.cha}</b> vs <b class="num">${k.chh}</b></span><span>Avg runs <b class="num">${k.hr.toFixed(1)}</b></span></div>`; }
+const hbSwapped = (g, s) => hbPlayedOrder(g, s)[0] === 'home';
+const hbRoleTxt = (g, s, side) => (side === 'away') !== hbSwapped(g, s) ? 'Away' : 'Home';
 function hbSide(g, side, s) {
   const t = g[side], sc = s && s.status !== 'scheduled' ? (side === 'away' ? s.as : s.hs) : null, oth = s ? (side === 'away' ? s.hs : s.as) : null, lose = s && s.status === 'final' && sc < oth;
-  return `<div class="hb-side ${hbMe() === t ? 'me' : ''}" data-gm="open" data-g="${g.gid}" title="Open the game page">${hbLogo(t, true)}<div class="hb-tn"><b>${esc(t)}</b><span>${hbRec(t)} · ${side === 'away' ? 'Away' : 'Home'}</span></div><div class="hb-sc ${lose ? 'lose' : ''}">${sc == null ? '–' : sc}</div></div>`;
+  return `<div class="hb-side ${hbMe() === t ? 'me' : ''}" data-gm="open" data-g="${g.gid}" title="Open the game page">${hbLogo(t, true)}<div class="hb-tn"><b>${esc(t)}</b><span>${hbRec(t)} · ${hbRoleTxt(g, s, side)}</span></div><div class="hb-sc ${lose ? 'lose' : ''}">${sc == null ? '–' : sc}</div></div>`;
 }
 function hbStad(g, s) {
   const m = HB.maps[g.gid], fin = s && s.status === 'final';
@@ -5233,9 +5247,9 @@ function hbCard(g) {
   const s = HB.scores[g.gid], st = s ? s.status : 'scheduled';
   const pill = st === 'live' ? `<span class="hb-pill live">LIVE${s.inn ? ' · ' + esc(s.inn) : ''}</span>` : st === 'final' ? `<span class="hb-pill">${esc(hbFinTxt(s).toUpperCase())}</span>` : '<span class="hb-pill dim">UPCOMING</span>';
   const k = st === 'final' ? null : hbProj(g);
-  return `<article class="hb-game"><div class="hb-head" data-gm="open" data-g="${g.gid}" role="button" tabindex="0" title="Open the game page"><span>Week ${g.wk} · Game ${g.gid.slice(g.gid.indexOf('g') + 1)}</span>${pill}</div>${hbSide(g, 'away', s)}${hbSide(g, 'home', s)}
+  return `<article class="hb-game"><div class="hb-head" data-gm="open" data-g="${g.gid}" role="button" tabindex="0" title="Open the game page"><span>Week ${g.wk} · Game ${g.gid.slice(g.gid.indexOf('g') + 1)}</span>${pill}</div>${hbPlayedOrder(g, s).map(k => hbSide(g, k, s)).join('')}
    ${st === 'final' || st === 'live' ? '' : `<div class="hb-proj" data-hbproj="${g.gid}">${k ? hbProjHtml(g, k) : '<span class="note">Set both lineups to see a projection.</span>'}</div>`}
-   ${hbStad(g, s)}<div class="hb-st" style="display:flex;gap:6px;flex-wrap:wrap"><button class="hb-mini primary" data-gm="open" data-g="${g.gid}">Game page</button><button class="hb-mini" data-hb="lineups" data-g="${g.gid}">Lineups</button>${s && (s.box || s.line) ? `<button class="hb-mini" data-hb="box" data-g="${g.gid}">Box score</button>` : ''}</div></article>`;
+   ${hbStad(g, s)}<div class="hb-st" style="display:flex;gap:6px;flex-wrap:wrap"><button class="hb-mini primary" data-gm="open" data-g="${g.gid}">Game page</button><button class="hb-mini" data-hb="lineups" data-g="${g.gid}">Lineups</button>${s && (s.box || s.line) ? `<button class="hb-mini" data-hb="box" data-g="${g.gid}">Box score</button>` : ''}${s && st === 'final' && hbAdmin() ? `<button class="hb-mini" data-hbflip="${g.gid}" title="Commissioner: flip which team is shown as batting first, if this game was imported the wrong way round">⇅ Batting order</button>` : ''}</div></article>`;
 }
 function hbWeekBar(key, cur) { return `<div class="hb-weeks">${HB_WEEKS.map(x => `<button data-hbweek="${x}" data-hbkey="${key}" aria-pressed="${x === cur}" class="${x === hbCur() ? 'cur' : ''}">${x}</button>`).join('')}</div>`; }
 function hbMatchups() {
@@ -5259,8 +5273,14 @@ function hbLeaders() {
 // Players on the team win ties, so a Mii is never turned into a new player. Returns the short name the box score editor uses.
 const hbNk = s => String(s || '').toLowerCase().replace(/\(.*?\)/g, m => m.replace(/[()]/g, ' ')).replace(/[^a-z0-9]/g, '');
 /* names that mean a player already in the pool (key = the name squeezed by hbNk). Add more here if another alias turns up. */
-const HB_NAME_ALIAS = { redshyguy: 'Shy Guy', shyguyred: 'Shy Guy' };
-const hbAliasName = n => HB_NAME_ALIAS[hbNk(n)] || n;
+const HB_NAME_ALIAS = { redshyguy: 'Shy Guy', shyguyred: 'Shy Guy', buggermgreenmii: 'Bug Germ (Light Green Mii)', bugjermgreenmii: 'Bug Germ (Light Green Mii)', bugjermlightgreenmii: 'Bug Germ (Light Green Mii)' };
+/* Mii color words the sheets use for the game's color names */
+const HB_MII_SYN = { lime: 'Light Green', lg: 'Light Green', ltgreen: 'Light Green', lightgreen: 'Light Green', lb: 'Light Blue', ltblue: 'Light Blue', lightblue: 'Light Blue' };
+const hbAliasName = n => {
+  if (HB_NAME_ALIAS[hbNk(n)]) return HB_NAME_ALIAS[hbNk(n)];
+  const m = String(n || '').match(/^(.*?)\s*\(\s*(.*?)\s*mii\s*\)\s*$/i), c = m && HB_MII_SYN[hbNk(m[2])];
+  if (!c) return n; const n2 = m[1].trim() + ' (' + c + ' Mii)'; return HB_NAME_ALIAS[hbNk(n2)] || n2;
+};
 function hbCanon(raw, team, wk, notes) {
   const name = hbAliasName(String(raw || '').trim()); if (!name) return name; const k = hbNk(name), noP = hbNk(name.replace(/\(.*?\)/g, ''));
   let ros = []; try { ros = hbRoster(team) || []; } catch (e) {}
@@ -5888,6 +5908,7 @@ function hbLayout() {
     if (fin && (!cur || !HB_POST.includes(cur) || first && !location.hash.slice(1))) showTab('hl');
     else if (!fin && !first && cur && !HB_PRE.includes(cur)) showTab('draft');
   }
+  const bd = document.querySelector('header.board'); if (bd) { bd.classList.toggle('in-season', !!fin); if (fin) sbSeason(); }
   const cm = btn('cm'); if (cm) { const show = fin && hbAdmin(); if (cm.hidden === show) cm.hidden = !show; if (!show && hbActiveTab() === 'cm') showTab('hl'); }
   const fa = btn('fa'); if (fa && fin) { const show = hbCur() <= HB_WEEKS[0]; if (fa.hidden === show) fa.hidden = !show; if (!show && hbActiveTab() === 'fa') showTab('hl'); } /* free agency closes once week 1 is over */
 }
@@ -7084,7 +7105,12 @@ function stBase() {
   if (ST_BASE) return ST_BASE; const out = [];
   const add = (s, pid, nm, e) => { const o = stBlank(s, pid, nm, e.t); ST_SUM.forEach(k => { if (e[k] != null) o[k] = e[k]; }); ['AGS', 'OH', 'OF', 'OP', 'ONM', 'OPp'].forEach(k => { if (e[k] != null) o[k] = e[k]; }); if (e.GSc == null) o.GSc = null; out.push(o); };
   for (const k in PHIST) for (const e of PHIST[k]) for (const t of e.teams || []) add(e.s, +k, P[+k].name, t);
-  for (const x of SXTRA) add(x.s, -1, x.nm, x.e);
+  const have = new Set(); for (const k in PHIST) for (const e of PHIST[k]) have.add(k + '|' + e.s);
+  for (const x of SXTRA) { // workbook lines kept by name: tie them to the player when the name is an alias (e.g. Bug Germ (Green Mii))
+    const j = typeof hbPid === 'function' ? hbPid(x.nm) : null;
+    if (j == null) { add(x.s, -1, x.nm, x.e); continue; }
+    if (have.has(j + '|' + x.s) && !(+x.e.G || +x.e.AB || +x.e.IP)) continue; add(x.s, j, P[j].name, x.e);
+  }
   return ST_BASE = out;
 }
 function stDerive(o) {
@@ -7283,6 +7309,58 @@ document.addEventListener('change', e => {
   else if (a === 'cq') { if (t.value) stAddByName(t.value); }
 });
 if (typeof HB_VIEWS !== 'undefined') HB_VIEWS.stats = statsView;
+/* ============ IN-SEASON BANNER: your next game, things you need to do, the trade deadline, your record ============ */
+const sbOrd = n => n + (['th', 'st', 'nd', 'rd'][(n % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th');
+function sbCountdown(ms) { if (ms <= 0) return 'Now'; const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60), mm = m % 60; return d ? `${d}d ${h}h` : h ? `${h}h ${mm}m` : `${mm}m`; }
+function sbSeason() {
+  const el = document.getElementById('seasonCells'); if (!el) return;
+  let h = ''; const cell = (k, v, s, cls, act, tip) => `<div class="cell ${cls || ''}" data-sb="${esc(act || '')}" role="button" tabindex="0" title="${esc(tip || '')}"><div class="k">${esc(k)}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ''}</div>`;
+  try {
+    const me = hbMe(), wk = hbCur(), fin = g => { const s = HB.scores[g.gid]; return s && s.status === 'final'; };
+    const next = me ? HB_GAMES.filter(g => (g.away === me || g.home === me) && g.wk >= wk && !fin(g)).sort((a, b) => a.wk - b.wk)[0] : null;
+    // 1. next game
+    if (next) {
+      const opp = next.away === me ? next.home : next.away, m = HB.maps[next.gid] || {}, away = next.away === me;
+      const park = m.pick ? hbStName(m.pick, m.tod) : !m.ban ? (away ? 'You ban a stadium' : esc(opp) + ' bans a stadium') : (away ? esc(opp) + ' picks the stadium' : 'You pick the stadium');
+      h += cell('Next game · Week ' + next.wk, `${away ? '@' : 'vs'} ${esc(opp)}`, park, '', 'game:' + next.gid, 'Open the game page');
+    } else if (me) h += cell('Next game', 'Season done', '', 'closed', 'tab:hm');
+    else h += cell('This week', 'Week ' + wk, HB_GAMES.filter(g => g.wk === wk && fin(g)).length + ' of ' + HB_GAMES.filter(g => g.wk === wk).length + ' games final', '', 'tab:hm');
+    // 2. to-do
+    if (me) {
+      const todo = [];
+      if (!(HB.cfg && HB.cfg.locked) && !hbValidDoc(hbDoc(me, wk), me) && HB_GAMES.some(g => g.wk === wk && (g.away === me || g.home === me) && !fin(g))) todo.push(['Set your week ' + wk + ' lineup', 'tab:hl']);
+      if (next && next.wk === wk) { const m = HB.maps[next.gid] || {}; if (!m.ban && next.away === me) todo.push(['Ban a stadium', 'game:' + next.gid]); else if (m.ban && !m.pick && next.home === me) todo.push(['Pick the stadium', 'game:' + next.gid]); }
+      const pend = hbPending().length; if (pend) todo.push([pend + ' trade offer' + (pend > 1 ? 's' : '') + ' waiting', 'tab:ht']);
+      h += todo.length ? cell('To do', todo.length + ' item' + (todo.length > 1 ? 's' : ''), todo.map(x => esc(x[0])).join(' · '), 'warn', todo[0][1], todo.map(x => x[0]).join('\n'))
+        : cell('To do', 'All set ✓', 'Lineup, stadium and trades are done', 'ok', 'tab:hl');
+    }
+    // 3. trade deadline
+    const at = hbDeadlineAt();
+    if (!hbTradeOpen()) h += cell('Trade deadline', 'Closed', HB.cfg && HB.cfg.tradesClosed ? 'Closed by the commissioner' : 'No more trades this season', 'closed', 'tab:ht');
+    else if (at) h += cell('Trades close in', sbCountdown(at - Date.now()), new Date(at).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }), at - Date.now() < 864e5 ? 'warn' : '', 'tab:ht', hbDlTxt());
+    else if (hbDeadline() < 99) h += cell('Trade deadline', 'Week ' + hbDeadline(), '11:59 PM the day before its games', '', 'tab:ht');
+    // 4. record and place
+    if (me) {
+      const st = hbStandings(), i = st.findIndex(r => r.t === me), r = st[i];
+      const last = HB_GAMES.filter(g => (g.away === me || g.home === me) && fin(g)).sort((a, b) => b.wk - a.wk)[0];
+      let ls = ''; if (last) { const s = HB.scores[last.gid], mine = last.away === me ? s.as : s.hs, th = last.away === me ? s.hs : s.as, opp = last.away === me ? last.home : last.away; ls = `Last: ${mine > th ? 'W' : 'L'} ${mine}-${th} ${last.away === me ? '@' : 'vs'} ${esc(opp)}`; }
+      h += cell('Record · ' + sbOrd(i + 1) + ' of ' + st.length, `${r.w}-${r.l}`, ls || 'No games yet', '', 'tab:hs', r.streak && r.streak !== '–' ? 'Streak ' + r.streak : '');
+    }
+  } catch (e) { h = ''; }
+  if (sbSeason.last !== h) { sbSeason.last = h; el.innerHTML = h; }
+}
+document.addEventListener('click', e => {
+  const c = e.target.closest('#seasonCells [data-sb]'); if (!c) return; const [k, v] = c.dataset.sb.split(':');
+  if (k === 'game') { const g = gmG(v); if (!g) return; HB.game = g.gid; HB.week = g.wk; GM.tab = 'news'; showTab('hm'); renderHub(); try { window.scrollTo({ top: 0 }); } catch (x) {} }
+  else if (k === 'tab') { if (v === 'hm') HB.game = null; showTab(v); }
+});
+document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('#seasonCells [data-sb]')) { e.preventDefault(); e.target.click(); } });
+/* commissioner: flip the batting order shown for a game imported before the order was saved */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-hbflip]'); if (!b || !hbAdmin()) return; const g = HB_GAMES.find(x => x.gid === b.dataset.hbflip), s = g && HB.scores[g.gid]; if (!s) return;
+  const played = hbSwapped(g, s) ? { away: g.away, home: g.home } : { away: g.home, home: g.away };
+  hbPut('sscores/' + g.gid, Object.assign({}, s, { played })).then(ok => ok && toast(`${played.away} now shows as batting first.`, 'good'));
+});
 /* ============ WEEKLY AWARDS: the commissioner names a Week MVP and a Week MVMii (best Mii); they show on Matchups and History
    with every stat the player had that week. Saved in season/config.wkAw = { week: { mvp: { p, t }, mvmii: { p, t } } }. ============ */
 const AW_KINDS = [['mvp', 'Week MVP'], ['mvmii', 'Week MVMii']];
@@ -7802,12 +7880,13 @@ function gmPosted(g, s) {
 
 function gmPage() {
   const g = gmG(HB.game); if (!g) { HB.game = null; return ''; }
-  const s = HB.scores[g.gid], fin = gmFin(s), live = s && s.status === 'live', tm = (side) => {
+  const s = HB.scores[g.gid], fin = gmFin(s), live = s && s.status === 'live', tm = (side, pos) => {
     const t = g[side], sc = s && (fin || live) ? (side === 'away' ? s.as : s.hs) : null, oth = s ? (side === 'away' ? s.hs : s.as) : null, win = fin && sc > oth, r = hbStandings().find(x => x.t === t) || {};
-    return `<div class="gm-tm ${side} ${win ? 'win' : fin ? 'lose' : ''}">${hbLogo(t, true)}<div class="gm-tn"><b>${esc(t)}</b><span>${r.w || 0}-${r.l || 0} · ${side === 'away' ? 'Away' : 'Home'}</span></div><div class="gm-sc">${sc == null ? '' : sc}</div></div>`; };
+    return `<div class="gm-tm ${pos} ${win ? 'win' : fin ? 'lose' : ''}">${hbLogo(t, true)}<div class="gm-tn"><b>${esc(t)}</b><span>${r.w || 0}-${r.l || 0} · ${hbRoleTxt(g, s, side)}</span></div><div class="gm-sc">${sc == null ? '' : sc}</div></div>`; };
+  const ord = hbPlayedOrder(g, s);
   const status = fin ? `<b>${esc(hbFinTxt(s).toUpperCase())}</b>` : live ? `<b class="live">LIVE${s.inn ? ' · ' + esc(s.inn) : ''}</b>` : `<b>WEEK ${g.wk}</b><span>Upcoming</span>`;
   return `<div class="gm"><div class="gm-top"><button class="hb-mini" data-gm="back">← Scoreboard</button><span class="note">Week ${g.wk} · Game ${g.gid.slice(g.gid.indexOf('g') + 1)}</span></div>
-   <div class="gm-hd">${tm('away')}<div class="gm-mid">${status}<span>${esc(gmVenue(g, s))}</span></div>${tm('home')}</div>
+   <div class="gm-hd">${tm(ord[0], 'away')}<div class="gm-mid">${status}<span>${esc(gmVenue(g, s))}</span></div>${tm(ord[1], 'home')}</div>
    ${fin ? gmPosted(g, s) : `<div style="margin-bottom:14px">${hbStad(g, s)}</div>${gmUpcoming(g, s)}`}</div>`;
 }
 
