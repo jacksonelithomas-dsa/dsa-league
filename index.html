@@ -5026,7 +5026,10 @@ const HB_S7_PRESET = { '1|Jazz': 'Sluggin Heat', '2|Jazz': 'Sluggin Heat', '3|Ja
 const HB_GAMES = (() => { const c = {}; return HB_SCHED.map(([wk, away, home]) => { c[wk] = (c[wk] || 0) + 1; return { gid: 'w' + wk + 'g' + c[wk], wk: +wk, away, home }; }); })();
 const HB_WEEKS = [...new Set(HB_GAMES.map(g => g.wk))].sort((a, b) => a - b);
 const hbDeadline = () => (typeof HB !== 'undefined' && HB.cfg && +HB.cfg.deadline) || HB_DEADLINE_WEEK;
-const HB_MIN_ROSTER = 9, HB_DEADLINE_WEEK = 4, HB_MAX_STARS = 2, HB_POS = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
+const hbDeadlineAt = () => (typeof HB !== 'undefined' && HB.cfg && +HB.cfg.deadlineAt) || 0;
+const hbDlTxt = () => { const at = hbDeadlineAt(), w = hbDeadline(); if (w >= 99 && !at) return 'set by the commissioner';
+  return at ? new Date(at).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + (w < 99 ? ', the day before week ' + w + ' games' : '') : '11:59 PM the day before week ' + w + ' games'; };
+const HB_MIN_ROSTER = 9, HB_DEADLINE_WEEK = 8, HB_MAX_STARS = 2, HB_POS = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
 const HB_XY = { P: [50, 55], C: [50, 86], '1B': [78, 62], '2B': [64, 38], SS: [36, 38], '3B': [22, 62], LF: [15, 19], CF: [50, 9], RF: [85, 19] };
 const HB_SUBS = [['lineup', 'My Lineup'], ['matchups', 'Matchups'], ['rosters', 'Rosters'], ['standings', 'Standings'], ['trades', 'Trades']];
 const hbSn = id => String(P[id].name).replace(/ \(.*/, '');
@@ -5384,7 +5387,7 @@ function hbRostersView() {
 }
 
 /* ---- trades (players and Season 7 picks) ---- */
-const hbTradeOpen = () => (hbCur() < hbDeadline() && !(HB.cfg && HB.cfg.tradesClosed));
+const hbTradeOpen = () => (hbCur() < hbDeadline() && !(hbDeadlineAt() && Date.now() >= hbDeadlineAt()) && !(HB.cfg && HB.cfg.tradesClosed));
 function hbS7Order() {
   const st = hbStandings(), worst = st.slice().reverse().map(r => r.t), bottom = worst.slice(0, 4), rest = worst.slice(4), lot = HB.lottery && HB.lottery.order && HB.lottery.order.length === 4 ? HB.lottery.order : null;
   return { worst, bottom, r1: (lot || bottom).concat(rest), lot, played: st.some(r => r.gp > 0) };
@@ -5401,7 +5404,7 @@ function hbCheckTrade(o) {
   if (A.length < HB_MIN_ROSTER) bad.push(`${o.from} would have ${A.length} players (the minimum is ${HB_MIN_ROSTER}).`);
   if (B.length < HB_MIN_ROSTER) bad.push(`${o.to} would have ${B.length} players (the minimum is ${HB_MIN_ROSTER}).`);
   if (!cap(A)) bad.push(`${o.from} would have no captain.`); if (!cap(B)) bad.push(`${o.to} would have no captain.`);
-  if (!hbTradeOpen()) bad.push(`The trade deadline has passed (10 PM before week ${hbDeadline()} games).`);
+  if (!hbTradeOpen()) bad.push(`The trade deadline has passed (${hbDlTxt()}).`);
   return bad;
 }
 const hbEmptyOffer = o => !o.give.length && !o.get.length && !(o.giveS7 || []).length && !(o.getS7 || []).length;
@@ -5438,7 +5441,7 @@ function hbTrades() {
   const me = hbMe(), T = HB.trade, inc = HB.offers.filter(o => !o.multi && o.status === 'pending' && o.to === me), out = HB.offers.filter(o => !o.multi && o.status === 'pending' && o.from === me), log = HB.tlog.slice().sort((a, b) => b.t - a.t);
   let compose = '<div class="panel"><div class="pad note">Join a team to make offers.</div></div>';
   if (me) { if (!T.to || T.to === me) T.to = TEAMS.find(t => t !== me);
-    compose = `<div class="panel"><h2>Make an offer <span>${esc(me)}</span></h2><div class="pad" style="display:grid;gap:10px">${hbTradeOpen() ? '' : `<div class="banner warn" style="margin:0">The trade deadline (10 PM before week ${hbDeadline()} games) has passed.</div>`}
+    compose = `<div class="panel"><h2>Make an offer <span>${esc(me)}</span></h2><div class="pad" style="display:grid;gap:10px">${hbTradeOpen() ? '' : `<div class="banner warn" style="margin:0">The trade deadline (${hbDlTxt()}) has passed.</div>`}
      <label class="hb-f">Trade with<select id="hbTo">${TEAMS.filter(t => t !== me).map(t => `<option ${t === T.to ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
      <div class="hb-two"><div><b>You give</b>${hbPl(hbRoster(me), 'give', T.give, hbS7Of(me), 'giveS7', T.giveS7)}</div><div><b>You get</b>${hbPl(hbRoster(T.to), 'get', T.get, hbS7Of(T.to), 'getS7', T.getS7)}</div></div>
      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="primary" data-hb="send" ${T.give.size || T.get.size || T.giveS7.size || T.getS7.size ? '' : 'disabled'}>Send offer</button><span class="note">Each team keeps at least ${HB_MIN_ROSTER} players and a captain. Season 7 picks can be traded too.</span></div></div></div>`; }
@@ -5467,9 +5470,10 @@ function hbCommishView() {
   const w = hbCur(), gs = HB_GAMES.filter(g => g.wk === w), n = TEAMS.reduce((a, t) => a + hbBase()[t].length, 0), ord = hbS7Order();
   return `<div class="panel" style="margin-bottom:14px"><h2>Season admin <span>week, locks, rosters, results and the Season 7 lottery</span></h2><div class="hb-two pad">
    <div style="display:grid;gap:10px"><b>Week and lineups</b><label class="hb-f">Current week<select id="hbWeek">${HB_WEEKS.map(x => `<option ${x === w ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
-    <label class="hb-f">Trade deadline<select id="hbDeadline">${HB_WEEKS.slice(1).concat([99]).map(x => `<option value="${x}" ${x === hbDeadline() ? 'selected' : ''}>${x === 99 ? 'No deadline' : '10 PM before week ' + x + ' games'}</option>`).join('')}</select></label>
+    <label class="hb-f">Trade deadline<select id="hbDeadline">${HB_WEEKS.slice(1).concat([99]).map(x => `<option value="${x}" ${x === hbDeadline() ? 'selected' : ''}>${x === 99 ? 'No deadline week' : 'Week ' + x + ' (11:59 PM the day before its games)'}</option>`).join('')}</select></label>
+    <label class="hb-f">Exact close time<input type="datetime-local" id="hbDeadlineAt" value="${(() => { const at = hbDeadlineAt(); if (!at) return ''; const d = new Date(at - new Date(at).getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); })()}"></label>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="${HB.cfg && HB.cfg.locked ? '' : 'primary'}" data-hb="lock">${HB.cfg && HB.cfg.locked ? 'Unlock lineups' : 'Lock lineups for week ' + w}</button><button data-hb="closetrades">${HB.cfg && HB.cfg.tradesClosed ? 'Reopen trades' : 'Close trades now'}</button></div>
-    <div class="note">Locking saves every team's lineup for the week and stops edits to that week. Later weeks stay open. ${hbDeadline() >= 99 ? 'There is no trade deadline; use Close trades now to stop trading.' : 'Trades close automatically at 10 PM before week ' + hbDeadline() + ' games.'}</div></div>
+    <div class="note">Locking saves every team's lineup for the week and stops edits to that week. Later weeks stay open. ${hbDeadline() >= 99 ? 'There is no trade deadline; use Close trades now to stop trading.' : 'Trades close automatically: ' + hbDlTxt() + '.' + (hbDeadlineAt() ? '' : ' Set the exact close time (the date of 11:59 PM the day before those games) so trades shut on the dot; otherwise they close when you move the current week to ' + hbDeadline() + '.')}</div></div>
    <div style="display:grid;gap:10px"><b>Rosters</b><div class="note">Always live: every roster is the draft's roster (keepers, picks and in-draft trades) plus the season trades, so this app and the draft room can never disagree. ${n} players across the league.</div>
     <b>Season 7 lottery</b><div class="note">Bottom four now: ${ord.bottom.map(esc).join(', ')}. ${ord.lot ? 'Drawn order: ' + ord.lot.map(esc).join(', ') + '.' : 'Not drawn yet.'}</div>
     <b>Backup</b><div class="note">Downloads every pick, trade, score, lineup, stadium pick and setting as one file. Do it before big changes and after each week.</div><div><button class="primary" data-hb="backup">Download backup</button></div>
@@ -5863,7 +5867,8 @@ document.addEventListener('change', e => {
   if (t.id === 'hbLTeam') { HB.lteam = t.value; HE.team = null; renderHub(); }
   else if (t.id === 'hbTo') { HB.trade.to = t.value; HB.trade.get.clear(); HB.trade.getS7.clear(); renderHub(); }
   else if (t.dataset.hbtr) { const set = HB.trade[t.dataset.hbtr], v = t.dataset.hbtr.endsWith('S7') ? t.value : +t.value; t.checked ? set.add(v) : set.delete(v); renderHub(); }
-  else if (t.id === 'hbDeadline') { const v = +t.value; hbPut('season/config', Object.assign({}, HB.cfg || {}, { deadline: v })).then(ok => ok && toast(v >= 99 ? 'No trade deadline.' : 'Trade deadline: 10 PM before week ' + v + ' games.', 'good')); }
+  else if (t.id === 'hbDeadline') { const v = +t.value; hbPut('season/config', Object.assign({}, HB.cfg || {}, { deadline: v })).then(ok => ok && toast(v >= 99 ? 'No deadline week.' : 'Trade deadline: week ' + v + '.', 'good')); }
+  else if (t.id === 'hbDeadlineAt') { const at = t.value ? new Date(t.value).getTime() : 0; hbPut('season/config', Object.assign({}, HB.cfg || {}, { deadlineAt: at })).then(ok => ok && toast(at ? 'Trades close ' + new Date(at).toLocaleString() + '.' : 'Exact close time cleared.', 'good')); }
   else if (t.id === 'hbWeek') { hbPut('season/config', Object.assign({}, HB.cfg || {}, { week: +t.value })).then(ok => ok && toast('Week ' + t.value + ' is now current.', 'good')); }
 });
 
@@ -7523,7 +7528,7 @@ function mtCheck(teams, legs) {
   const bad = [];
   if (teams.length < 3 || teams.length > 4) bad.push('A multi-team trade needs 3 or 4 teams.');
   if (!legs.length) bad.push('Move at least one player or pick.');
-  if (!hbTradeOpen()) bad.push(`The trade deadline has passed (10 PM before week ${hbDeadline()} games).`);
+  if (!hbTradeOpen()) bad.push(`The trade deadline has passed (${hbDlTxt()}).`);
   const R = {}; teams.forEach(t => R[t] = hbRoster(t).slice());
   for (const l of legs) {
     if (l.s7) { if (hbS7Owner(l.s7.r, l.s7.o) !== l.from) bad.push('A Season 7 pick in this offer has changed hands.'); continue; }
