@@ -5163,7 +5163,16 @@ function hbBreakTie(grp) {
   if (grp.length < 2) return grp;
   const set = new Set(grp.map(r => r.t)), h = {}; grp.forEach(r => h[r.t] = { w: 0, l: 0, d: 0 });
   for (const [a, b, x, y] of hbTieGames(set)) { h[a].d += x - y; h[b].d += y - x; if (x > y) { h[a].w++; h[b].l++; } else { h[b].w++; h[a].l++; } }
-  const steps = [r => h[r.t].w + h[r.t].l ? h[r.t].w / (h[r.t].w + h[r.t].l) : 0.5, r => r.diff, r => h[r.t].d];
+  /* head to head only counts when every tied team has played each other; otherwise only a team that beat (or lost to) every other tied team moves */
+  const gs = hbTieGames(set), pr = {}, key = (a, b) => a < b ? a + '|' + b : b + '|' + a;
+  for (const [a, b, x, y] of gs) { const k = key(a, b), o = pr[k] || (pr[k] = {}); o[x > y ? a : b] = (o[x > y ? a : b] || 0) + 1; }
+  const allMet = grp.every(r => grp.every(u => u === r || pr[key(r.t, u.t)]));
+  if (!allMet) {
+    const sweep = (r, win) => grp.every(u => { if (u === r) return true; const o = pr[key(r.t, u.t)]; return o && (win ? !o[u.t] && o[r.t] : !o[r.t] && o[u.t]); });
+    const top = grp.find(r => sweep(r, true)); if (top) return [top].concat(hbBreakTie(grp.filter(r => r !== top)));
+    const bot = grp.find(r => sweep(r, false)); if (bot) return hbBreakTie(grp.filter(r => r !== bot)).concat([bot]);
+  }
+  const steps = [allMet ? r => h[r.t].w + h[r.t].l ? h[r.t].w / (h[r.t].w + h[r.t].l) : 0.5 : () => 0, r => r.diff, r => h[r.t].d];
   for (const f of steps) {
     const v0 = f(grp[0]); if (grp.every(r => Math.abs(f(r) - v0) < 1e-9)) continue;
     const s = grp.slice().sort((a, b) => f(b) - f(a)), out = []; let i = 0;
@@ -5344,7 +5353,7 @@ function hbStandingsView() {
   const era = x => (x.er * 9 / x.ip).toFixed(2), whip = x => ((x.h + x.bb) / x.ip).toFixed(2);
   return `${hbStTable(rows, 'Overall standings', rows.reduce((a, r) => a + r.gp, 0) / 2 + ' games played')}
   <div class="hb-two" style="margin-top:14px">${Object.keys(HB_CONF).map(c => hbStTable(hbRankRows(rows.filter(r => HB_CONF[c].includes(r.t))), c)).join('')}</div>
-  <div class="note" style="margin-top:6px">Ties (overall and conference): 1. head to head, 2. run differential, 3. run differential in games between the tied teams, 4. coin flip.</div>
+  <div class="note" style="margin-top:6px">Ties (overall and conference): 1. head to head, 2. run differential, 3. run differential in games between the tied teams, 4. coin flip. Head to head counts only when all the tied teams have played each other; if they have not, it only moves a team that beat (or lost to) every other tied team.</div>
   ${hbPlayoffHtml(rows)}
   <h2 class="hb-h2">Offensive leaders</h2><div class="hb-lbs">${lead('Home runs', top(ld.bat, 'hr'), x => x.hr)}${lead('Hits', top(ld.bat, 'h'), x => x.h)}${lead('RBI', top(ld.bat, 'rbi'), x => x.rbi)}${lead('Doubles', top(ld.bat, 'b2'), x => x.b2)}
    ${lead('Batting average (10+ AB)', qual.slice().sort((a, b) => b.h / b.ab - a.h / a.ab).slice(0, 5), x => (x.h / x.ab).toFixed(3).replace(/^0/, ''))}${lead('Walks', top(ld.bat, 'bb'), x => x.bb)}${lead('Game MVPs', top(ld.bat.concat(ld.pit.filter(p => !ld.bat.some(b => b.p === p.p && b.t === p.t))), 'mvp'), x => x.mvp)}</div>
