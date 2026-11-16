@@ -5389,21 +5389,40 @@ const hbNk = s => String(s || '').toLowerCase().replace(/\(.*?\)/g, m => m.repla
 const HB_NAME_ALIAS = { redshyguy: 'Shy Guy', shyguyred: 'Shy Guy', buggermgreenmii: 'Bug Germ (Light Green Mii)', bugjermgreenmii: 'Bug Germ (Light Green Mii)', bugjermlightgreenmii: 'Bug Germ (Light Green Mii)' };
 /* Mii color words the sheets use for the game's color names */
 const HB_MII_SYN = { lime: 'Light Green', lg: 'Light Green', ltgreen: 'Light Green', lightgreen: 'Light Green', lb: 'Light Blue', ltblue: 'Light Blue', lightblue: 'Light Blue' };
+const hbUserAlias = n => { const ua = typeof HB !== 'undefined' && HB.cfg && HB.cfg.aliases; if (!ua) return null; return ua[hbNk(n)] || (/\(/.test(String(n)) ? null : null) || null; };
 const hbAliasName = n => {
+  const ua = hbUserAlias(n); if (ua) return ua;
   if (HB_NAME_ALIAS[hbNk(n)]) return HB_NAME_ALIAS[hbNk(n)];
   const m = String(n || '').match(/^(.*?)\s*\(\s*(.*?)\s*mii\s*\)\s*$/i), c = m && HB_MII_SYN[hbNk(m[2])];
-  if (!c) return n; const n2 = m[1].trim() + ' (' + c + ' Mii)'; return HB_NAME_ALIAS[hbNk(n2)] || n2;
+  if (!c) return n; const n2 = m[1].trim() + ' (' + c + ' Mii)'; return hbUserAlias(n2) || HB_NAME_ALIAS[hbNk(n2)] || n2;
 };
+/* spelling grace for pasted names: a Mii cut short or misspelled ("Tay (Blue Mii)" for "Tayshaun (Blue Mii)", "Bryse" for "Bryce").
+   The Mii color has to agree. Players on the team come first; a match is only taken when exactly one player fits best. */
+const hbLev = (a, b) => { if (Math.abs(a.length - b.length) > 2) return 9; const d = [...Array(b.length + 1).keys()]; for (let i = 1; i <= a.length; i++) { let p = d[0]; d[0] = i; for (let j = 1; j <= b.length; j++) { const t = d[j]; d[j] = Math.min(d[j] + 1, d[j - 1] + 1, p + (a[i - 1] === b[j - 1] ? 0 : 1)); p = t; } } return d[b.length]; };
+const hbMiiParts = n => { const m = String(n || '').match(/^(.*?)\s*\(\s*(.*?)\s*mii\s*\)\s*$/i); return m ? { base: hbNk(m[1]), col: hbNk(HB_MII_SYN[hbNk(m[2])] || m[2]) } : { base: hbNk(n), col: null }; };
+function hbFuzzy(name, ros) {
+  const q = hbMiiParts(name); if (q.base.length < (q.col ? 2 : 3)) return null;
+  const score = i => { const c = hbMiiParts(P[i].name); if (q.col && c.col !== q.col) return 0;
+    const b = c.base; if (b === q.base) return 3; if ((b.startsWith(q.base) || q.base.startsWith(b)) && Math.min(b.length, q.base.length) >= 3) return 2;
+    return hbLev(b, q.base) <= (Math.max(b.length, q.base.length) >= 6 ? 2 : 1) ? 1 : 0; };
+  for (const pool of [ros, P.map((p, i) => i)]) { let best = 0, ids = []; for (const i of pool) { const s = score(i); if (s > best) { best = s; ids = [i]; } else if (s && s === best) ids.push(i); } if (ids.length === 1) return ids[0]; if (ids.length > 1) return null; }
+  return null;
+}
 function hbCanon(raw, team, wk, notes) {
   const name = hbAliasName(String(raw || '').trim()); if (!name) return name; const k = hbNk(name), noP = hbNk(name.replace(/\(.*?\)/g, ''));
   let ros = []; try { ros = hbRoster(team) || []; } catch (e) {}
   const full = i => hbNk(P[i].name), short = i => hbNk(hbSn(i)), all = P.map((p, i) => i);
   const pick = (ids, why) => { if (!ids.length) return null; const on = ids.filter(i => ros.includes(i)); const i = (on[0] != null ? on[0] : ids[0]); if (notes && why && hbSn(i) !== name) notes.push(`${name} (${team}) matched to ${P[i].name}.`); return hbSn(i); };
-  let r = pick(all.filter(i => full(i) === k || short(i) === k), 0) || pick(all.filter(i => full(i) === noP || short(i) === noP), 1);
-  if (r) return r;
+  let r = pick(all.filter(i => full(i) === k || short(i) === k), 0); if (r) return r;
+  // same name typed without (or with a different) Mii color: a player whose color agrees wins; otherwise the closest spelling with that color
+  const qc = hbMiiParts(name).col, same = all.filter(i => full(i) === noP || short(i) === noP), sameCol = qc ? same.filter(i => hbMiiParts(P[i].name).col === qc) : same;
+  r = pick(sameCol, 1); if (r) return r;
+  if (qc && same.length) { const fz0 = hbFuzzy(name, ros); if (fz0 != null) { if (notes) notes.push(`${name} (${team}) matched to ${P[fz0].name} (same Mii color).`); return hbSn(fz0); } }
+  r = pick(same, 1); if (r) return r;
   // a unique roster player whose name starts with, or is started by, what was typed ("Mike" for "Mike Toad")
   const near = ros.filter(i => noP.length >= 3 && (short(i).startsWith(noP) || noP.startsWith(short(i))));
   if (near.length === 1) { if (notes) notes.push(`${name} (${team}) matched to ${P[near[0]].name}.`); return hbSn(near[0]); }
+  const fz = hbFuzzy(name, ros); if (fz != null) { if (notes) notes.push(`${name} (${team}) matched to ${P[fz].name} (close spelling). If that is wrong, fix it in Edit box score.`); return hbSn(fz); }
   if (notes) notes.push(`Could not match "${name}" (${team}) to any player, so it was kept as typed and will show as a new player.`);
   return name;
 }
@@ -5616,7 +5635,7 @@ function hbCommishView() {
     ${hbBotSpec()}
     <textarea id="hbRes" style="min-height:150px;font:12px var(--f-mono);width:100%"></textarea><div><button class="primary" data-hb="importres">Import box scores</button></div>${hbBotLog()}</div>
    <div><b>Quick score entry</b>${gs.map(g => { const s = HB.scores[g.gid] || {}; return `<div class="hb-offer"><div><b>${esc(g.away)}</b> at <b>${esc(g.home)}</b> <span class="chip">${esc(s.status || 'scheduled')}</span></div>
-     <div class="hb-qs"><input type="number" min="0" id="hbqa_${g.gid}" value="${s.as == null ? '' : s.as}" aria-label="${esc(g.away)} runs" placeholder="Away"><input type="number" min="0" id="hbqh_${g.gid}" value="${s.hs == null ? '' : s.hs}" aria-label="${esc(g.home)} runs" placeholder="Home"><button class="primary" data-hb="qfinal" data-g="${g.gid}">Final</button><button data-hb="bxedit" data-g="${g.gid}">Box score</button><button data-hb="qclear" data-g="${g.gid}">Clear</button></div></div>`; }).join('')}</div></div></div>` + (typeof awAdminHtml === 'function' ? awAdminHtml() : '') + hbCmTrade();
+     <div class="hb-qs"><input type="number" min="0" id="hbqa_${g.gid}" value="${s.as == null ? '' : s.as}" aria-label="${esc(g.away)} runs" placeholder="Away"><input type="number" min="0" id="hbqh_${g.gid}" value="${s.hs == null ? '' : s.hs}" aria-label="${esc(g.home)} runs" placeholder="Home"><button class="primary" data-hb="qfinal" data-g="${g.gid}">Final</button><button data-hb="bxedit" data-g="${g.gid}">Box score</button><button data-hb="qclear" data-g="${g.gid}">Clear</button></div></div>`; }).join('')}</div></div></div>` + (typeof awAdminHtml === 'function' ? awAdminHtml() : '') + (typeof mgAdminHtml === 'function' ? mgAdminHtml() : '') + hbCmTrade();
 }
 function hbCmTrade() {
   const A = HB.cfrom && TEAMS.includes(HB.cfrom) ? HB.cfrom : (HB.cfrom = TEAMS[0]), T = HB.trade; if (!T.to || T.to === A) T.to = TEAMS.find(t => t !== A);
@@ -5937,7 +5956,7 @@ function hbSched() { HB.rn = null; clearTimeout(hbSched.t); hbSched.t = setTimeo
 function hubStart() {
   if (HB.started || !LV.db) return; HB.started = true; const db = LV.db;
   const on = (path, f, col) => (col ? db.collection(path) : db.doc(path)).onSnapshot(s => { f(s); hbSched(); }, dbErr);
-  on('season/config', s => { HB.cfg = s.exists ? s.data() : null; HB.lottery = HB.cfg && HB.cfg.lottery || null; });
+  on('season/config', s => { HB.cfg = s.exists ? s.data() : null; try { ST_BASE = null; } catch (e) {} HB.lottery = HB.cfg && HB.cfg.lottery || null; });
   on('season/rosters', s => HB.frozen = s.exists ? s.data() : null);
   on('sstlog', s => { const n0 = HB.tlogLoaded ? HB.tlog.length : null; HB.tlogLoaded = true; HB.tlog = s.docs.map(d => d.data()).filter(x => x && x.legs); if (n0 != null && HB.tlog.length > n0 && typeof Snd !== 'undefined') { Snd.play('trade'); const t = HB.tlog.slice().sort((x, y) => (y.t || 0) - (x.t || 0))[0]; if (t && t.teams) toast('Trade complete: ' + t.teams.join(' / '), 'good'); } }, 1);
   on('tvotes', () => {}, 1);
@@ -7219,7 +7238,12 @@ function stLiveRows() {
 let ST_BASE = null;
 function stBase() {
   if (ST_BASE) return ST_BASE; const out = [];
-  const add = (s, pid, nm, e) => { const o = stBlank(s, pid, nm, e.t); ST_SUM.forEach(k => { if (e[k] != null) o[k] = e[k]; }); ['AGS', 'OH', 'OF', 'OP', 'ONM', 'OPp'].forEach(k => { if (e[k] != null) o[k] = e[k]; }); if (e.GSc == null) o.GSc = null; out.push(o); };
+  const seen = new Map();
+  const add = (s, pid, nm, e) => {
+    if (pid >= 0 && typeof hbPid === 'function') { const j = hbPid(P[pid].name); if (j != null && j !== pid) { pid = j; nm = P[j].name; } }
+    const key = s + '|' + pid + '|' + (pid >= 0 ? '' : nm) + '|' + e.t, prev = seen.get(key);
+    if (prev) { ST_SUM.forEach(k => { if (e[k] != null) prev[k] = (prev[k] || 0) + +e[k]; }); ['OH', 'OF', 'OP', 'ONM'].forEach(k => { if (e[k] != null) prev[k] = (prev[k] || 0) + +e[k]; }); return; }
+    const o = stBlank(s, pid, nm, e.t); ST_SUM.forEach(k => { if (e[k] != null) o[k] = e[k]; }); ['AGS', 'OH', 'OF', 'OP', 'ONM', 'OPp'].forEach(k => { if (e[k] != null) o[k] = e[k]; }); if (e.GSc == null) o.GSc = null; out.push(o); seen.set(key, o); };
   for (const k in PHIST) for (const e of PHIST[k]) for (const t of e.teams || []) add(e.s, +k, P[+k].name, t);
   const have = new Set(); for (const k in PHIST) for (const e of PHIST[k]) have.add(k + '|' + e.s);
   for (const x of SXTRA) { // workbook lines kept by name: tie them to the player when the name is an alias (e.g. Bug Germ (Green Mii))
@@ -7709,6 +7733,33 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-hbflip]'); if (!b || !hbAdmin()) return; const g = HB_GAMES.find(x => x.gid === b.dataset.hbflip), s = g && HB.scores[g.gid]; if (!s) return;
   const played = hbSwapped(g, s) ? { away: g.away, home: g.home } : { away: g.home, home: g.away };
   hbPut('sscores/' + g.gid, Object.assign({}, s, { played })).then(ok => ok && toast(`${played.away} now shows as batting first.`, 'good'));
+});
+/* ============ MERGE PLAYER NAMES: the commissioner points a misspelled or short name at the real player. Saved in
+   season/config.aliases; old box scores, stats, awards and future imports all follow it. ============ */
+function mgUnmatched() {
+  const out = new Map();
+  for (const g of HB_GAMES) { const s = HB.scores[g.gid]; if (!s || !s.box) continue; for (const side of ['away', 'home']) { const b = s.box[side]; if (!b) continue; for (const x of (b.bat || []).concat(b.pit || [])) if (x.p && hbPid(x.p) == null) out.set(x.p, (out.get(x.p) || 0) + 1); } }
+  try { for (const x of SXTRA) if (hbPid(x.nm) == null && !out.has(x.nm)) out.set(x.nm, 0); } catch (e) {}
+  return [...out.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+function mgAdminHtml() {
+  const ua = (HB.cfg && HB.cfg.aliases) || {}, um = mgUnmatched(), ps = P.map((p, i) => [p.name, i]).sort((a, b) => a[0].localeCompare(b[0]));
+  const sugg = n => { const i = hbFuzzy(n, []); return i == null ? '' : ` <span class="note">probably ${esc(P[i].name)}</span>`; };
+  return `<div class="panel" style="margin-top:14px"><h2>Merge player names <span>When a name was typed differently (Tay for Tayshaun), point it at the real player. Past box scores, stats and future pastes all follow.</span></h2><div class="pad" style="display:grid;gap:10px">
+   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end"><label class="hb-f">Name as typed<input id="mgFrom" list="mgList" placeholder="e.g. Tay (Blue Mii)" style="min-width:220px"></label><datalist id="mgList">${um.map(([n]) => `<option value="${esc(n)}">`).join('')}${ps.map(([n]) => `<option value="${esc(n)}">`).join('')}</datalist>
+    <label class="hb-f">Is really<select id="mgTo"><option value="">Pick the player</option>${ps.map(([n, i]) => `<option value="${i}">${esc(n)}</option>`).join('')}</select></label><button class="primary" data-mg="save">Merge</button></div>
+   <div class="note"><b>Names with no player match</b> (these show as separate players in stats): ${um.length ? um.slice(0, 30).map(([n, c]) => `<button class="hb-mini" data-mg="pick" data-v="${esc(n)}" title="${c ? c + ' box score line' + (c > 1 ? 's' : '') : 'From the history workbook'}">${esc(n)}</button>${sugg(n)}`).join(' ') : 'none, every name matches a player.'}</div>
+   ${Object.keys(ua).length ? `<div><b>Merges</b>${Object.entries(ua).map(([k, v]) => `<div class="tp-tx"><span class="note">${esc(k)}</span> → <b>${esc(v)}</b><button class="hb-mini" data-mg="del" data-v="${esc(k)}">Undo</button></div>`).join('')}</div>` : ''}</div></div>`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-mg]'); if (!b || !hbAdmin()) return; const a = b.dataset.mg;
+  if (a === 'pick') { const f = document.getElementById('mgFrom'), t = document.getElementById('mgTo'); f.value = b.dataset.v; const i = hbFuzzy(b.dataset.v, []); if (i != null) t.value = String(i); f.focus(); return; }
+  const ua = Object.assign({}, (HB.cfg && HB.cfg.aliases) || {});
+  if (a === 'save') { const from = (document.getElementById('mgFrom').value || '').trim(), to = document.getElementById('mgTo').value;
+    if (!from || to === '') { toast('Type the name and pick the player.', 'bad'); return; }
+    if (hbNk(from) === hbNk(P[+to].name)) { toast('That is already the player\'s name.', 'bad'); return; }
+    ua[hbNk(from)] = P[+to].name; hbPut('season/config', Object.assign({}, HB.cfg || {}, { aliases: ua })).then(ok => ok && toast(`"${from}" now counts as ${P[+to].name}.`, 'good')); }
+  else if (a === 'del') { delete ua[b.dataset.v]; hbPut('season/config', Object.assign({}, HB.cfg || {}, { aliases: ua })).then(ok => ok && toast('Merge undone.', 'good')); }
 });
 /* ============ WEEKLY AWARDS: the commissioner names a Week MVP and a Week MVMii (best Mii); they show on Matchups and History
    with every stat the player had that week. Saved in season/config.wkAw = { week: { mvp: { p, t }, mvmii: { p, t } } }. ============ */
