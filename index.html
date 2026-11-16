@@ -523,6 +523,7 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
 <div id="gate" class="gate" hidden><div class="gatebox"><h2>Darkhorse Slugging Association</h2><p id="gateMsg">Connecting…</p>
 <div id="gateJoin" hidden>
  <label>Team code<input type="text" id="gateCode" placeholder="XXXXX-XXXXX" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>
+ <label style="display:flex;gap:6px;align-items:center;font-size:13px;margin-top:4px"><input type="checkbox" id="gateRemember" checked> Remember me on this device</label>
  <div id="gateErr" class="gerr"></div>
  <div class="grow"><button class="primary" id="gateGo">Join my team</button><button id="gateWatch">Just watch</button></div>
  <div class="gown"><a href="#" id="gateAdmin" style="font-size:13px">Commissioner login</a><div id="gateAdminBox" hidden><label>Commissioner password<input type="password" id="gateAdminPw" autocomplete="off"></label><div class="grow"><button class="primary" id="gateAdminGo">Log in</button></div><div id="gateAdminErr" class="gerr"></div></div></div>
@@ -540,7 +541,7 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
       <div class="cell"><div class="k">Clock</div><div class="v num" id="sbClock">—</div></div>
     </div>
     <div class="tlogo" id="teamLogo" hidden></div>
-    <div class="board-actions">
+    <div class="board-actions"><button id="btnSignOut" title="Forget this device's saved team code and commissioner login">Sign out</button>
       <button class="ownly" id="btnUndo" title="Take back the last pick">Undo</button>
       <button class="ownly" id="btnSimToMe" class="primary">Sim to my pick</button>
       <button class="ownly" id="btnAutoAll">Auto-finish draft</button>
@@ -4290,10 +4291,10 @@ function voteRow(k, done) {
   return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px"><span class="chip ${v ? 'b' : n ? 'w' : ''}">${v ? 'Vetoed' : 'Veto votes'} ${n}/${VETO_N}</span>${me && !v ? `<button class="hb-mini" data-vote="${esc(k)}">${mine ? 'Withdraw my veto vote' : 'Vote to veto'}</button>` : ''}<span class="note">${voteSet(k).map(x => esc(TEAMS[+x.slice(1)])).join(', ')}</span></div>`;
 }
 async function cmUnlock(pw) {
-  try { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw)); const h = [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); if (h === CM_HASH) { LV.unlocked = true; try { sessionStorage.setItem('cmok', '1'); } catch (e) {} return true; } } catch (e) {}
+  try { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw)); const h = [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); if (h === CM_HASH) { LV.unlocked = true; try { sessionStorage.setItem('cmok', '1'); localStorage.setItem('cmok', '1'); } catch (e) {} return true; } } catch (e) {}
   return false;
 }
-function cmSet(on) { LV.cmode = !!(on && LV.owner && LV.unlocked); try { const c = document.getElementById('cmode'); if (c) c.checked = LV.cmode; } catch (e) {} }
+function cmSet(on) { LV.cmode = !!(on && LV.owner && LV.unlocked); try { localStorage.setItem('cmode', LV.cmode ? '1' : '0'); } catch (e) {} try { const c = document.getElementById('cmode'); if (c) c.checked = LV.cmode; } catch (e) {} }
 const pickDocId = i => 'p' + String(i).padStart(3, '0');
 const liveOn = () => !!LV.db;
 const phaseLive = () => !!(LV.cfg && LV.cfg.phase === 'live');
@@ -4935,12 +4936,21 @@ async function tryCode() {
   if (!t) { er.textContent = 'That code did not match a team. Check it and try again.'; Snd.play('no'); return; }
   const cl = claimedTeams(); er.textContent = '';
   if (cl[t] && cl[t].uid !== LV.uid) { /* the code is the credential: whoever holds it can take the seat back on another device */ }
-  const ok = await claimTeam(t, true); if (!ok) er.textContent = 'Could not join. Try again.';
+  const ok = await claimTeam(t, true); if (!ok) { er.textContent = 'Could not join. Try again.'; return; }
+  try { const rem = $('#gateRemember'); if (!rem || rem.checked) localStorage.setItem('dsa_team_code', code); else localStorage.removeItem('dsa_team_code'); } catch (e) {}
 }
+/* sign out on this device: forget the saved code and give up the seat (the code still works to come back) */
+async function signOut() {
+  if (!confirm('Sign out of ' + (LV.team || 'your team') + ' on this device? You will need the team code to come back.')) return;
+  try { ['dsa_team_code', 'dsa_play_team', 'cmok', 'bxok'].forEach(k => localStorage.removeItem(k)); sessionStorage.removeItem('cmok'); sessionStorage.removeItem('bxok'); } catch (e) {}
+  try { if (LV.team && LV.db) { const c = LV.claims && LV.claims[TKEY(LV.team)]; if (c && c.uid === LV.uid) await LV.db.doc('claims/' + TKEY(LV.team)).set({ uid: '', at: Date.now() }); } } catch (e) {}
+  location.reload();
+}
+document.addEventListener('click', e => { if (e.target.closest('#btnSignOut')) signOut(); });
 $('#gateGo').onclick = tryCode;
 $('#gateCode').addEventListener('keydown', e => { if (e.key === 'Enter') tryCode(); });
 $('#gateWatch').onclick = () => { LV.watch = true; specApply(); $('#gate').hidden = true; sched(); };
-$('#gatePlayGo').onclick = () => claimTeam($('#gatePlay').value, false);
+$('#gatePlayGo').onclick = async () => { const t = $('#gatePlay').value; if (await claimTeam(t, false)) { try { localStorage.setItem('dsa_play_team', t); } catch (e) {} } };
 $('#gateCommish').onclick = () => { LV.watch = true; $('#gate').hidden = true; sched(); };
 const SPK = on => on ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor"/><path d="m22 9-6 6M16 9l6 6"/></svg>';
 const setMute = () => { const b = $('#btnSound'); if (!b) return; b.innerHTML = SPK(Snd.on); b.setAttribute('aria-label', Snd.on ? 'Sound on, press to mute' : 'Sound off, press to unmute'); b.title = Snd.on ? 'Mute' : 'Unmute'; b.style.opacity = Snd.on ? 1 : .6; };
@@ -4990,7 +5000,7 @@ async function liveBoot() {
   try { LV.user = await claude.use('user'); } catch (e) { why.user = (e && (e.code || e.message)) || 'error'; }
   if (!LV.db) { gateMsg('The shared draft could not be opened (database: ' + (why.db || 'not available to this account') + '; user: ' + (LV.user ? 'ok' : why.user || 'not available') + '). ' + (window.__fbErr ? 'Details: ' + window.__fbErr + '. ' : '') + 'Check your connection and that the Firestore rules allow read and write, then reload.'); return; }
   try { if (LV.user) { LV.uid = await LV.user.id(); LV.owner = await LV.user.isOwner(); } } catch (e) {}
-  try { if (LV.owner && sessionStorage.getItem('cmok') === '1') LV.unlocked = true; } catch (e) {}
+  try { if (LV.owner && (sessionStorage.getItem('cmok') === '1' || localStorage.getItem('cmok') === '1')) { LV.unlocked = true; if (localStorage.getItem('cmode') === '1') LV.cmode = true; } } catch (e) {}
   if (!LV.uid) { let g = store.get('guestId', null); if (!g) { g = 'g_' + Math.random().toString(36).slice(2, 12); store.set('guestId', g); } LV.uid = g; }
   setTimeout(() => { if (!LV.ready) gateMsg('Connected, but the draft data could not be read' + (dbErr.last ? ' (' + dbErr.last + ')' : '') + '. Ask the commissioner to check your access level.'); }, 7000);
   liveChrome();
@@ -5013,7 +5023,9 @@ function firstLoad() {
   applyAll();
   LV.ready = true;
   const mine = Object.entries(LV.claims).find(([k, v]) => v.uid === LV.uid);
+  let saved = null; try { const c = localStorage.getItem('dsa_team_code'); saved = (c && teamForCode(c)) || (LV.owner && TEAMS.includes(localStorage.getItem('dsa_play_team')) ? localStorage.getItem('dsa_play_team') : null); } catch (e) {}
   if (mine) enterTeam(TEAMS[+mine[0].slice(1)]);
+  else if (saved) { enterTeam(saved); claimTeam(saved, true); } /* remembered on this device: rejoin without the code */
   else showGate();
   LV.prev = null; applyAll(); LV.prev = { n: S.picks.length, tl: S.trades.length, turn: false };
   LV.offers.forEach(o => LV.seenOffers.add(o.id));
@@ -5142,6 +5154,29 @@ async function hbBackup() {
   } catch (e) { dbErr(e); toast('The backup did not finish. Try again.', 'bad'); }
 }
 /* ---- standings ---- */
+/* League tiebreakers (overall and conference): 1 head to head, 2 run differential, 3 run differential in games between
+   the tied teams, 4 coin flip. When a step splits a group, each smaller group that is still tied starts over at step 1.
+   The coin flip is a fixed random draw per season and group, so it does not change between visits. */
+function hbTieGames(set) { const out = []; for (const g of HB_GAMES) { if (!set.has(g.away) || !set.has(g.home)) continue; const s = HB.scores[g.gid]; if (!s || s.status !== 'final' || s.as == null || s.hs == null) continue; out.push([g.away, g.home, +s.as, +s.hs]); } return out; }
+const hbCoin = (t, grp) => { let h = 2166136261; for (const ch of ((typeof RB !== 'undefined' && RB.cur) || 6) + '|' + grp.map(r => r.t).sort().join(',') + '|' + t) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; };
+function hbBreakTie(grp) {
+  if (grp.length < 2) return grp;
+  const set = new Set(grp.map(r => r.t)), h = {}; grp.forEach(r => h[r.t] = { w: 0, l: 0, d: 0 });
+  for (const [a, b, x, y] of hbTieGames(set)) { h[a].d += x - y; h[b].d += y - x; if (x > y) { h[a].w++; h[b].l++; } else { h[b].w++; h[a].l++; } }
+  const steps = [r => h[r.t].w + h[r.t].l ? h[r.t].w / (h[r.t].w + h[r.t].l) : 0.5, r => r.diff, r => h[r.t].d];
+  for (const f of steps) {
+    const v0 = f(grp[0]); if (grp.every(r => Math.abs(f(r) - v0) < 1e-9)) continue;
+    const s = grp.slice().sort((a, b) => f(b) - f(a)), out = []; let i = 0;
+    while (i < s.length) { let j = i + 1; while (j < s.length && Math.abs(f(s[j]) - f(s[i])) < 1e-9) j++; out.push(...hbBreakTie(s.slice(i, j))); i = j; }
+    return out;
+  }
+  return grp.slice().sort((a, b) => hbCoin(b.t, grp) - hbCoin(a.t, grp));
+}
+function hbRankRows(rows) {
+  const s = rows.slice().sort((a, b) => b.pct - a.pct || a.t.localeCompare(b.t)), out = []; let i = 0;
+  while (i < s.length) { let j = i + 1; while (j < s.length && Math.abs(s[j].pct - s[i].pct) < 1e-9) j++; out.push(...hbBreakTie(s.slice(i, j))); i = j; }
+  return out;
+}
 function hbStandings() {
   const rec = {}; TEAMS.forEach(t => rec[t] = { t, w: 0, l: 0, rs: 0, ra: 0, cw: 0, cl: 0, hist: [] });
   for (const g of HB_GAMES) { const s = HB.scores[g.gid]; if (!s || s.status !== 'final' || s.as == null || s.hs == null) continue;
@@ -5149,7 +5184,7 @@ function hbStandings() {
     if (aw) { a.w++; h.l++; } else { h.w++; a.l++; } a.hist.push(aw ? 'W' : 'L'); h.hist.push(aw ? 'L' : 'W');
     if (hbConfOf(g.away) === hbConfOf(g.home)) { if (aw) { a.cw++; h.cl++; } else { h.cw++; a.cl++; } } }
   const arr = Object.values(rec); arr.forEach(r => { r.gp = r.w + r.l; r.pct = r.gp ? r.w / r.gp : 0; r.diff = r.rs - r.ra; });
-  arr.sort((a, b) => b.pct - a.pct || b.diff - a.diff || b.rs - a.rs || a.t.localeCompare(b.t));
+  const ranked = hbRankRows(arr); arr.length = 0; arr.push(...ranked);
   const lead = arr[0]; arr.forEach(r => { r.gb = ((lead.w - r.w) + (r.l - lead.l)) / 2; const h = r.hist; let n = 0; for (let i = h.length - 1; i >= 0 && h[i] === h[h.length - 1]; i--) n++; r.streak = h.length ? h[h.length - 1] + n : '–'; });
   return arr;
 }
@@ -5308,7 +5343,8 @@ function hbStandingsView() {
   const qual = ld.bat.filter(x => x.ab >= 10), pq = ld.pit.filter(x => x.ip >= 3);
   const era = x => (x.er * 9 / x.ip).toFixed(2), whip = x => ((x.h + x.bb) / x.ip).toFixed(2);
   return `${hbStTable(rows, 'Overall standings', rows.reduce((a, r) => a + r.gp, 0) / 2 + ' games played')}
-  <div class="hb-two" style="margin-top:14px">${Object.keys(HB_CONF).map(c => hbStTable(rows.filter(r => HB_CONF[c].includes(r.t)), c)).join('')}</div>
+  <div class="hb-two" style="margin-top:14px">${Object.keys(HB_CONF).map(c => hbStTable(hbRankRows(rows.filter(r => HB_CONF[c].includes(r.t))), c)).join('')}</div>
+  <div class="note" style="margin-top:6px">Ties (overall and conference): 1. head to head, 2. run differential, 3. run differential in games between the tied teams, 4. coin flip.</div>
   ${hbPlayoffHtml(rows)}
   <h2 class="hb-h2">Offensive leaders</h2><div class="hb-lbs">${lead('Home runs', top(ld.bat, 'hr'), x => x.hr)}${lead('Hits', top(ld.bat, 'h'), x => x.h)}${lead('RBI', top(ld.bat, 'rbi'), x => x.rbi)}${lead('Doubles', top(ld.bat, 'b2'), x => x.b2)}
    ${lead('Batting average (10+ AB)', qual.slice().sort((a, b) => b.h / b.ab - a.h / a.ab).slice(0, 5), x => (x.h / x.ab).toFixed(3).replace(/^0/, ''))}${lead('Walks', top(ld.bat, 'bb'), x => x.bb)}${lead('Game MVPs', top(ld.bat.concat(ld.pit.filter(p => !ld.bat.some(b => b.p === p.p && b.t === p.t))), 'mvp'), x => x.mvp)}</div>
@@ -5692,11 +5728,11 @@ function hbSimView() {
 
 /* ---- box scores: open to everyone who has that week's password (no commissioner powers) ---- */
 const HB_BX_HASH = ["e56d235d9ecb35163399b42b46996fdddbe4fbd69ad973e88478195ee13166f2", "5188e88ad0414661f4faaf59bc01aa32f42161cd5394040e1a75979ade446cce", "950a97d1848ba68905e73975956037db05699cc587ae5295e9b0f07898da2e3d", "edcad30cd7224213d53a9bbafd38513688b869dbeb5cd4041db232ead1640c8a", "be353cf080f1dcb997ead4ccec67d9c68f13eb1498140a1b72680cdd581bd41b", "95c50a1707077895804ba5773e66afe4c8c3f21ee5a4b5ebb8c2f24d0f3d0756", "155c06908faaf391cfaeeb1a400b57e749969c04c0bae0c5bfeefdfac60ec064", "ee20686ff102b266b695853bf742f804a024a6a7e3bad3571f1e8af8207aa051", "387fe137c789ad2acd3cee3c0dbba04d931b46261914bcfe11c2d6708adba403", "1000aaaea52590ed77dd750e3e2d0a20f0d5ee517ce63e7da69844d6caca702a"];
-HB.bxOk = new Set(); try { JSON.parse(sessionStorage.getItem('bxok') || '[]').forEach(w => HB.bxOk.add(w)); } catch (e) {}
+HB.bxOk = new Set(); try { JSON.parse(sessionStorage.getItem('bxok') || '[]').concat(JSON.parse(localStorage.getItem('bxok') || '[]')).forEach(w => HB.bxOk.add(w)); } catch (e) {}
 const hbBxCan = wk => hbAdmin() || HB.bxOk.has(wk);
 async function hbBxUnlock(pw) {
   try { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(pw).trim())); const h = [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''), i = HB_BX_HASH.indexOf(h);
-    if (i >= 0) { HB.bxOk.add(i + 1); HB.bxweek = i + 1; try { sessionStorage.setItem('bxok', JSON.stringify([...HB.bxOk])); } catch (e) {} return i + 1; } } catch (e) {}
+    if (i >= 0) { HB.bxOk.add(i + 1); HB.bxweek = i + 1; try { sessionStorage.setItem('bxok', JSON.stringify([...HB.bxOk])); localStorage.setItem('bxok', JSON.stringify([...HB.bxOk])); } catch (e) {} return i + 1; } } catch (e) {}
   return 0;
 }
 
