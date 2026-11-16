@@ -44,6 +44,56 @@ select,input[type=text],input[type=number]{background:var(--surface);border:1px 
 .cell .v{font-family:var(--f-display);font-weight:800;font-size:24px;color:var(--bulb);line-height:1.05;text-shadow:0 0 10px rgba(242,169,0,.35)}
 .cell.team .v{font-size:20px}
 .cell.me .v{color:#fff}
+.tplink{cursor:pointer}.tplink:hover{text-decoration:underline;text-underline-offset:2px}.tdot.tplink:hover{outline:2px solid var(--accent);outline-offset:1px}
+.linkb{background:none;border:0;padding:0;color:var(--accent);font-weight:700;cursor:pointer;font-size:13px}.linkb:hover{text-decoration:underline}
+.tp-hdr{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 16px 0;margin-bottom:14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.tp-back{margin-bottom:4px}
+.tp-id{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:4px 0 10px}
+.tdot.tp-logo{width:78px;height:66px;margin:0;flex:none}
+.tp-name{margin:0;font:800 30px/1.05 var(--f-display);text-transform:uppercase;letter-spacing:.01em}
+.tp-sub{margin-top:4px;font-size:14px}.tp-sub b{font-size:15px}
+.tp-season{margin-left:auto;display:flex;flex-direction:column;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);gap:3px}
+.tp-tabs{display:flex;gap:2px;overflow-x:auto;border-top:1px solid var(--line);margin:0 -16px;padding:0 10px}
+.tp-tabs button{background:none;border:0;border-bottom:3px solid transparent;border-radius:0;padding:11px 12px 9px;font-weight:600;font-size:14px;color:var(--ink);cursor:pointer;white-space:nowrap}
+.tp-tabs button[aria-pressed=true]{border-bottom-color:var(--tc);font-weight:800}
+.tp-grid{display:grid;grid-template-columns:minmax(220px,280px) minmax(0,1fr) minmax(260px,340px);gap:14px;align-items:start}
+.tp-grid>div{display:grid;gap:14px;min-width:0}
+.tp-mid{display:grid;gap:14px;min-width:0}
+@media (max-width:1050px){.tp-grid{grid-template-columns:1fr}.tp-news{grid-template-columns:1fr!important}}
+.tp-gl{display:grid}
+.tp-gr{display:grid;grid-template-columns:34px 24px minmax(0,1fr) auto;align-items:center;gap:4px;padding:8px 12px;border-top:1px solid var(--line);font-size:13px;cursor:pointer}
+.tp-gr.static{cursor:default;grid-template-columns:70px 24px minmax(0,1fr) auto}
+.tp-gr:hover:not(.static){background:var(--surface2)}
+.tp-gr .tdot{margin:0}.tp-ha{color:var(--muted);font-size:12px}.tp-op{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tp-res{text-align:right;font:600 12.5px var(--f-mono);white-space:nowrap}
+.tp-w{color:var(--good)}.tp-l{color:var(--bad)}.tp-live{color:var(--bad)}
+.tp-more{padding:8px 14px 12px;text-align:center;border-top:1px solid var(--line)}
+.tp-st td,.tp-st th{padding:6px 8px;font-size:12.5px;text-align:right}.tp-st td.l,.tp-st th.l{text-align:left;white-space:nowrap}
+tr.tp-me td{font-weight:800;background:color-mix(in srgb,var(--tc) 9%,transparent)}
+.tp-lds{display:grid;gap:12px}.tp-lds h4{margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.tp-ld{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 8px;padding:6px 0;border-top:1px solid var(--line)}
+.tp-ldk{grid-column:1/-1;font-size:11.5px;font-weight:700;color:var(--muted)}
+.tp-ldp{display:flex;align-items:center;gap:6px;font-weight:600;min-width:0}
+.tp-ldv{font:800 22px var(--f-display);align-self:center}
+.tp-lg{cursor:pointer}.tp-lg-sc{display:grid;gap:6px}.tp-lg-t{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:8px;font-size:15px;text-align:left}.tp-lg-t .tdot{margin:0}.tp-lg-t span{margin-left:auto;font:800 26px var(--f-display);color:var(--muted)}.tp-lg-t.win span{color:var(--ink)}
+.tp-final{font:700 11px var(--f-body);text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.tp-perfs{margin-top:10px;display:grid;gap:4px}.tp-perfs h4{margin:0;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.tp-perf{display:grid;grid-template-columns:28px auto minmax(0,1fr);align-items:center;gap:6px;font-size:13px}.tp-perf .note{text-align:right}.tp-perf>span:not(.note){font-weight:700}
+.tp-kpis{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.tp-kpi{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--tc);border-radius:8px;padding:8px 14px;min-width:96px}
+.tp-kpi .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}.tp-kpi .v{font:800 24px var(--f-display)}
+.tp-rk{display:block;font:600 10px var(--f-body);color:var(--muted)}
+tr.tp-tot td{border-top:2px solid var(--line);background:var(--surface2)}
+.tp-body .panel+.panel{margin-top:14px}.tp-grid .panel+.panel,.tp-mid .panel+.panel{margin-top:0}
+.tp-sch td,.tp-sch th{padding:8px 10px;text-align:center}.tp-sch td.l,.tp-sch th.l{text-align:left}
+tr.tp-click{cursor:pointer}tr.tp-click:hover td{background:var(--surface2)}
+.tp-bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.tp-bar label{display:flex;gap:6px;align-items:center;font-weight:700}
+.tp-lu{table-layout:fixed;width:100%}.tp-lu th:nth-child(1){width:44px}.tp-lu th:nth-child(3){width:70px}.tp-lu th:nth-child(2){width:38%}.tp-lu td,.tp-lu th{padding:6px 10px;text-align:center}.tp-lu td.l,.tp-lu th.l{text-align:left}
+.tp-cap{font:800 10px var(--f-body);background:var(--ink);color:var(--surface);border-radius:3px;padding:0 4px}.tp-star{color:#d9a521}
+.tp-news{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
+.tp-rev{display:flex;gap:16px;align-items:center}.tp-big{font:800 40px var(--f-display)}
+.tp-dc,.tp-dh,.tp-aw{display:grid;gap:6px;font-size:13px}.tp-dh h4,.tp-aw h4{margin:8px 0 0}
+.tp-tx{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--line);font-size:13px}
+.tp-pk{display:flex;flex-wrap:wrap;gap:6px}.tp-pk .db-pk{font:700 12px var(--f-mono);border:1px solid var(--line);border-radius:5px;padding:2px 7px}.tp-pk .db-pk.in{border-color:var(--bulb);background:var(--bulb);color:#111}
 #seasonCells{display:none}
 .board.in-season #seasonCells{display:flex}
 .board.in-season #draftCells,.board.in-season #btnUndo,.board.in-season #btnSimToMe,.board.in-season #btnAutoAll{display:none!important}
@@ -558,7 +608,7 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
     <button class="tab" role="tab" data-tab="ht" aria-selected="false" hidden>Trades</button>
     <button class="tab" role="tab" data-tab="fa" aria-selected="false" hidden>Free Agents</button>
     <button class="tab" role="tab" data-tab="news" aria-selected="false" hidden>News</button>
-    <button class="tab" role="tab" data-tab="stats" aria-selected="false" hidden>Stats</button>
+    <button class="tab" role="tab" data-tab="stats" aria-selected="false" hidden>Stats</button><button class="tab" role="tab" data-tab="team" aria-selected="false" hidden>Team</button>
     <button class="tab" role="tab" data-tab="hsim" aria-selected="false" hidden>Season Sim</button>
     <button class="tab" role="tab" data-tab="bx" aria-selected="false" hidden>Box Scores</button>
     <button class="tab" role="tab" data-tab="cm" aria-selected="false" hidden>Commish</button>
@@ -656,6 +706,7 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
   <section id="tab-fa" hidden><div id="hv_fa"></div></section>
   <section id="tab-news" hidden><div id="hv_news"></div></section>
   <section id="tab-stats" hidden><div id="hv_stats"></div></section>
+  <section id="tab-team" hidden><div id="hv_team"></div></section>
   <section id="tab-hsim" hidden><div id="hv_hsim"></div></section>
   <section id="tab-bx" hidden><div id="hv_bx"></div></section>
   <section id="tab-cm" hidden><div id="hv_cm"></div></section>
@@ -1940,8 +1991,8 @@ document.addEventListener('click', e => {
 });
 function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.tab === name));
-  ['draft', 'board', 'rosters', 'trades', 'watch', 'season', 'hub', 'hl', 'hm', 'hr', 'hs', 'ht', 'fa', 'news', 'stats', 'hsim', 'bx', 'cm', 'history', 'setup'].forEach(n => $('#tab-' + n).hidden = n !== name);
-  if (['hub', 'hl', 'hm', 'hr', 'hs', 'ht', 'fa', 'news', 'stats', 'hsim', 'bx', 'cm', 'setup'].includes(name) && typeof renderHub === 'function') { hubStart(); renderHub(); }
+  ['draft', 'board', 'rosters', 'trades', 'watch', 'season', 'hub', 'hl', 'hm', 'hr', 'hs', 'ht', 'fa', 'news', 'stats', 'hsim', 'bx', 'cm', 'history', 'setup', 'team'].forEach(n => { const el = $('#tab-' + n); if (el) el.hidden = n !== name; });
+  if (['hub', 'hl', 'hm', 'hr', 'hs', 'ht', 'fa', 'news', 'stats', 'hsim', 'bx', 'cm', 'setup', 'team'].includes(name) && typeof renderHub === 'function') { hubStart(); renderHub(); }
   if (name === 'history' && typeof renderHistory === 'function') renderHistory();
   if (name === 'rosters') renderRostersTab();
   if (name === 'board') { try { if (typeof hubStart === 'function') hubStart(); } catch (e) {} if (typeof dbRender === 'function') dbRender(); }
@@ -4132,8 +4183,8 @@ function thScore(tr) {
   }));
   return tr.teams.map((t, i) => { const ratio = (rec[i] + 0.03) / (give[i] + 0.03), sg = tr.grades && tr.grades[t] && tr.grades[t].g; return { team: t, rec: rec[i], give: give[i], ratio, grade: sg || thRatioGrade(ratio), net: rec[i] - give[i], fixed: !!sg }; });
 }
-function hsTradesHtml(s) {
-  const list = TRADES_HIST.concat(typeof histLive === 'function' ? histLive() : []).filter(t => t.s === s);
+function hsTradesHtml(s, keep) {
+  const list = TRADES_HIST.concat(typeof histLive === 'function' ? histLive() : []).filter(t => t.s === s && (!keep || keep(t)));
   if (!list.length) return '';
   const chip = a => `<span class="ch${a.t === 'pick' ? ' pk' : a.mii ? ' mii' : ''}" title="${esc(a.t === 'pick' ? 'Draft pick' : a.mii ? 'Mii' : 'Player')}">${esc(a.label.replace(/\s+/g, ' ').trim())}</span>`;
   const cards = list.map(tr => {
@@ -5943,6 +5994,7 @@ const HB_POST = ['hl', 'hm', 'hr', 'hs', 'ht', 'fa', 'news', 'stats', 'hsim', 'b
 let hbDoneWas = null;
 function hbLayout() {
   hbSetupTag();
+  const tpWant = hbDoneWas === null && /^#team=/.test(location.hash) ? location.hash : null;
   let fin = false; try { fin = typeof done === 'function' && LV.ready && ORDER.length > 0 && done(); } catch (e) {}
   const bar = document.querySelector('.tabs'); if (!bar) return;
   const btn = n => bar.querySelector('.tab[data-tab=' + n + ']');
@@ -5951,8 +6003,9 @@ function hbLayout() {
     [...HB_PRE, ...HB_POST, 'season', 'watch'].forEach(n => { const b = btn(n); if (b) b.hidden = !(fin ? HB_POST : HB_PRE).includes(n); });
     const first = hbDoneWas === null; hbDoneWas = fin;
     const cur = hbActiveTab();
-    if (fin && (!cur || !HB_POST.includes(cur) || first && !location.hash.slice(1))) showTab('hl');
-    else if (!fin && !first && cur && !HB_PRE.includes(cur)) showTab('draft');
+    if (fin && (!cur || (!HB_POST.includes(cur) && cur !== 'team') || first && !location.hash.slice(1))) showTab('hl');
+    else if (!fin && !first && cur && !HB_PRE.includes(cur) && cur !== 'team') showTab('draft');
+    if (tpWant && typeof tpOpen === 'function') { const q = new URLSearchParams(tpWant.slice(1)); setTimeout(() => tpOpen(q.get('team'), q.get('s') ? +q.get('s') : null), 0); }
   }
   const bd = document.querySelector('header.board'); if (bd) { bd.classList.toggle('in-season', !!fin); if (fin) sbSeason(); }
   const cm = btn('cm'); if (cm) { const show = fin && hbAdmin(); if (cm.hidden === show) cm.hidden = !show; if (!show && hbActiveTab() === 'cm') showTab('hl'); }
@@ -7355,6 +7408,239 @@ document.addEventListener('change', e => {
   else if (a === 'cq') { if (t.value) stAddByName(t.value); }
 });
 if (typeof HB_VIEWS !== 'undefined') HB_VIEWS.stats = statsView;
+/* ============ TEAM PAGES (ESPN style): click any team name or logo. Home, Stats, Schedule, Roster, News, Transactions, History,
+   with a season picker. Season 6 is live from the site's own data; Seasons 1-5 come from the history workbook (standings,
+   playoffs, rosters, stats, awards, drafts and trades; game-by-game results were not kept for those seasons). ============ */
+const TP = { t: null, s: null, tab: 'home', wk: null, prev: 'hm' };
+const tpCur = () => (typeof RB !== 'undefined' && RB.cur) || 6;
+const tpCanon = n => (typeof ptTeam === 'function' ? ptTeam(n) : null) || nwTeamCanon(n);
+const tpOrd = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+const tpTc = t => (TEAMC[t] || {}).p || 'var(--accent)';
+/* the name this franchise used in a season (and its row in that season's final standings) */
+function tpPastRow(t, s) { const o = HIST2.seasons[s]; if (!o) return null; return o.standings.find(r => tpCanon(r.team) === t) || null; }
+function tpSeasons(t) { const out = []; for (let s = 1; s < tpCur(); s++) if (tpPastRow(t, s)) out.push(s); out.push(tpCur()); return out; }
+const tpName = (t, s) => s === tpCur() ? nwFull(t) : ((tpPastRow(t, s) || {}).team || t);
+const tpLogoBg = (t, s) => s === tpCur() ? TCOL[t] : pfLogoAt(tpName(t, s), s);
+const tpLogo = (t, s, cls) => `<span class="tdot ${cls || ''}" style="background:${tpLogoBg(t, s)}"></span>`;
+const tpTeamTxt = (t, s) => s === tpCur() ? esc(nwFull(t)) : `<span data-rbskip="1">${esc(tpName(t, s))}</span>`;
+
+function tpOpen(team, season, tab) {
+  const t = tpCanon(team); if (!t) return;
+  const cur = hbActiveTab(); if (cur && cur !== 'team') TP.prev = cur;
+  TP.t = t; TP.s = season && tpSeasons(t).includes(+season) ? +season : tpCur(); TP.tab = tab || 'home'; TP.wk = null;
+  showTab('team'); try { history.replaceState(null, '', '#team=' + encodeURIComponent(t) + (TP.s !== tpCur() ? '&s=' + TP.s : '')); } catch (e) {}
+  try { window.scrollTo({ top: 0 }); } catch (e) {}
+}
+
+/* ---------- season data ---------- */
+function tpRows(t, s) { return stSeasonRows().filter(r => r.s === s && tpCanon(r.t) === t); }
+function tpPlayoffs(t, s) {
+  const o = HIST2.seasons[s]; if (!o) return { txt: '', series: [] };
+  const me = x => x && tpCanon(x) === t, series = [];
+  (o.wc || []).forEach(m => { if (me(m.a) || me(m.b)) series.push(['Wild card', m]); });
+  (o.semi || []).forEach(m => { if (me(m.a) || me(m.b)) series.push(['Semifinal', m]); });
+  if (o.final && (me(o.final.a) || me(o.final.b))) series.push(['Final', o.final]);
+  const seed = (o.seeds || []).find(x => me(x.team));
+  const txt = me(o.champion) ? '🏆 League champions' : !seed ? 'Missed the playoffs' : series.length ? 'Lost in the ' + series[series.length - 1][0].toLowerCase() : 'Made the playoffs';
+  return { txt, series, seed: seed ? seed.seed : null };
+}
+function tpSummary(t, s) {
+  if (s === tpCur()) {
+    const st = hbStandings(), i = st.findIndex(r => r.t === t), r = st[i], c = hbConfOf(t), cr = c ? hbRankRows(st.filter(x => HB_CONF[c].includes(x.t))).findIndex(x => x.t === t) : -1;
+    return { rec: `${r.w}-${r.l}`, place: c ? `${tpOrd(cr + 1)} in ${c}` : tpOrd(i + 1), sub: `${tpOrd(i + 1)} overall · ${r.diff > 0 ? '+' : ''}${r.diff} run diff · ${r.streak && r.streak !== '–' ? 'Streak ' + r.streak : 'No games yet'}` };
+  }
+  const row = tpPastRow(t, s), po = tpPlayoffs(t, s), n = HIST2.seasons[s].standings.length;
+  return { rec: row ? row.rec : '', place: row ? `Finished ${row.rk} of ${n}` : '', sub: po.txt + (po.seed ? ` · ${tpOrd(po.seed)} seed` : '') };
+}
+
+/* ---------- pieces ---------- */
+function tpGameRow(g, t, compact) {
+  const s = HB.scores[g.gid], home = g.home === t, opp = home ? g.away : g.home, fin = s && s.status === 'final' && s.as != null && s.hs != null;
+  const mine = fin ? (home ? +s.hs : +s.as) : null, th = fin ? (home ? +s.as : +s.hs) : null, m = HB.maps[g.gid] || {};
+  const res = fin ? `<b class="${mine > th ? 'tp-w' : 'tp-l'}">${mine > th ? 'W' : 'L'}</b> ${mine}-${th}` : s && s.status === 'live' ? '<b class="tp-live">LIVE</b>' : `<span class="note">Week ${g.wk}</span>`;
+  if (compact) return `<div class="tp-gr" data-tpg="${g.gid}" role="button" tabindex="0"><span class="tp-ha">${home ? 'vs' : '@'}</span>${hbLogo(opp)}<span class="tp-op">${esc(opp)}</span><span class="tp-res">${res}</span></div>`;
+  return `<tr data-tpg="${g.gid}" class="tp-click"><td>${g.wk}</td><td class="l">${home ? 'vs' : '@'} ${hbLogo(opp)}${esc(opp)}</td><td class="l">${esc(m.pick ? hbStName(m.pick, m.tod) : m.ban ? 'Banned: ' + m.ban : '—')}</td><td>${res}</td><td class="l note">${fin ? 'Box score ›' : 'Preview ›'}</td></tr>`;
+}
+function tpLeaders(rows, small) {
+  const pick = (lab, key, fmt, filt, dir) => { const L = rows.filter(r => r[key] != null && (!filt || filt(r))).sort((a, b) => (dir || -1) * (a[key] - b[key]))[0]; if (!L || !(dir > 0 || L[key] > 0)) return '';
+    return `<div class="tp-ld"><div class="tp-ldk">${lab}</div><div class="tp-ldp">${L.pid >= 0 ? ico(P[L.pid], 30) : ''}<span class="${L.pid >= 0 ? 'pclick' : ''}" ${L.pid >= 0 ? `data-pid="${L.pid}"` : ''}>${esc(L.pid >= 0 ? P[L.pid].name : L.nm)}</span></div><div class="tp-ldv">${fmt(L[key])}</div></div>`; };
+  const maxG = Math.max(1, ...rows.map(r => r.G || 0)), f3 = v => stFmt(v, '3'), fi = v => stFmt(v, 'i');
+  const off = [pick('Batting average', 'AVG', f3, r => r.AB >= 2 * maxG), pick('Home runs', 'HR', fi), pick('RBI', 'RBI', fi), pick('Hits', 'H', fi), pick('Game score', 'GSc', v => stFmt(v, '1'))].join('');
+  const def = [pick('ERA', 'ERA', v => stFmt(v, '2'), r => r.IP >= Math.max(3, maxG), 1), pick('Strikeouts', 'K', fi), pick('Wins', 'W', fi), pick('Sexy plays', 'SP', fi), pick('Outs in the field', 'OUT', fi)].join('');
+  return `<div class="tp-lds"><div><h4>Offense</h4>${off || '<div class="note">No stats yet.</div>'}</div><div><h4>Defense</h4>${def || '<div class="note">No stats yet.</div>'}</div></div>`;
+}
+function tpStandingsCard(t, s) {
+  if (s === tpCur()) {
+    const c = hbConfOf(t), st = hbStandings(), rows = c ? hbRankRows(st.filter(x => HB_CONF[c].includes(x.t))) : st;
+    return `<div class="panel"><h2>${esc(c || 'Standings')}</h2><div class="tbl-wrap"><table class="tp-st"><thead><tr><th class="l">Team</th><th>W</th><th>L</th><th>PCT</th><th>DIFF</th><th>STRK</th></tr></thead><tbody>${rows.map(r => `<tr class="${r.t === t ? 'tp-me' : ''}"><td class="l">${hbLogo(r.t)}${esc(r.t)}</td><td>${r.w}</td><td>${r.l}</td><td>${r.pct.toFixed(3).replace(/^0/, '')}</td><td>${r.diff > 0 ? '+' : ''}${r.diff}</td><td>${r.streak}</td></tr>`).join('')}</tbody></table></div><div class="tp-more"><button class="linkb" data-tp="go" data-v="hs">Full standings ›</button></div></div>`;
+  }
+  const o = HIST2.seasons[s];
+  return `<div class="panel"><h2>Season ${s} final standings</h2><div class="tbl-wrap"><table class="tp-st"><thead><tr><th>#</th><th class="l">Team</th><th>Record</th></tr></thead><tbody>${o.standings.map(r => `<tr class="${tpCanon(r.team) === t ? 'tp-me' : ''}"><td>${esc(r.rk)}</td><td class="l"><span class="tdot" style="background:${pfLogoAt(r.team, s)}"></span><span data-rbskip="1">${esc(r.team)}</span></td><td>${esc(r.rec)}</td></tr>`).join('')}</tbody></table></div><div class="tp-more"><button class="linkb" data-tp="go" data-v="history">Season ${s} in History ›</button></div></div>`;
+}
+function tpSeriesHtml(t, s) {
+  const po = tpPlayoffs(t, s);
+  if (!po.series.length) return `<div class="note" style="padding:8px 14px">${esc(po.txt)}.</div>`;
+  return po.series.map(([lab, m]) => { const won = tpCanon(m.w) === t, opp = tpCanon(m.a) === t ? m.b : m.a;
+    return `<div class="tp-gr static"><span class="tp-ha">${esc(lab)}</span><span class="tdot" style="background:${pfLogoAt(opp, s)}"></span><span class="tp-op" data-rbskip="1">${esc(opp)}</span><span class="tp-res"><b class="${won ? 'tp-w' : 'tp-l'}">${won ? 'W' : 'L'}</b> ${esc(hsScore(m.score))}</span></div>`; }).join('');
+}
+function tpNewsItems(t) { try { nwStart(); return nwItems().filter(x => !NW.hidden.has(x.id) && (x.teams || []).includes(t)); } catch (e) { return []; } }
+function tpLastGame(t) {
+  const g = HB_GAMES.filter(x => (x.away === t || x.home === t) && HB.scores[x.gid] && HB.scores[x.gid].status === 'final').sort((a, b) => b.wk - a.wk)[0]; if (!g) return '';
+  const s = HB.scores[g.gid], m = HB.maps[g.gid] || {}, L = typeof awLines === 'function' ? awLines(g.wk).filter(o => o.team === t && o.gids.has(g.gid)) : [];
+  const ord = hbPlayedOrder(g, s), line = k => `<div class="tp-lg-t ${(k === 'away' ? s.as > s.hs : s.hs > s.as) ? 'win' : ''}">${hbLogo(g[k], true)}<b>${esc(g[k])}</b><span>${k === 'away' ? s.as : s.hs}</span></div>`;
+  const top = L.slice(0, 3).map(o => `<div class="tp-perf">${o.pid >= 0 ? ico(P[o.pid], 26) : ''}<span class="${o.pid >= 0 ? 'pclick' : ''}" ${o.pid >= 0 ? `data-pid="${o.pid}"` : ''}>${esc(o.nm)}</span><span class="note">${o.AB ? o.H + '-' + o.AB : ''}${o.HR ? ', ' + o.HR + ' HR' : ''}${o.RBI ? ', ' + o.RBI + ' RBI' : ''}${o.pit ? (o.AB ? ' · ' : '') + awIP(o.IP) + ' IP, ' + o.K + ' K' : ''} · GS ${Math.round(o.GSc)}</span></div>`).join('');
+  return `<div class="panel tp-lg" data-tpg="${g.gid}"><h2>Last game <span>Week ${g.wk}${m.pick ? ' · ' + esc(hbStName(m.pick, m.tod)) : ''}</span></h2><div class="pad"><div class="tp-lg-sc">${ord.map(line).join('')}<div class="tp-final">${hbFinTxt(s)}</div></div>${top ? `<div class="tp-perfs"><h4>Top performers</h4>${top}</div>` : ''}<div class="tp-more"><button class="linkb">Game page ›</button></div></div></div>`;
+}
+
+/* ---------- tabs ---------- */
+function tpHome(t, s) {
+  const cur = s === tpCur(), rows = tpRows(t, s);
+  let left, mid;
+  if (cur) {
+    const gs = HB_GAMES.filter(g => g.away === t || g.home === t).sort((a, b) => a.wk - b.wk);
+    left = `<div class="panel"><h2>Season ${s} schedule</h2><div class="tp-gl">${gs.map(g => tpGameRow(g, t, true)).join('')}</div><div class="tp-more"><button class="linkb" data-tp="tab" data-v="schedule">Full schedule ›</button></div></div>`;
+    const news = tpNewsItems(t).filter(x => x.type !== 'cheep').slice(0, 4);
+    mid = tpLastGame(t) + (news.length ? news.map(nwCard).join('') + `<div class="tp-more"><button class="linkb" data-tp="tab" data-v="news">All ${esc(nwFull(t))} news ›</button></div>` : '<div class="panel"><div class="pad note">No stories about this team yet.</div></div>');
+  } else {
+    left = `<div class="panel"><h2>Season ${s} playoffs</h2><div class="tp-gl">${tpSeriesHtml(t, s)}</div><div class="pad note">Regular-season games were not kept game by game for Season ${s}.</div></div>`;
+    const aw = (HIST2.awards || []).filter(a => a.s === s && tpCanon(a.t) === t), dr = ((typeof dbPast === 'function' ? dbPast()[s] : null) || []).filter(x => tpCanon(x.t) === t).sort((a, b) => a.o - b.o);
+    const sm = tpSummary(t, s);
+    mid = `<div class="panel"><h2>Season ${s} in review</h2><div class="pad tp-rev"><div class="tp-big">${esc(sm.rec)}</div><div><b>${esc(sm.place)}</b><div class="note">${esc(sm.sub)}</div></div></div></div>
+     <div class="panel"><h2>Awards <span>${aw.length} won by this team's players</span></h2><div class="pad">${aw.length ? aw.map(a => `<div class="hsaw"><b>${esc(a.a)}</b> ${hsPlayerLink(a.p, a.id)}</div>`).join('') : '<div class="note">None this season.</div>'}</div></div>
+     ${dr.length ? `<div class="panel"><h2>Draft class</h2><div class="pad tp-dc">${dr.map(x => `<div><span class="note">Rd ${x.r || '?'} · #${x.o}</span> ${ico(P[x.pid], 22)}<span class="pclick" data-pid="${x.pid}">${esc(P[x.pid].name)}</span></div>`).join('')}</div></div>` : ''}`;
+  }
+  return `<div class="tp-grid"><div>${left}</div><div class="tp-mid">${mid}</div><div>${tpStandingsCard(t, s)}<div class="panel"><h2>Season ${s} team leaders</h2><div class="pad">${tpLeaders(rows)}</div><div class="tp-more"><button class="linkb" data-tp="tab" data-v="stats">Team stats ›</button></div></div></div></div>`;
+}
+function tpStats(t, s) {
+  const rows = tpRows(t, s), all = stTeamRows(stSeasonRows(), String(s)), mine = all.find(r => r.canon === t);
+  const rk = (k, dir) => { if (!mine || mine[k] == null) return ''; const v = all.filter(r => r[k] != null).map(r => r[k]), n = v.filter(x => dir > 0 ? x > mine[k] : x < mine[k]).length + 1; return `<small class="tp-rk" title="League rank">${tpOrd(n)}</small>`; };
+  const tbl = (title, cols, filt, sortK) => {
+    const rs = rows.filter(filt).sort((a, b) => (b[sortK] || 0) - (a[sortK] || 0)); const C = cols.map(k => TS_BY[k]);
+    return `<div class="panel"><h2>${title} <span>${rs.length} players</span></h2><div class="tbl-wrap"><table class="st-tbl"><thead><tr><th class="l">Player</th>${C.map(c => `<th title="${esc(c[5])}">${esc(c[1])}</th>`).join('')}</tr></thead><tbody>
+      ${rs.map(r => `<tr><td class="l" style="white-space:nowrap">${r.pid >= 0 ? ico(P[r.pid], 22) + `<span class="pclick" data-pid="${r.pid}">${esc(P[r.pid].name)}</span>` : esc(r.nm)}</td>${C.map(c => `<td class="num">${stFmt(r[c[0]], c[4])}</td>`).join('')}</tr>`).join('') || `<tr><td class="l note" colspan="${C.length + 1}">No stats yet.</td></tr>`}
+      ${mine && rs.length ? `<tr class="tp-tot"><td class="l"><b>Team totals</b></td>${C.map(c => `<td class="num"><b>${stFmt(mine[c[0]], c[4])}</b>${rk(c[0], c[3])}</td>`).join('')}</tr>` : ''}</tbody></table></div></div>`;
+  };
+  const top = mine ? `<div class="tp-kpis">${[['WP', 'Win %'], ['AVG', 'AVG'], ['HR', 'HR'], ['OPS', 'OPS'], ['ERA', 'ERA'], ['K', 'K'], ['E', 'Errors'], ['RD', 'Run diff']].filter(([k]) => mine[k] != null).map(([k, l]) => `<div class="tp-kpi"><div class="k">${l}</div><div class="v">${stFmt(mine[k], TS_BY[k][4])}</div>${rk(k, TS_BY[k][3])}</div>`).join('')}</div>` : '';
+  return `${top}${tbl('Hitting', ['G', 'AB', 'H', 'b1', 'b2', 'b3', 'HR', 'RBI', 'BB', 'SO', 'AVG', 'SLG', 'OPS', 'OPp'], r => r.AB > 0 || r.BB > 0, 'GSc')}
+   ${tbl('Pitching', ['App', 'GS', 'IP', 'W', 'L', 'SV', 'BS', 'K', 'PBB', 'HA', 'ER', 'ERA', 'WHIP'], r => r.IP > 0, 'IP')}
+   ${tbl('Fielding and awards', ['G', 'SP', 'BC', 'BT', 'E', 'OUT', 'FP', 'MVP', 'GSc', 'AGS', 'ONM'], () => true, 'GSc')}
+   <div class="note">Team totals add up every player's line; the small number is where that total ranks among the ${all.length} teams in Season ${s}.</div>`;
+}
+function tpSchedule(t, s) {
+  if (s !== tpCur()) return `<div class="panel"><h2>Season ${s} <span>${esc(tpSummary(t, s).rec)}</span></h2><div class="pad note">Game-by-game regular-season results were not kept for Season ${s}. Playoffs:</div><div class="tp-gl">${tpSeriesHtml(t, s)}</div></div>`;
+  const gs = HB_GAMES.filter(g => g.away === t || g.home === t).sort((a, b) => a.wk - b.wk);
+  return `<div class="panel"><h2>Season ${s} schedule <span>Click a game for its page</span></h2><div class="tbl-wrap"><table class="tp-sch"><thead><tr><th>Wk</th><th class="l">Opponent</th><th class="l">Stadium</th><th>Result</th><th></th></tr></thead><tbody>${gs.map(g => tpGameRow(g, t)).join('')}</tbody></table></div></div>`;
+}
+function tpWeekRoster(t, wk) {
+  const sn = HB.snaps[hbSnap(wk, t)], own = hbDoc(t, wk); let l = null, src = '';
+  if (sn && sn.slots) { l = sn; src = 'Locked lineup'; } else if (own && own.slots) { l = own; src = 'Saved lineup'; }
+  else { for (let w = wk - 1; w >= 0 && !l; w--) { const d = hbDoc(t, w); if (d && d.slots) { l = Object.assign({}, d, { stars: [] }); src = 'Carried over from week ' + w; } } }
+  if (!l) { const a = hbLineup(t, wk); if (a) { l = a; src = 'No lineup saved, automatic best nine'; } }
+  const L = typeof awLines === 'function' ? awLines(wk).filter(o => o.team === t) : [], byPid = new Map(L.map(o => [o.pid, o]));
+  const stars = new Set(l && l.stars || []), slots = l ? l.slots : [];
+  const line = o => !o ? '<span class="note">—</span>' : `${o.AB ? o.H + '-' + o.AB : ''}${o.HR ? ', ' + o.HR + ' HR' : ''}${o.RBI ? ', ' + o.RBI + ' RBI' : ''}${o.pit ? (o.AB ? ' · ' : '') + awIP(o.IP) + ' IP, ' + o.ER + ' ER, ' + o.K + ' K' : ''}${o.GSc ? ' · GS ' + Math.round(o.GSc) : ''}`;
+  const row = (id, i) => { const p = P[id]; if (!p) return ''; return `<tr><td>${i == null ? '' : i + 1}</td><td class="l" style="white-space:nowrap">${ico(p, 24)}<span class="pclick" data-pid="${id}">${esc(p.name)}</span>${p.cap ? ' <span class="tp-cap" title="Captain">C</span>' : ''}${stars.has(id) ? ' <span class="tp-star" title="Starred">★</span>' : ''}</td><td>${esc((l && l.pos && l.pos[id]) || '')}</td><td class="l">${line(byPid.get(id))}</td></tr>`; };
+  const cur = wk >= hbCur(), bench = [...new Set((cur ? hbRoster(t) : []).concat(L.map(o => o.pid).filter(x => x >= 0)))].filter(id => !slots.includes(id));
+  const extra = L.filter(o => o.pid < 0);
+  return `<div class="panel"><h2>Week ${wk} lineup <span>${esc(src)}</span></h2><div class="tbl-wrap"><table class="tp-lu"><thead><tr><th>#</th><th class="l">Player</th><th>Pos</th><th class="l">Week ${wk} line</th></tr></thead><tbody>${slots.map(row).join('') || '<tr><td colspan="4" class="l note">No lineup for this week.</td></tr>'}</tbody></table></div></div>
+   <div class="panel"><h2>Bench <span>${cur ? 'Everyone else on the roster' : 'Other players with a box-score line that week'}</span></h2><div class="tbl-wrap"><table class="tp-lu"><thead><tr><th>#</th><th class="l">Player</th><th>Pos</th><th class="l">Week ${wk} line</th></tr></thead><tbody>${bench.map(id => row(id, null)).join('')}${extra.map(o => `<tr><td></td><td class="l">${esc(o.nm)}</td><td></td><td class="l">${line(o)}</td></tr>`).join('') || (bench.length ? '' : '<tr><td class="l note">Nobody else.</td></tr>')}</tbody></table></div></div>`;
+}
+function tpRoster(t, s) {
+  if (s === tpCur()) {
+    if (TP.wk == null) TP.wk = hbCur();
+    return `<div class="tp-bar"><label>Week<select data-tp="wk">${HB_WEEKS.map(w => `<option value="${w}" ${w === TP.wk ? 'selected' : ''}>Week ${w}${w === hbCur() ? ' (this week)' : ''}</option>`).join('')}</select></label><span class="note">Batting order and positions as the team set them; ★ = starred that week; C = captain. Each line is the player's box score for that week.</span></div>${tpWeekRoster(t, TP.wk)}`;
+  }
+  const rows = tpRows(t, s).sort((a, b) => (b.G || 0) - (a.G || 0));
+  return `<div class="panel"><h2>Season ${s} roster <span>${rows.length} players with stats for ${tpTeamTxt(t, s)}. Weekly lineups were not kept for past seasons.</span></h2><div class="tbl-wrap"><table class="st-tbl"><thead><tr><th class="l">Player</th><th>G</th><th>AVG</th><th>HR</th><th>RBI</th><th>IP</th><th>ERA</th><th>ONM</th></tr></thead><tbody>${rows.map(r => `<tr><td class="l" style="white-space:nowrap">${r.pid >= 0 ? ico(P[r.pid], 22) + `<span class="pclick" data-pid="${r.pid}">${esc(P[r.pid].name)}</span>${P[r.pid].cap ? ' <span class="tp-cap">C</span>' : ''}` : esc(r.nm)}</td><td class="num">${stFmt(r.G, 'i')}</td><td class="num">${stFmt(r.AVG, '3')}</td><td class="num">${stFmt(r.HR, 'i')}</td><td class="num">${stFmt(r.RBI, 'i')}</td><td class="num">${r.IP ? stFmt(r.IP, '1') : '—'}</td><td class="num">${r.IP ? stFmt(r.ERA, '2') : '—'}</td><td class="num">${stFmt(r.ONM, '2')}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+function tpNews(t, s) {
+  if (s !== tpCur()) return `<div class="panel"><div class="pad note">The news desk started in Season ${tpCur()}. Switch to Season ${tpCur()} for this team's stories.</div></div>`;
+  const all = tpNewsItems(t), st = all.filter(x => x.type !== 'cheep'), ch = all.filter(x => x.type === 'cheep');
+  return `<div class="tp-news"><div class="tp-mid">${st.slice(0, 40).map(nwCard).join('') || '<div class="panel"><div class="pad note">No stories about this team yet.</div></div>'}</div><aside><div class="panel"><h2>Cheeps <span>${ch.length}</span></h2><div class="nw-chl">${ch.slice(0, 60).map(nwCheepHtml).join('') || '<div class="pad note">No cheeps yet.</div>'}</div></div></aside></div>`;
+}
+function tpTransactions(t, s) {
+  const keep = tr => (tr.teams || []).some(n => tpCanon(n) === t);
+  const trades = hsTradesHtml(s, keep);
+  let fa = '', picks = '';
+  if (s === tpCur()) {
+    const mv = ((HB.fa && HB.fa.moves) || []).filter(m => m.to === t || m.from === t).sort((a, b) => (b.t || 0) - (a.t || 0));
+    fa = `<div class="panel"><h2>Free agent moves <span>${mv.length}</span></h2><div class="pad">${mv.map(m => `<div class="tp-tx"><span class="chip ${m.to === t ? 'g' : 'b'}">${m.to === t ? 'Signed' : 'Released'}</span>${ico(P[m.pid], 22)}<span class="pclick" data-pid="${m.pid}">${esc(P[m.pid].name)}</span><span class="note">${esc(m.t ? hbDate(m.t) : '')}</span></div>`).join('') || '<div class="note">None.</div>'}</div></div>`;
+    const own = hbS7Of(t), gone = []; for (let r = 1; r <= 9; r++) { const w = hbS7Owner(r, t); if (w !== t) gone.push({ r, w }); }
+    picks = `<div class="panel"><h2>Season ${s + 1} draft picks <span>${own.length} owned</span></h2><div class="pad tp-pk">${own.map(x => `<span class="db-pk ${x.o !== t ? 'in' : ''}" title="${esc(x.o !== t ? 'From ' + x.o : 'Own pick')}">Rd ${x.r}${x.o !== t ? ' · ' + esc(x.o) : ''}</span>`).join('')}${gone.length ? `<div class="note" style="width:100%">Traded away: ${gone.map(x => `Rd ${x.r} to ${esc(x.w)}`).join(', ')}</div>` : ''}<div style="width:100%"><button class="linkb" data-tp="go" data-v="board">Season ${s + 1} draft board ›</button></div></div></div>`;
+  }
+  return `${picks}<div class="panel"><h2>Trades <span>Season ${s}: draft, in-season and entered past trades</span></h2><div class="pad">${trades || '<div class="note">No trades this season.</div>'}</div></div>${fa}`;
+}
+function tpHistory(t) {
+  const ss = tpSeasons(t), titles = ss.filter(s => s < tpCur() && tpCanon(HIST2.seasons[s].champion) === t).length;
+  const rows = ss.map(s => { const sm = tpSummary(t, s); return `<tr class="tp-click" data-tp="season" data-v="${s}"><td>S${s}</td><td class="l">${tpLogo(t, s)}${tpTeamTxt(t, s)}</td><td>${esc(sm.rec)}</td><td class="l">${esc(sm.place)}</td><td class="l">${esc(s === tpCur() ? 'In progress' : tpPlayoffs(t, s).txt)}</td></tr>`; }).join('');
+  const aw = (HIST2.awards || []).filter(a => tpCanon(a.t) === t).sort((a, b) => a.s - b.s);
+  const big = aw.filter(a => !/^Week |All-Star/.test(a.a));
+  const all = stTeamRows(stSeasonRows(), 'all').find(r => r.canon === t);
+  const wkAw = typeof awAll === 'function' ? Object.keys(awAll()).map(Number).sort((a, b) => a - b).flatMap(w => AW_KINDS.filter(([k]) => { const x = (awAll()[w] || {})[k]; return x && x.p && x.t === t; }).map(([k, n]) => `<div class="hsaw"><b>Week ${w} ${esc(n.replace('Week ', ''))}</b> ${esc(awAll()[w][k].p)}</div>`)) : [];
+  return `<div class="tp-kpis">${[['Seasons', ss.length], ['Titles', titles], ['All-Stars', aw.filter(a => a.a === 'All-Star').length], ['Award wins', big.length]].map(([l, v]) => `<div class="tp-kpi"><div class="k">${l}</div><div class="v">${v}</div></div>`).join('')}${all ? `<div class="tp-kpi"><div class="k">All-time HR</div><div class="v">${stFmt(all.HR, 'i')}</div></div><div class="tp-kpi"><div class="k">All-time AVG</div><div class="v">${stFmt(all.AVG, '3')}</div></div>` : ''}</div>
+   <div class="panel"><h2>Season by season <span>Click a season to open it</span></h2><div class="tbl-wrap"><table class="tp-sch"><thead><tr><th>Season</th><th class="l">Team name</th><th>Record</th><th class="l">Finish</th><th class="l">Playoffs</th></tr></thead><tbody>${rows}</tbody></table></div></div>
+   <div class="panel"><h2>Award winners <span>Season awards won by this franchise's players</span></h2><div class="pad tp-aw">${big.map(a => `<div class="hsaw"><span class="note">S${a.s}</span> <b>${esc(a.a)}</b> ${hsPlayerLink(a.p, a.id)}</div>`).join('') || '<div class="note">None yet.</div>'}${wkAw.length ? `<h4>Season ${tpCur()} weekly awards</h4>${wkAw.join('')}` : ''}</div></div>
+   <div class="panel"><h2>Draft history</h2><div class="pad tp-dh">${ss.filter(s => s < tpCur()).map(s => { const dr = ((typeof dbPast === 'function' ? dbPast()[s] : null) || []).filter(x => tpCanon(x.t) === t).sort((a, b) => a.o - b.o).slice(0, 3); return dr.length ? `<div><b>Season ${s}</b> ${dr.map(x => `<span class="note">#${x.o}</span> <span class="pclick" data-pid="${x.pid}">${esc(P[x.pid].name)}</span>`).join(' · ')}</div>` : ''; }).join('') || '<div class="note">No past drafts.</div>'}<div><button class="linkb" data-tp="go" data-v="board">All draft boards ›</button></div></div></div>`;
+}
+const TP_TABS = [['home', 'Home'], ['stats', 'Stats'], ['schedule', 'Schedule'], ['roster', 'Roster'], ['news', 'News'], ['tx', 'Transactions'], ['history', 'History']];
+function tpView() {
+  const t = TP.t; if (!t) return '<div class="panel"><div class="pad note">Click any team name to open its page.</div></div>';
+  const s = TP.s || tpCur(), sm = tpSummary(t, s), ss = tpSeasons(t);
+  const body = { home: tpHome, stats: tpStats, schedule: tpSchedule, roster: tpRoster, news: tpNews, tx: tpTransactions, history: tpHistory }[TP.tab] || tpHome;
+  let inner; try { inner = body(t, s); } catch (e) { console.error(e); inner = `<div class="panel"><div class="pad note">This part of the page could not load (${esc(e.message)}).</div></div>`; }
+  return `<div class="tp" style="--tc:${tpTc(t)}"><div class="tp-hdr"><button class="linkb tp-back" data-tp="back">‹ Back</button>
+    <div class="tp-id"><span class="tdot tp-logo" style="background:${tpLogoBg(t, s)}"></span><div><h1 class="tp-name" data-notp="1">${tpTeamTxt(t, s)}</h1>
+    <div class="tp-sub"><b>${esc(sm.rec)}</b> · ${esc(sm.place)}${hbMe && hbMe() === t ? ' · <span class="chip g">Your team</span>' : ''}</div><div class="note">${esc(sm.sub)}</div></div>
+    <label class="tp-season">Season<select data-tp="season">${ss.slice().reverse().map(x => `<option value="${x}" ${x === s ? 'selected' : ''}>Season ${x}${x === tpCur() ? ' (now)' : ' · ' + esc(tpName(t, x))}</option>`).join('')}</select></label></div>
+    <nav class="tp-tabs" data-notp="1">${TP_TABS.map(([k, n]) => `<button data-tp="tab" data-v="${k}" aria-pressed="${TP.tab === k}">${n}</button>`).join('')}</nav></div>
+    <div class="tp-body">${inner}</div></div>`;
+}
+if (typeof HB_VIEWS !== 'undefined') HB_VIEWS.team = tpView;
+document.addEventListener('click', e => {
+  const g = e.target.closest('#tab-team [data-tpg]'); if (g && !e.target.closest('.pclick')) { const gg = gmG(g.dataset.tpg); if (gg) { HB.game = gg.gid; HB.week = gg.wk; GM.tab = 'news'; showTab('hm'); try { window.scrollTo({ top: 0 }); } catch (x) {} } return; }
+  const b = e.target.closest('#tab-team [data-tp]'); if (!b || b.tagName === 'SELECT') return; const a = b.dataset.tp, v = b.dataset.v;
+  if (a === 'back') showTab(TP.prev && TP.prev !== 'team' ? TP.prev : 'hm');
+  else if (a === 'tab') { TP.tab = v; renderHub(); }
+  else if (a === 'season') { TP.s = +v; TP.tab = 'home'; renderHub(); try { window.scrollTo({ top: 0 }); } catch (x) {} }
+  else if (a === 'go') { if (v === 'history') { showTab('history'); try { renderHistory(TP.s); } catch (x) {} } else showTab(v); }
+});
+document.addEventListener('change', e => {
+  const t = e.target; if (!t.closest || !t.closest('#tab-team')) return;
+  if (t.dataset.tp === 'season') { TP.s = +t.value; TP.wk = null; renderHub(); }
+  else if (t.dataset.tp === 'wk') { TP.wk = +t.value; renderHub(); }
+});
+
+/* ---------- every team name and logo on the site opens its team page ---------- */
+const TP_SKIP = 'button,select,option,input,textarea,label,#gate,header.board,[data-notp],.nw-body,.nw-cht,.nw-dek,p,[data-hbflip],[data-dbhl],[data-dbv],.tabs,#tab-setup,.hb-mini';
+function tpNameMap() {
+  const k = n => String(n || '').toLowerCase().replace(/^the\s+/, '').replace(/[^a-z0-9]/g, ''), m = new Map();
+  for (let s = 1; s < tpCur(); s++) { const o = HIST2.seasons[s]; if (!o) continue; o.standings.forEach(r => { const c = tpCanon(r.team); if (c && k(r.team).length >= 3) m.set(k(r.team), { t: c, s }); }); }
+  try { TRADES_HIST.forEach(tr => tr.teams.forEach(n => { const c = tpCanon(n); if (c && !m.has(k(n)) && k(n).length >= 3) m.set(k(n), { t: c, s: tr.s }); })); } catch (e) {}
+  TEAMS.forEach(t => { m.set(k(t), { t }); try { m.set(k(nwFull(t)), { t }); } catch (e) {} });
+  try { for (const key in RB.names) RB.names[key].forEach(v => { if (k(v).length >= 3) m.set(k(v), { t: key }); }); } catch (e) {}
+  return { m, k };
+}
+function tpScan() {
+  if (!TEAMS || !document.body) return; const { m, k } = tpNameMap();
+  const els = document.querySelectorAll('section b, section strong, section span, section td, section div, section h3, section h4, section em, section small, section .tdot[aria-label]');
+  for (const el of els) {
+    if (el.classList.contains('tdot')) { if (!el.classList.contains('tplink')) { const x = m.get(k(el.getAttribute('aria-label'))); if (x && !el.closest(TP_SKIP)) { el.classList.add('tplink'); el.dataset.tpteam = x.t; } } continue; }
+    if (el.children.length && [...el.children].some(c => !c.classList.contains('tdot'))) continue;
+    const txt = el.textContent.trim(); if (!txt || txt.length > 32) { if (el.classList.contains('tplink')) { el.classList.remove('tplink'); delete el.dataset.tpteam; } continue; }
+    const x = m.get(k(txt));
+    if (!x || el.closest(TP_SKIP)) { if (el.classList.contains('tplink')) { el.classList.remove('tplink'); delete el.dataset.tpteam; } continue; }
+    if (el.dataset.tpteam !== x.t) { el.classList.add('tplink'); el.dataset.tpteam = x.t; }
+    const hs = el.closest('#tab-history') && typeof HS !== 'undefined' && typeof HS.s === 'number' ? HS.s : el.closest('#tab-team') && TP.s !== tpCur() ? TP.s : (x.s && !TEAMS.includes(txt) ? x.s : null);
+    if (hs) el.dataset.tps = hs; else delete el.dataset.tps;
+  }
+}
+{ let tmr = null; const mo = new MutationObserver(() => { clearTimeout(tmr); tmr = setTimeout(tpScan, 150); }); const go = () => { try { mo.observe(document.body, { childList: true, subtree: true, characterData: true }); tpScan(); } catch (e) {} }; if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go(); }
+document.addEventListener('click', e => {
+  const el = e.target.closest && e.target.closest('.tplink'); if (!el || e.target.closest('.pclick')) return;
+  e.preventDefault(); e.stopPropagation(); tpOpen(el.dataset.tpteam, el.dataset.tps ? +el.dataset.tps : null);
+}, true);
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.closest && e.target.closest('#tab-team [data-tpg]')) e.target.click(); });
+
 /* ============ IN-SEASON BANNER: your next game, things you need to do, the trade deadline, your record ============ */
 const sbOrd = n => n + (['th', 'st', 'nd', 'rd'][(n % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th');
 function sbCountdown(ms) { if (ms <= 0) return 'Now'; const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60), mm = m % 60; return d ? `${d}d ${h}h` : h ? `${h}h ${mm}m` : `${mm}m`; }
