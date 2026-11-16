@@ -5174,18 +5174,25 @@ function hbPlayoff(rows) {
     const need = Math.max(0, kth(x.t, slots, 'max') - x.w + 1);
     return { clinched, out, magic: clinched ? 0 : out ? null : need <= x.left ? need : null };
   };
-  R.forEach(x => { x.po = outcome(x, HB_PO_TEAMS); x.bye = outcome(x, HB_PO_BYE); });
+  R.forEach(x => { x.po = outcome(x, HB_PO_TEAMS); });
+  /* byes: win the conference (conference record). Clinched only when no conference rival can catch up, ties counted as still alive */
+  const cleft = {}; TEAMS.forEach(t => cleft[t] = 0);
+  for (const g of HB_GAMES) { const s = HB.scores[g.gid]; if (s && s.status === 'final' && s.as != null && s.hs != null) continue; if (hbConfOf(g.away) && hbConfOf(g.away) === hbConfOf(g.home)) { cleft[g.away]++; cleft[g.home]++; } }
+  const cw = {}; rows.forEach(r => cw[r.t] = r.cw || 0);
+  R.forEach(x => { const c = hbConfOf(x.t), riv = c ? HB_CONF[c].filter(t => t !== x.t) : [];
+    const clinched = riv.length > 0 && riv.every(t => cw[t] + cleft[t] < cw[x.t]), out = riv.some(t => cw[t] > cw[x.t] + cleft[x.t]);
+    x.bye = { clinched, out, magic: null }; if (clinched) x.po.clinched = true; });
   return R;
 }
 function hbPlayoffHtml(rows) {
-  const R = hbPlayoff(rows), played = rows.reduce((a, r) => a + r.gp, 0);
-  if (!played) return `<div class="panel" style="margin-top:14px"><h2>Playoff picture <span>Top ${HB_PO_TEAMS} make it, top ${HB_PO_BYE} get byes</span></h2><div class="pad note">Shows up once games are final: seeds, clinch and elimination status, magic numbers, and the Season 7 pick order.</div></div>`;
-  const st = x => x.bye.clinched ? '<span class="chip g">Clinched bye</span>' : x.po.clinched ? '<span class="chip g">Clinched playoffs</span>' : x.po.out ? '<span class="chip b">Eliminated</span>' : '<span class="chip w">In the hunt</span>';
+  const R = hbPlayoff(hbSeedOrder(rows)), played = rows.reduce((a, r) => a + r.gp, 0);
+  if (!played) return `<div class="panel" style="margin-top:14px"><h2>Playoff picture <span>Conference winners are seeds 1-2 with byes, the next 4 best records are seeds 3-6</span></h2><div class="pad note">Shows up once games are final: seeds, clinch and elimination status, magic numbers, and the Season 7 pick order.</div></div>`;
+  const st = x => x.bye.clinched ? '<span class="chip g">Clinched conference (bye)</span>' : x.po.clinched ? '<span class="chip g">Clinched playoffs</span>' : x.po.out ? '<span class="chip b">Eliminated</span>' : '<span class="chip w">In the hunt</span>';
   const mg = x => x.po.clinched ? (x.bye.clinched ? '' : (x.bye.magic != null ? 'Bye magic ' + x.bye.magic : '')) : x.po.out ? '' : (x.po.magic != null ? 'Magic ' + x.po.magic : '');
   const lastIn = R[Math.min(HB_PO_TEAMS, R.length) - 1], cutGB = x => { if (!lastIn || x === lastIn) return '–'; const d = ((x.w - lastIn.w) + (lastIn.l - x.l)) / 2; return (d > 0 ? '+' : '') + d.toFixed(1); };
   const row = (x, i) => `<tr class="${hbMe() === x.t ? 'me' : ''}"><td>${i + 1}</td><td class="l">${hbLogo(x.t)}${esc(x.t)}</td><td class="num">${x.w}-${x.l}</td><td class="num">${x.left}</td><td class="num">${x.gb ? x.gb.toFixed(1) : '–'}</td><td class="num" style="color:${x.diff > 0 ? 'var(--good)' : x.diff < 0 ? 'var(--bad)' : 'inherit'}">${x.diff > 0 ? '+' : ''}${x.diff}</td><td class="num">${cutGB(x)}</td><td>${st(x)}</td><td class="num">${mg(x)}</td></tr>`;
   const cut = HB_PO_TEAMS, ord = hbS7Order();
-  return `<div class="panel" style="margin-top:14px"><h2>Playoff picture <span>Top ${HB_PO_TEAMS} make it, top ${HB_PO_BYE} get byes · seeds if the season ended today</span></h2><div class="tbl-wrap"><table><thead><tr><th>Seed</th><th class="l">Team</th><th>Record</th><th>Left</th><th title="Games behind the leader">GB</th><th title="Run differential">Run diff</th><th title="Games ahead (+) or behind (-) of the last playoff spot">vs cut</th><th>Status</th><th title="Wins needed to lock the spot, counting every tie as lost">Magic</th></tr></thead><tbody>${R.map(row).join('')}</tbody></table></div>
+  return `<div class="panel" style="margin-top:14px"><h2>Playoff picture <span>Conference winners are seeds 1-2 with byes, the next 4 best records are seeds 3-6 · seeds if the season ended today</span></h2><div class="tbl-wrap"><table><thead><tr><th>Seed</th><th class="l">Team</th><th>Record</th><th>Left</th><th title="Games behind the leader">GB</th><th title="Run differential">Run diff</th><th title="Games ahead (+) or behind (-) of the last playoff spot">vs cut</th><th>Status</th><th title="Wins needed to lock the spot, counting every tie as lost">Magic</th></tr></thead><tbody>${R.map(row).join('')}</tbody></table></div>
    <div class="pad note">Seeds ${cut + 1}-${R.length} are out of the playoffs if it ended today. Clinched and eliminated only show when it is certain, even with ties going against the team.</div>
    <div class="pad"><b>Projected Season 7 round 1 order</b> <span class="note">${ord.lot ? 'lottery drawn for the bottom four' : 'bottom four enter the lottery for picks 1-4'}, then reverse record · before trades</span><div class="chips" style="margin-top:6px">${ord.r1.map((t, i) => `<span class="chip">${ord.lot || i >= 4 ? i + 1 + '. ' : '1-4. '}${hbLogo(t)}${esc(t)}${!ord.lot && i < 4 ? ' <span class="note">(lottery)</span>' : ''}</span>`).join('')}</div></div></div>`;
 }
@@ -5226,16 +5233,26 @@ function hbBreakTie(grp) {
   const steps = [allMet ? r => h[r.t].w + h[r.t].l ? h[r.t].w / (h[r.t].w + h[r.t].l) : 0.5 : () => 0, r => r.diff, r => h[r.t].d];
   for (const f of steps) {
     const v0 = f(grp[0]); if (grp.every(r => Math.abs(f(r) - v0) < 1e-9)) continue;
-    const s = grp.slice().sort((a, b) => f(b) - f(a)), out = []; let i = 0;
-    while (i < s.length) { let j = i + 1; while (j < s.length && Math.abs(f(s[j]) - f(s[i])) < 1e-9) j++; out.push(...hbBreakTie(s.slice(i, j))); i = j; }
-    return out;
+    const s = grp.slice().sort((a, b) => f(b) - f(a)); let j = 1; while (j < s.length && Math.abs(f(s[j]) - f(s[0])) < 1e-9) j++;
+    return hbBreakTie(s.slice(0, j)).concat(hbBreakTie(s.slice(j)));
   }
   return grp.slice().sort((a, b) => hbCoin(b.t, grp) - hbCoin(a.t, grp));
 }
-function hbRankRows(rows) {
-  const s = rows.slice().sort((a, b) => b.pct - a.pct || a.t.localeCompare(b.t)), out = []; let i = 0;
-  while (i < s.length) { let j = i + 1; while (j < s.length && Math.abs(s[j].pct - s[i].pct) < 1e-9) j++; out.push(...hbBreakTie(s.slice(i, j))); i = j; }
+function hbRankRows(rows, key) {
+  key = key || 'pct'; const v = r => r[key] || 0;
+  const s = rows.slice().sort((a, b) => v(b) - v(a) || a.t.localeCompare(b.t)), out = []; let i = 0;
+  while (i < s.length) { let j = i + 1; while (j < s.length && Math.abs(v(s[j]) - v(s[i])) < 1e-9) j++; out.push(...hbBreakTie(s.slice(i, j))); i = j; }
   return out;
+}
+/* conference standings rank on the conference record (then the same tiebreakers) */
+function hbConfRows(rows, c) {
+  const rs = hbRankRows(rows.filter(r => HB_CONF[c].includes(r.t)), 'cpct'), ld = rs[0];
+  return rs.map(r => Object.assign({}, r, { gb: ld ? ((ld.cw - r.cw) + (r.cl - ld.cl)) / 2 : 0 }));
+}
+/* playoff seeds (league format): the two conference winners are seeds 1-2 (better overall record first), then the next best overall records */
+function hbSeedOrder(rows) {
+  const win = Object.keys(HB_CONF).map(c => hbConfRows(rows, c)[0]).filter(Boolean).map(w => rows.find(r => r.t === w.t)).sort((a, b) => rows.indexOf(a) - rows.indexOf(b));
+  return win.concat(rows.filter(r => !win.includes(r)));
 }
 function hbStandings() {
   const rec = {}; TEAMS.forEach(t => rec[t] = { t, w: 0, l: 0, rs: 0, ra: 0, cw: 0, cl: 0, hist: [] });
@@ -5243,7 +5260,7 @@ function hbStandings() {
     const a = rec[g.away], h = rec[g.home], aw = s.as > s.hs; a.rs += s.as; a.ra += s.hs; h.rs += s.hs; h.ra += s.as;
     if (aw) { a.w++; h.l++; } else { h.w++; a.l++; } a.hist.push(aw ? 'W' : 'L'); h.hist.push(aw ? 'L' : 'W');
     if (hbConfOf(g.away) === hbConfOf(g.home)) { if (aw) { a.cw++; h.cl++; } else { h.cw++; a.cl++; } } }
-  const arr = Object.values(rec); arr.forEach(r => { r.gp = r.w + r.l; r.pct = r.gp ? r.w / r.gp : 0; r.diff = r.rs - r.ra; });
+  const arr = Object.values(rec); arr.forEach(r => { r.gp = r.w + r.l; r.pct = r.gp ? r.w / r.gp : 0; r.diff = r.rs - r.ra; r.cpct = r.cw + r.cl ? r.cw / (r.cw + r.cl) : 0; });
   const ranked = hbRankRows(arr); arr.length = 0; arr.push(...ranked);
   const lead = arr[0]; arr.forEach(r => { r.gb = ((lead.w - r.w) + (r.l - lead.l)) / 2; const h = r.hist; let n = 0; for (let i = h.length - 1; i >= 0 && h[i] === h[h.length - 1]; i--) n++; r.streak = h.length ? h[h.length - 1] + n : '–'; });
   return arr;
@@ -5403,8 +5420,8 @@ function hbStandingsView() {
   const qual = ld.bat.filter(x => x.ab >= 10), pq = ld.pit.filter(x => x.ip >= 3);
   const era = x => (x.er * 9 / x.ip).toFixed(2), whip = x => ((x.h + x.bb) / x.ip).toFixed(2);
   return `${hbStTable(rows, 'Overall standings', rows.reduce((a, r) => a + r.gp, 0) / 2 + ' games played')}
-  <div class="hb-two" style="margin-top:14px">${Object.keys(HB_CONF).map(c => hbStTable(hbRankRows(rows.filter(r => HB_CONF[c].includes(r.t))), c)).join('')}</div>
-  <div class="note" style="margin-top:6px">Ties (overall and conference): 1. head to head, 2. run differential, 3. run differential in games between the tied teams, 4. coin flip. Head to head counts only when all the tied teams have played each other; if they have not, it only moves a team that beat (or lost to) every other tied team.</div>
+  <div class="hb-two" style="margin-top:14px">${Object.keys(HB_CONF).map(c => hbStTable(hbConfRows(rows, c), c, 'ranked by conference record · GB in conference games')).join('')}</div>
+  <div class="note" style="margin-top:6px">Conference standings rank on the conference record. Ties (overall and conference): 1. head to head, 2. run differential, 3. run differential in games between the tied teams, 4. coin flip. Head to head counts only when all the tied teams have played each other; if they have not, it only moves a team that beat (or lost to) every other tied team. Once a step places a team, the teams still tied start over at step 1.</div>
   ${hbPlayoffHtml(rows)}
   <h2 class="hb-h2">Offensive leaders</h2><div class="hb-lbs">${lead('Home runs', top(ld.bat, 'hr'), x => x.hr)}${lead('Hits', top(ld.bat, 'h'), x => x.h)}${lead('RBI', top(ld.bat, 'rbi'), x => x.rbi)}${lead('Doubles', top(ld.bat, 'b2'), x => x.b2)}
    ${lead('Batting average (10+ AB)', qual.slice().sort((a, b) => b.h / b.ab - a.h / a.ab).slice(0, 5), x => (x.h / x.ab).toFixed(3).replace(/^0/, ''))}${lead('Walks', top(ld.bat, 'bb'), x => x.bb)}${lead('Game MVPs', top(ld.bat.concat(ld.pit.filter(p => !ld.bat.some(b => b.p === p.p && b.t === p.t))), 'mvp'), x => x.mvp)}</div>
@@ -7446,7 +7463,7 @@ function tpPlayoffs(t, s) {
 }
 function tpSummary(t, s) {
   if (s === tpCur()) {
-    const st = hbStandings(), i = st.findIndex(r => r.t === t), r = st[i], c = hbConfOf(t), cr = c ? hbRankRows(st.filter(x => HB_CONF[c].includes(x.t))).findIndex(x => x.t === t) : -1;
+    const st = hbStandings(), i = st.findIndex(r => r.t === t), r = st[i], c = hbConfOf(t), cr = c ? hbConfRows(st, c).findIndex(x => x.t === t) : -1;
     return { rec: `${r.w}-${r.l}`, place: c ? `${tpOrd(cr + 1)} in ${c}` : tpOrd(i + 1), sub: `${tpOrd(i + 1)} overall · ${r.diff > 0 ? '+' : ''}${r.diff} run diff · ${r.streak && r.streak !== '–' ? 'Streak ' + r.streak : 'No games yet'}` };
   }
   const row = tpPastRow(t, s), po = tpPlayoffs(t, s), n = HIST2.seasons[s].standings.length;
@@ -7471,7 +7488,7 @@ function tpLeaders(rows, small) {
 }
 function tpStandingsCard(t, s) {
   if (s === tpCur()) {
-    const c = hbConfOf(t), st = hbStandings(), rows = c ? hbRankRows(st.filter(x => HB_CONF[c].includes(x.t))) : st;
+    const c = hbConfOf(t), st = hbStandings(), rows = c ? hbConfRows(st, c) : st;
     return `<div class="panel"><h2>${esc(c || 'Standings')}</h2><div class="tbl-wrap"><table class="tp-st"><thead><tr><th class="l">Team</th><th>W</th><th>L</th><th>PCT</th><th>DIFF</th><th>STRK</th></tr></thead><tbody>${rows.map(r => `<tr class="${r.t === t ? 'tp-me' : ''}"><td class="l">${hbLogo(r.t)}${esc(r.t)}</td><td>${r.w}</td><td>${r.l}</td><td>${r.pct.toFixed(3).replace(/^0/, '')}</td><td>${r.diff > 0 ? '+' : ''}${r.diff}</td><td>${r.streak}</td></tr>`).join('')}</tbody></table></div><div class="tp-more"><button class="linkb" data-tp="go" data-v="hs">Full standings ›</button></div></div>`;
   }
   const o = HIST2.seasons[s];
