@@ -7750,14 +7750,23 @@ const dcVoice = () => (dcCfg().voice || 'Around the Shroom');
 const dcAvatar = () => { const m = /^<(a?):\w+:(\d+)>$/.exec(dcEmo('_voice')); return m ? `https://cdn.discordapp.com/emojis/${m[2]}.${m[1] ? 'gif' : 'png'}?size=128` : undefined; };
 const dcEmo = t => { const u = (dcCfg().emoji || {})[t]; return u != null && u !== '' ? u : (DC_EMOJI_DEF[t] || ''); };
 const dcT = t => (dcEmo(t) ? dcEmo(t) + ' ' : '') + dcName(t);
-const dcOn = k => { const c = dcCfg(); return !!c.url && c[k] !== false; };
+/* several channels: season/config.discord.hooks = [{ name, url, trades, scores, locks, awards, remind }]. An older single link (discord.url) counts as the first channel. */
+const DC_KINDS = [['trades', 'Trades'], ['scores', 'Final scores'], ['locks', 'Lineup locks'], ['remind', 'Lineup reminders'], ['awards', 'Week MVP / MVMii']];
+const dcHooks = () => { const c = dcCfg(); if (Array.isArray(c.hooks)) return c.hooks; return c.url ? [{ name: 'Main channel', url: c.url, trades: c.trades !== false, scores: c.scores !== false, locks: c.locks !== false, remind: true, awards: c.awards !== false }] : []; };
+const dcOn = k => !dcCfg().off && dcHooks().some(h => h.url && h[k] !== false);
 const dcSite = () => location.origin + location.pathname;
-function dcSend(payload, force) {
-  const c = dcCfg(); if (!c.url || (!force && c.off)) return Promise.resolve(false);
+function dcPost(url, payload) {
   const fd = new FormData(); const emb = (payload.embeds || []).map(e => Object.assign({ footer: { text: dcVoice() } }, e, e.footer ? { footer: { text: e.footer.text + ' · ' + dcVoice() } } : {}));
   fd.append('payload_json', JSON.stringify(Object.assign({ username: dcVoice(), avatar_url: dcAvatar(), allowed_mentions: { parse: [] } }, payload, emb.length ? { embeds: emb } : {})));
-  return fetch(c.url, { method: 'POST', body: fd, mode: 'no-cors' }).then(() => true).catch(e => { console.warn('Discord post failed', e); return false; });
+  return fetch(url, { method: 'POST', body: fd, mode: 'no-cors' }).then(() => true).catch(e => { console.warn('Discord post failed', e); return false; });
 }
+/* send to every channel that takes this kind of post (force: even while paused; only: one channel by its number) */
+function dcSend(payload, force, kind, only) {
+  if (!force && dcCfg().off) return Promise.resolve(false);
+  const hs = dcHooks().filter((h, i) => h.url && (only != null ? i === only : !kind || h[kind] !== false)); if (!hs.length) return Promise.resolve(false);
+  return Promise.all(hs.map(h => dcPost(h.url, payload))).then(r => r.some(Boolean));
+}
+const dcSendK = (kind, payload) => dcSend(payload, kind === 'remind', kind);
 const dcColor = t => { const c = (TEAMC[t] || {}).p || '#3a6ea5'; const m = /^#?([0-9a-f]{6})$/i.exec(c); return m ? parseInt(m[1], 16) : 0x3a6ea5; };
 const dcName = t => { try { return nwFull(t); } catch (e) { return t; } };
 function dcPrev(path) {
@@ -7792,7 +7801,7 @@ function dcTrade(d) {
   else { const recent = HB.tlog.filter(x => x.id !== d.id && x.t && Date.now() - x.t < 6 * 3600e3).length; const k = recent ? 2 : Math.abs(String(d.id).split('').reduce((a, c) => a * 31 + c.charCodeAt(0) | 0, 7)) % DC_TRADE_HEAD.length;
     head = DC_TRADE_HEAD[k === 2 && !recent ? 1 : k].replace('{team}', dcName(teams[0])) + (late && k !== 2 ? ' 🌙' : ''); }
   const block = t => multi ? `__${dcName(t)}__ ${dcEmo(t)}\n${got[t].join('\n') || '—'}` : `${dcEmo(t)} ${dcName(t)}:\n${got[t].join('\n') || '—'}`;
-  dcSend({ content: ((dcEmo('_voice') ? dcEmo('_voice') + ' ' : '') + head + '\n\n' + teams.map(block).join('\n\n')).slice(0, 1990) });
+  dcSendK('trades', { content: ((dcEmo('_voice') ? dcEmo('_voice') + ' ' : '') + head + '\n\n' + teams.map(block).join('\n\n')).slice(0, 1990) });
 }
 function dcScore(gid, d) {
   const g = HB_GAMES.find(x => x.gid === gid); if (!g) return;
@@ -7805,51 +7814,68 @@ function dcScore(gid, d) {
     for (const x of b.pit || []) { if (+x.w) perf.push({ gs: (+x.gs || 0) + 1, t: `${em} ${x.p}: W, ${x.ip} IP, ${+x.er || 0} ER, ${+x.so || 0} K` }); } }
   const top = perf.sort((a, b) => b.gs - a.gs).slice(0, 3).map(x => x.t).join('\n');
   const fields = []; if (mvp) fields.push({ name: 'Game MVP', value: mvp, inline: true }); if (top) fields.push({ name: 'Top performers', value: top });
-  dcSend({ embeds: [{ title: `⚾ ${hbFinTxt(d)}: ${dcName(g[win])} ${sc(win)}, ${dcName(g[win === 'home' ? 'away' : 'home'])} ${sc(win === 'home' ? 'away' : 'home')}`, description: lines, color: dcColor(g[win]), url: dcSite(), fields,
+  dcSendK('scores', { embeds: [{ title: `⚾ ${hbFinTxt(d)}: ${dcName(g[win])} ${sc(win)}, ${dcName(g[win === 'home' ? 'away' : 'home'])} ${sc(win === 'home' ? 'away' : 'home')}`, description: lines, color: dcColor(g[win]), url: dcSite(), fields,
     footer: { text: `Week ${g.wk}${m.pick ? ' · ' + hbStName(m.pick, m.tod) : ''}` }, timestamp: new Date().toISOString() }] });
 }
 const dcMissing = wk => TEAMS.filter(t => HB_GAMES.some(g => g.wk === wk && (g.away === t || g.home === t)) && !hbValidDoc(hbDoc(t, wk), t));
 function dcLocked(wk) {
   const miss = dcMissing(wk);
-  dcSend({ embeds: [{ title: `🔒 Week ${wk} lineups are locked`, description: `${dcEmo('_league')} ` + (miss.length ? `No lineup saved this week (last week's or the automatic lineup is used):\n${miss.map(t => '• ' + dcT(t)).join('\n')}` : 'Every team saved a lineup. Play ball!'), color: 0x555555, url: dcSite() }] });
+  dcSendK('locks', { embeds: [{ title: `🔒 Week ${wk} lineups are locked`, description: `${dcEmo('_league')} ` + (miss.length ? `No lineup saved this week (last week's or the automatic lineup is used):\n${miss.map(t => '• ' + dcT(t)).join('\n')}` : 'Every team saved a lineup. Play ball!'), color: 0x555555, url: dcSite() }] });
 }
 function dcReminder() {
   const wk = hbCur(), miss = dcMissing(wk), at = typeof hbDeadlineAt === 'function' ? hbDeadlineAt() : 0;
   const extra = at && Date.now() < at ? `\nTrades close <t:${Math.floor(at / 1000)}:R>.` : '';
-  return dcSend({ embeds: [{ title: `⏰ Week ${wk} lineups lock soon`, description: `${dcEmo('_league')} ` + (miss.length ? `Still need a lineup:\n${miss.map(t => '• ' + dcT(t)).join('\n')}` : 'Every team has a lineup saved. 👍') + extra + `\n[Set your lineup](${dcSite()})`, color: 0xd9a521 }] }, true);
+  return dcSendK('remind', { embeds: [{ title: `⏰ Week ${wk} lineups lock soon`, description: `${dcEmo('_league')} ` + (miss.length ? `Still need a lineup:\n${miss.map(t => '• ' + dcT(t)).join('\n')}` : 'Every team has a lineup saved. 👍') + extra + `\n[Set your lineup](${dcSite()})`, color: 0xd9a521 }] }, true);
 }
 function dcAward(wk, kind, a) {
   const o = typeof awFind === 'function' ? awFind(wk, a) : null;
   const line = o ? `${o.AB ? o.H + '-' + o.AB : ''}${o.HR ? ', ' + o.HR + ' HR' : ''}${o.RBI ? ', ' + o.RBI + ' RBI' : ''}${o.pit ? (o.AB ? ' · ' : '') + awIP(o.IP) + ' IP, ' + o.K + ' K' : ''}${o.GSc ? ' · Game score ' + Math.round(o.GSc) : ''}` : '';
-  dcSend({ embeds: [{ title: `🏆 Week ${wk} ${kind.replace('Week ', '')}: ${a.p}`, description: `${a.t ? dcT(a.t) : ''}${line ? '\n' + line : ''}`, color: dcColor(a.t), url: dcSite() }] });
+  dcSendK('awards', { embeds: [{ title: `🏆 Week ${wk} ${kind.replace('Week ', '')}: ${a.p}`, description: `${a.t ? dcT(a.t) : ''}${line ? '\n' + line : ''}`, color: dcColor(a.t), url: dcSite() }] });
 }
 function dcAdminHtml() {
-  const c = dcCfg(), box = (k, n) => `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-dc="opt" data-k="${k}" ${c[k] !== false ? 'checked' : ''}> ${n}</label>`;
-  return `<div class="panel" style="margin-top:14px"><h2>Discord posts <span>${c.url ? (c.off ? 'Paused' : 'On') : 'Not set up'}: the site posts league news to a Discord channel</span></h2><div class="pad" style="display:grid;gap:10px">
-   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end"><label class="hb-f" style="flex:1;min-width:280px">Webhook link<input type="password" id="dcUrl" value="${esc(c.url || '')}" placeholder="https://discord.com/api/webhooks/..." autocomplete="off"></label>
-    <button class="primary" data-dc="save">Save</button><button data-dc="test" ${c.url ? '' : 'disabled'}>Send test post</button><button data-dc="remind" ${c.url ? '' : 'disabled'}>Send lineup reminder now</button>${c.url ? `<button data-dc="pause">${c.off ? 'Resume posts' : 'Pause posts'}</button>` : ''}</div>
-   <div style="display:flex;gap:16px;flex-wrap:wrap">${box('trades', 'Trades when they go through')}${box('scores', 'Final scores and box scores')}${box('locks', 'Lineup lock (and who has no lineup)')}${box('awards', 'Week MVP and MVMii')}</div>
+  const c = dcCfg(), hs = dcHooks().length ? dcHooks() : [{ name: '', url: '' }];
+  const row = (h, i) => `<div class="dc-row" data-i="${i}"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+     <label class="hb-f">Channel name<input data-dch="name" value="${esc(h.name || '')}" placeholder="#trade-chat" style="width:150px"></label>
+     <label class="hb-f" style="flex:1;min-width:260px">Webhook link<input type="password" data-dch="url" value="${esc(h.url || '')}" placeholder="https://discord.com/api/webhooks/..." autocomplete="off"></label>
+     <button data-dc="test" data-i="${i}" ${h.url ? '' : 'disabled'}>Send test post</button><button data-dc="del" data-i="${i}" title="Remove this channel">Remove</button></div>
+     <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px">${DC_KINDS.map(([k, n]) => `<label style="display:flex;gap:5px;align-items:center"><input type="checkbox" data-dch="${k}" ${h[k] !== false ? 'checked' : ''}> ${n}</label>`).join('')}</div></div>`;
+  const live = dcHooks().filter(h => h.url).length;
+  return `<div class="panel" style="margin-top:14px"><h2>Discord posts <span>${live ? (c.off ? 'Paused' : 'On') + ` · ${live} channel${live > 1 ? 's' : ''}` : 'Not set up'}: the site posts league news to your Discord</span></h2><div class="pad" style="display:grid;gap:10px">
+   <div class="note">One row per channel. Make a webhook in each channel (Edit Channel → Integrations → Webhooks → New Webhook → Copy Webhook URL), paste it in its row, and tick what should post there. A post can go to more than one channel.</div>
+   <div id="dcRows" style="display:grid;gap:10px">${hs.map(row).join('')}</div>
+   <div style="display:flex;gap:10px;flex-wrap:wrap"><button data-dc="add">+ Add a channel</button><button class="primary" data-dc="save">Save channels</button><button data-dc="remind" ${live ? '' : 'disabled'}>Send lineup reminder now</button>${live ? `<button data-dc="pause">${c.off ? 'Resume posts' : 'Pause posts'}</button>` : ''}</div>
    <details><summary><b>Announcer and team emojis</b> <span class="note">(type \\:name: in Discord and send it to get a code like &lt;:Fury:1234…&gt;)</span></summary><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;margin-top:8px">
     <label class="hb-f">Posts come from (name)<input id="dcVoice" value="${esc(dcVoice())}" maxlength="80"></label>
     ${TEAMS.concat(['_league', '_voice']).map(t => `<label class="hb-f">${t === '_league' ? 'League logo' : t === '_voice' ? 'Announcer emoji (also its picture)' : esc(dcName(t))}<input data-dc="emo" data-t="${esc(t)}" value="${esc(dcEmo(t))}" placeholder="<:name:id>"></label>`).join('')}</div>
     <button data-dc="emosave" style="margin-top:8px">Save emojis</button></details>
-   <div class="note">Make the link in Discord: Server Settings → Integrations → Webhooks → New Webhook → pick the channel → Copy Webhook URL. Anyone who can open the site's data could find this link, so if the channel ever gets spam, delete the webhook in Discord and paste a new one here.</div></div></div>`;
+   <div class="note">Anyone who can open the site's data could find these links, so if a channel ever gets spam, delete that webhook in Discord and paste a new one here.</div></div></div>`;
+}
+const DC_URL_OK = u => /^https:\/\/(?:\w+\.)?discord(?:app)?\.com\/api\/webhooks\/\d+\/[\w-]+/.test(u);
+/* read the rows on screen into channel settings */
+function dcReadRows() {
+  return [...document.querySelectorAll('#dcRows .dc-row')].map(r => { const h = { name: r.querySelector('[data-dch=name]').value.trim(), url: r.querySelector('[data-dch=url]').value.trim() }; DC_KINDS.forEach(([k]) => h[k] = r.querySelector(`[data-dch=${k}]`).checked); return h; });
 }
 document.addEventListener('click', e => {
-  const b = e.target.closest('[data-dc]'); if (!b || !hbAdmin() || b.dataset.dc === 'opt') return; const a = b.dataset.dc, c = Object.assign({}, dcCfg());
+  const b = e.target.closest('[data-dc]'); if (!b || !hbAdmin() || b.dataset.dc === 'emo') return; const a = b.dataset.dc, c = Object.assign({}, dcCfg());
   const save = (nc, msg) => hbPut('season/config', Object.assign({}, HB.cfg || {}, { discord: nc })).then(ok => ok && msg && toast(msg, 'good'));
-  if (a === 'save') { const u = (document.getElementById('dcUrl').value || '').trim();
-    if (u && !/^https:\/\/(?:\w+\.)?discord(?:app)?\.com\/api\/webhooks\/\d+\/[\w-]+/.test(u)) { toast('That does not look like a Discord webhook link.', 'bad'); return; }
-    c.url = u; save(c, u ? 'Discord link saved. Try "Send test post".' : 'Discord posts turned off.'); }
-  else if (a === 'test') dcSend({ embeds: [{ title: '👋 DSA League site connected', description: `${dcEmo('_league')} Trades, final scores, lineup locks and weekly awards will post here.\n${TEAMS.map(dcEmo).filter(Boolean).join(' ')}\n[Open the site](${dcSite()})`, color: 0x3a6ea5 }] }, true).then(ok => toast(ok ? 'Test post sent. Check the channel.' : 'Could not reach Discord.', ok ? 'good' : 'bad'));
-  else if (a === 'remind') dcReminder().then(ok => toast(ok ? 'Reminder posted.' : 'Could not reach Discord.', ok ? 'good' : 'bad'));
+  if (a === 'add') { const rows = document.getElementById('dcRows'); const tmp = document.createElement('div'); tmp.innerHTML = dcAdminHtml(); const blank = tmp.querySelector('#dcRows .dc-row:last-child').cloneNode(true);
+    blank.dataset.i = rows.children.length; blank.querySelectorAll('input').forEach(i => { if (i.type === 'checkbox') i.checked = true; else i.value = ''; }); blank.querySelectorAll('[data-i]').forEach(x => x.dataset.i = rows.children.length); blank.querySelector('[data-dc=test]').disabled = true; rows.appendChild(blank); blank.querySelector('[data-dch=name]').focus(); return; }
+  if (a === 'save' || a === 'del') {
+    let hs = dcReadRows(); if (a === 'del') hs.splice(+b.dataset.i, 1);
+    const bad = hs.find(h => h.url && !DC_URL_OK(h.url)); if (bad) { toast(`The link for ${bad.name || 'a channel'} does not look like a Discord webhook link.`, 'bad'); return; }
+    hs = hs.filter(h => h.url || h.name); c.hooks = hs; delete c.url; ['trades', 'scores', 'locks', 'awards'].forEach(k => delete c[k]);
+    save(c, a === 'del' ? 'Channel removed.' : hs.length ? 'Channels saved. Try "Send test post" on each.' : 'Discord posts turned off.'); return; }
+  if (a === 'test') { const i = +b.dataset.i, h = dcHooks()[i]; if (!h || !h.url) { toast('Save the channel first.', 'bad'); return; }
+    const what = DC_KINDS.filter(([k]) => h[k] !== false).map(([, n]) => n.toLowerCase());
+    dcSend({ embeds: [{ title: `👋 DSA League site connected${h.name ? ' to ' + h.name : ''}`, description: `${dcEmo('_league')} This channel will get: ${what.length ? what.join(', ') : 'nothing yet (tick some boxes)'}.\n${TEAMS.map(dcEmo).filter(Boolean).join(' ')}\n[Open the site](${dcSite()})`, color: 0x3a6ea5 }] }, true, null, i)
+      .then(ok => toast(ok ? 'Test post sent. Check the channel.' : 'Could not reach Discord.', ok ? 'good' : 'bad')); }
+  else if (a === 'remind') dcReminder().then(ok => toast(ok ? 'Reminder posted.' : 'No channel takes lineup reminders, or Discord could not be reached.', ok ? 'good' : 'bad'));
   else if (a === 'emosave') { const em = {}; let bad = '';
     document.querySelectorAll('[data-dc=emo]').forEach(i => { const v = i.value.trim(); if (v && !/^<a?:\w{2,32}:\d{15,21}>$/.test(v)) bad = bad || i.dataset.t; if (v !== (DC_EMOJI_DEF[i.dataset.t] || '')) em[i.dataset.t] = v; });
     if (bad) { toast(`The ${bad === '_league' ? 'league' : bad} emoji should look like <:Name:123456789012345678>.`, 'bad'); return; }
     c.emoji = em; const vn = (document.getElementById('dcVoice').value || '').trim(); if (vn && vn !== 'Around the Shroom') c.voice = vn; else delete c.voice; save(c, 'Emojis saved.'); }
   else if (a === 'pause') { c.off = !c.off; save(c, c.off ? 'Discord posts paused.' : 'Discord posts resumed.'); }
 });
-document.addEventListener('change', e => { const t = e.target; if (t.dataset && t.dataset.dc === 'opt' && hbAdmin()) { const c = Object.assign({}, dcCfg()); c[t.dataset.k] = t.checked; hbPut('season/config', Object.assign({}, HB.cfg || {}, { discord: c })); } });
 /* ============ MERGE PLAYER NAMES: the commissioner points a misspelled or short name at the real player. Saved in
    season/config.aliases; old box scores, stats, awards and future imports all follow it. ============ */
 function mgUnmatched() {
