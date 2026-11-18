@@ -5638,7 +5638,7 @@ function hbCommishView() {
     ${hbBotSpec()}
     <textarea id="hbRes" style="min-height:150px;font:12px var(--f-mono);width:100%"></textarea><div><button class="primary" data-hb="importres">Import box scores</button></div>${hbBotLog()}</div>
    <div><b>Quick score entry</b>${gs.map(g => { const s = HB.scores[g.gid] || {}; return `<div class="hb-offer"><div><b>${esc(g.away)}</b> at <b>${esc(g.home)}</b> <span class="chip">${esc(s.status || 'scheduled')}</span></div>
-     <div class="hb-qs"><input type="number" min="0" id="hbqa_${g.gid}" value="${s.as == null ? '' : s.as}" aria-label="${esc(g.away)} runs" placeholder="Away"><input type="number" min="0" id="hbqh_${g.gid}" value="${s.hs == null ? '' : s.hs}" aria-label="${esc(g.home)} runs" placeholder="Home"><button class="primary" data-hb="qfinal" data-g="${g.gid}">Final</button><button data-hb="bxedit" data-g="${g.gid}">Box score</button><button data-hb="qclear" data-g="${g.gid}">Clear</button></div></div>`; }).join('')}</div></div></div>` + (typeof awAdminHtml === 'function' ? awAdminHtml() : '') + (typeof mgAdminHtml === 'function' ? mgAdminHtml() : '') + (typeof dcAdminHtml === 'function' ? dcAdminHtml() : '') + hbCmTrade();
+     <div class="hb-qs"><input type="number" min="0" id="hbqa_${g.gid}" value="${s.as == null ? '' : s.as}" aria-label="${esc(g.away)} runs" placeholder="Away"><input type="number" min="0" id="hbqh_${g.gid}" value="${s.hs == null ? '' : s.hs}" aria-label="${esc(g.home)} runs" placeholder="Home"><button class="primary" data-hb="qfinal" data-g="${g.gid}">Final</button><button data-hb="bxedit" data-g="${g.gid}">Box score</button><button data-hb="qclear" data-g="${g.gid}">Clear</button></div></div>`; }).join('')}</div></div></div>` + (typeof awAdminHtml === 'function' ? awAdminHtml() : '') + (typeof mgAdminHtml === 'function' ? mgAdminHtml() : '') + (typeof dcAdminHtml === 'function' ? dcAdminHtml() : '') + (typeof atAdminHtml === 'function' ? atAdminHtml() : '') + hbCmTrade();
 }
 function hbCmTrade() {
   const A = HB.cfrom && TEAMS.includes(HB.cfrom) ? HB.cfrom : (HB.cfrom = TEAMS[0]), T = HB.trade; if (!T.to || T.to === A) T.to = TEAMS.find(t => t !== A);
@@ -5784,7 +5784,7 @@ const hbImport = txt => hbBotImport(txt, 'cm');
 async function hbLock() {
   const w = hbCur(), cfg = Object.assign({ week: w }, HB.cfg || {});
   if (!cfg.locked) { for (const t of TEAMS) { const l = hbLineup(t, w); if (l) await hbPut('ssnap/' + hbSnap(w, t), { wk: w, team: t, slots: l.slots, pos: l.pos, stars: l.stars || [], t: Date.now() }); } cfg.locked = true; } else cfg.locked = false;
-  if (await hbPut('season/config', cfg)) toast(cfg.locked ? 'Lineups locked.' : 'Lineups unlocked.', 'good');
+  if (await hbPut('season/config', cfg)) { toast(cfg.locked ? 'Lineups locked.' : 'Lineups unlocked.', 'good'); if (cfg.locked && typeof atPublish === 'function') setTimeout(() => atPublish(w, true), 1500); }
 }
 function hbDrawLottery() {
   const ord = hbS7Order(), pool = ord.bottom.slice(), out = []; while (pool.length) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
@@ -7736,6 +7736,56 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-hbflip]'); if (!b || !hbAdmin()) return; const g = HB_GAMES.find(x => x.gid === b.dataset.hbflip), s = g && HB.scores[g.gid]; if (!s) return;
   const played = hbSwapped(g, s) ? { away: g.away, home: g.home } : { away: g.home, home: g.away };
   hbPut('sscores/' + g.gid, Object.assign({}, s, { played })).then(ok => ok && toast(`${played.away} now shows as batting first.`, 'good'));
+});
+/* ============ DSA AUTOTEAM: publish each game's lineups for the AutoTeam app (it sets both teams in Dolphin).
+   Saved as ssnap/auto_<gameId> (next to the lineup-lock copies, which the site already saves), in the "dsa-autoteam/1" format.
+   Published automatically when lineups lock, or with the Commish button. ============ */
+const AT_CHARS = ["Mario", "Luigi", "Donkey Kong", "Diddy Kong", "Peach", "Daisy", "Green Yoshi", "Baby Mario", "Baby Luigi", "Bowser", "Wario", "Waluigi", "Green Koopa Troopa", "Red Toad", "Boo", "Toadette", "Red Shy Guy", "Birdo", "Monty Mole", "Bowser Jr.", "Red Koopa Paratroopa", "Blue Pianta", "Red Pianta", "Yellow Pianta", "Blue Noki", "Red Noki", "Green Noki", "Hammer Bro", "Toadsworth", "Blue Toad", "Yellow Toad", "Green Toad", "Purple Toad", "Blue Magikoopa", "Red Magikoopa", "Green Magikoopa", "Yellow Magikoopa", "King Boo", "Petey Piranha", "Dixie Kong", "Goomba", "Paragoomba", "Red Koopa Troopa", "Green Koopa Paratroopa", "Blue Shy Guy", "Yellow Shy Guy", "Green Shy Guy", "Gray Shy Guy", "Gray Dry Bones", "Green Dry Bones", "Dark Bones", "Blue Dry Bones", "Fire Bro", "Boomerang Bro", "Wiggler", "Blooper", "Funky Kong", "Tiny Kong", "Green Kritter", "Blue Kritter", "Red Kritter", "Brown Kritter", "King K. Rool", "Baby Peach", "Baby Daisy", "Baby DK", "Red Yoshi", "Blue Yoshi", "Yellow Yoshi", "Light Blue Yoshi", "Pink Yoshi"];
+/* league names that differ from the game's */
+const AT_ALIAS = { yoshi: 6, shyguy: 16, blackshyguy: 47, grayshyguy: 47, toad: 13, koopa: 12, greenkoopa: 12, koopatroopa: 12, redkoopa: 42, redparatroopa: 20, paratroopa: 20, greenparatroopa: 43, kritter: 58, drybones: 48, kamek: 33, bluekamek: 33, redkamek: 34, greenkamek: 35, yellowkamek: 36, magikoopa: 33 };
+const AT_STADIUM = { 'Mario Stadium': 'Mario Stadium', 'Bowser Castle': 'Bowser Castle', 'DK Jungle': 'DK Jungle', 'Yoshi Park': 'Yoshi Park', 'Wario City': 'Wario City', 'Daisy Cruiser': 'Daisy Cruiser', 'Luigi Mansion': "Luigi's Mansion", 'Bowser Jr. Playroom': 'Bowser Jr. Playroom', 'Ice Garden': 'Peach Ice Garden' };
+const atK = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+function atChar(pid) {
+  const n = P[pid].name, m = n.match(/^(.*?)\s*\(\s*(.*?)\s*Mii\s*\)\s*$/i);
+  if (m) return { charId: null, mii: { name: m[1].trim(), color: m[2].trim() } };
+  const i = AT_CHARS.findIndex(c => atK(c) === atK(n)); if (i >= 0) return { charId: i };
+  const a = AT_ALIAS[atK(n)]; return a != null ? { charId: a } : { charId: null, unknown: true };
+}
+/* the lineup a team will use that week: the lock copy, else the saved lineup, else last saved, else the automatic best nine */
+function atLineup(t, wk) {
+  const sn = HB.snaps[hbSnap(wk, t)]; if (sn && sn.slots) return { slots: sn.slots, pos: sn.pos || {}, stars: sn.stars || [], src: 'locked' };
+  const own = hbDoc(t, wk); if (own && own.slots) return { slots: own.slots, pos: own.pos || {}, stars: own.stars || [], src: 'saved' };
+  for (let w = wk - 1; w >= 0; w--) { const d = hbDoc(t, w); if (d && d.slots) return { slots: d.slots, pos: d.pos || {}, stars: [], src: 'carried over from week ' + w }; }
+  const a = hbLineup(t, wk); return a ? { slots: a.slots, pos: a.pos || {}, stars: a.stars || [], src: 'automatic' } : null;
+}
+function atTeam(t, wk) {
+  const l = atLineup(t, wk); if (!l) return null;
+  const cap = l.slots.find(id => P[id] && P[id].cap) ?? hbRoster(t).find(id => P[id] && P[id].cap);
+  return { team: dcName ? dcName(t) : t, key: t, captain: cap != null ? P[cap].name : null, captainCharId: cap != null ? atChar(cap).charId : null, source: l.src,
+    players: l.slots.map((id, i) => Object.assign({ name: P[id].name, bat: i + 1, pos: l.pos[id] || '', star: (l.stars || []).includes(id) }, atChar(id))) };
+}
+function atExport(g) {
+  const m = HB.maps[g.gid] || {}, tod = m.pick ? (HB_NO_TOD.has(m.pick) ? null : (m.tod || hbTodOf(g.gid) || null)) : null;
+  return { format: 'dsa-autoteam/1', season: (RB.cur || 6), week: g.wk, game: g.gid, stadium: m.pick ? (AT_STADIUM[m.pick] || m.pick) : null, time: tod,
+    rules: { innings: 7 }, away: atTeam(g.away, g.wk), home: atTeam(g.home, g.wk), published: new Date().toISOString() };
+}
+async function atPublish(wk, quiet) {
+  const gs = HB_GAMES.filter(g => g.wk === wk); let n = 0; const bad = [];
+  for (const g of gs) { const x = atExport(g); [x.away, x.home].forEach(tm => tm && tm.players.forEach(p => { if (p.unknown) bad.push(p.name); })); if (await hbPut('ssnap/auto_' + g.gid, x)) n++; }
+  if (!quiet || bad.length) toast(`Published ${n} game${n === 1 ? '' : 's'} for AutoTeam (week ${wk}).${bad.length ? ' No game ID for: ' + [...new Set(bad)].join(', ') + '.' : ''}`, bad.length ? 'bad' : 'good');
+  return n;
+}
+function atAdminHtml() {
+  const wk = hbCur(), pub = HB_GAMES.filter(g => g.wk === wk).map(g => HB.snaps['auto_' + g.gid]).filter(Boolean);
+  const when = pub.length ? new Date(Math.max(...pub.map(x => Date.parse(x.published) || 0))).toLocaleString() : null;
+  return `<div class="panel" style="margin-top:14px"><h2>DSA AutoTeam <span>Lineups for the app that sets both teams in Dolphin</span></h2><div class="pad" style="display:grid;gap:10px">
+   <div class="note">The app reads each game's lineups, stadium and Day/Night from here. They publish automatically when you lock lineups. Publish again after any late change. ${when ? `Week ${wk}: ${pub.length} game${pub.length === 1 ? '' : 's'} published, last at ${esc(when)}.` : `Week ${wk} is not published yet.`}</div>
+   <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="primary" data-at="pub">Publish week ${wk} lineups</button><button data-at="dl">Download week ${wk} as a file</button></div></div></div>`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-at]'); if (!b || !hbAdmin()) return; const wk = hbCur();
+  if (b.dataset.at === 'pub') atPublish(wk).then(() => renderHub());
+  else if (b.dataset.at === 'dl') { const blob = new Blob([JSON.stringify({ format: 'dsa-autoteam/1', week: wk, games: HB_GAMES.filter(g => g.wk === wk).map(atExport) }, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `dsa-autoteam-week${wk}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
 });
 /* ============ DISCORD POSTS: trades, box scores, lineup locks and weekly awards go to a Discord channel through a webhook.
    The commissioner pastes the webhook link in Commish (saved in season/config.discord). Whoever's browser makes the change
