@@ -44,6 +44,7 @@ select,input[type=text],input[type=number]{background:var(--surface);border:1px 
 .cell .v{font-family:var(--f-display);font-weight:800;font-size:24px;color:var(--bulb);line-height:1.05;text-shadow:0 0 10px rgba(242,169,0,.35)}
 .cell.team .v{font-size:20px}
 .cell.me .v{color:#fff}
+.hb-autolock{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 12px}.hb-autolock label{display:flex;gap:8px;align-items:center;font-size:13px;white-space:nowrap}.hb-autolock input{flex:1;min-width:0}
 .gm-botsheet{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:8px 2px 0;font-size:13px}.btn-file{display:inline-block;padding:7px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-weight:600;font-size:13.5px;background:var(--surface2,transparent)}.btn-file:hover{border-color:var(--accent)}
 .at-cta .pad{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .at-game{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin:10px 0 0;padding:9px 12px;border:1px dashed var(--accent);border-radius:8px;font-size:13px;background:color-mix(in srgb,var(--accent) 6%,transparent)}
@@ -5132,6 +5133,10 @@ const HB_GAMES = (() => { const c = {}; return HB_SCHED.map(([wk, away, home]) =
 const HB_WEEKS = [...new Set(HB_GAMES.map(g => g.wk))].sort((a, b) => a - b);
 const hbDeadline = () => (typeof HB !== 'undefined' && HB.cfg && +HB.cfg.deadline) || HB_DEADLINE_WEEK;
 const hbDeadlineAt = () => (typeof HB !== 'undefined' && HB.cfg && +HB.cfg.deadlineAt) || 0;
+/* auto-lock: the commissioner sets a time per week; at that time lineups stop saving everywhere, and the first open browser locks the week and publishes it for DSA AutoTeam */
+const hbAutoAt = wk => (typeof HB !== 'undefined' && HB.cfg && HB.cfg.autoLock && +HB.cfg.autoLock[wk]) || 0;
+const hbAutoHeld = wk => { const at = hbAutoAt(wk); return !!at && Date.now() >= at && !(HB.cfg.autoDone && HB.cfg.autoDone[wk]); };
+const hbAutoFmt = at => new Date(at).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 const hbDlTxt = () => { const at = hbDeadlineAt(), w = hbDeadline(); if (w >= 99 && !at) return 'set by the commissioner';
   return at ? new Date(at).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + (w < 99 ? ', the day before week ' + w + ' games' : '') : '11:59 PM the day before week ' + w + ' games'; };
 const HB_MIN_ROSTER = 9, HB_DEADLINE_WEEK = 8, HB_MAX_STARS = 2, HB_POS = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
@@ -5483,7 +5488,7 @@ function hbStandingsView() {
 /* ---- my lineup: field, dugout, batting order, stars ---- */
 const HE = { team: null, wk: null, pos: {}, order: [], stars: new Set(), dirty: false, sel: null };
 function hbLoad(team, wk) { const l = hbLineup(team, wk); HE.team = team; HE.wk = wk; HE.pos = l ? Object.assign({}, l.pos) : {}; HE.order = l ? l.slots.slice() : []; HE.stars = new Set(l ? l.stars : []); HE.dirty = false; HE.sel = null; }
-const hbEditable = (team, wk) => hbCanAct(team) && (wk > hbCur() || (wk === hbCur() && !(HB.cfg && HB.cfg.locked)));
+const hbEditable = (team, wk) => hbCanAct(team) && !hbAutoHeld(wk) && (wk > hbCur() || (wk === hbCur() && !(HB.cfg && HB.cfg.locked)));
 function hbStarBlock(team, wk, id) {
   // why a player cannot be starred this week, or '' when they can
   if (HE.stars.has(id)) return '';
@@ -5519,7 +5524,7 @@ function hbLineupView() {
   const prevStars = ((hbDoc(team, wk - 1) || {}).stars || []);
   const order = HE.order.map((id, i) => `<div class="hb-row"><span class="hb-n">${i + 1}</span>${ico(P[id], 22)}<span class="hb-rn">${pcl(id)} ${P[id].cap ? '<span class="chip cap">C</span>' : ''}${HE.stars.has(id) ? ' <b class="hb-s">★</b>' : ''}</span><span class="hb-pp">${esc(HE.pos[id] || '')}</span>
      <span class="hb-mv"><button data-hbo="up" data-i="${i}" aria-label="Move up" ${!ed || !i ? 'disabled' : ''}>↑</button><button data-hbo="dn" data-i="${i}" aria-label="Move down" ${!ed || i === HE.order.length - 1 ? 'disabled' : ''}>↓</button></span></div>`).join('');
-  return `${wk >= hbCur() ? hbSugHtml(team, wk) : ''}<div class="panel"><h2>${hbLogo(team, true)}${esc(team)} <span>Week ${wk}${wk < hbCur() ? ' (played, view only)' : wk === hbCur() ? (HB.cfg && HB.cfg.locked ? ' (locked)' : ' (current)') : ' (upcoming)'}</span></h2>
+  return `${wk >= hbCur() ? hbSugHtml(team, wk) : ''}<div class="panel"><h2>${hbLogo(team, true)}${esc(team)} <span>Week ${wk}${wk < hbCur() ? ' (played, view only)' : wk === hbCur() && HB.cfg && HB.cfg.locked || hbAutoHeld(wk) ? ' (locked)' : (wk === hbCur() ? ' (current)' : ' (upcoming)') + (hbAutoAt(wk) && Date.now() < hbAutoAt(wk) ? ' · locks ' + hbAutoFmt(hbAutoAt(wk)) : '')}</span></h2>
    <div class="pad" style="display:grid;gap:10px">${hbWeekBar('lweek', wk)}
    <div class="note">Drag players onto positions, or tap a player and then a position. Drag back to the dugout to bench. Star up to ${HB_MAX_STARS} players a week, a player cannot be starred two weeks in a row, and Miis cannot be starred${prevStars.length ? ` (starred last week: ${prevStars.map(hbSn).join(', ')})` : ''}. A week with no saved lineup uses your most recent one.</div></div></div>
   <div class="hb-two" style="margin-top:14px"><div class="panel"><h2>Field <span>${HE.stars.size}/${HB_MAX_STARS} stars</span></h2><div class="pad"><div class="hb-field" id="hbField"><svg viewBox="0 0 100 92" preserveAspectRatio="none" aria-hidden="true"><path d="M50 84 L95 40 A52 52 0 0 0 5 40 Z" class="hb-grass"/><path d="M50 80 L80 58 L50 36 L20 58 Z" class="hb-dirt"/><path d="M50 74 L72 58 L50 42 L28 58 Z" class="hb-inf"/></svg>${spots}</div>
@@ -5659,6 +5664,9 @@ function hbCommishView() {
     <label class="hb-f">Trade deadline<select id="hbDeadline">${HB_WEEKS.slice(1).concat([99]).map(x => `<option value="${x}" ${x === hbDeadline() ? 'selected' : ''}>${x === 99 ? 'No deadline week' : 'Week ' + x + ' (11:59 PM the day before its games)'}</option>`).join('')}</select></label>
     <label class="hb-f">Exact close time<input type="datetime-local" id="hbDeadlineAt" value="${(() => { const at = hbDeadlineAt(); if (!at) return ''; const d = new Date(at - new Date(at).getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); })()}"></label>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="${HB.cfg && HB.cfg.locked ? '' : 'primary'}" data-hb="lock">${HB.cfg && HB.cfg.locked ? 'Unlock lineups' : 'Lock lineups for week ' + w}</button><button data-hb="closetrades">${HB.cfg && HB.cfg.tradesClosed ? 'Reopen trades' : 'Close trades now'}</button></div>
+    <b>Auto-lock</b><div class="hb-autolock">${HB_WEEKS.filter(x => x >= w).map(x => { const at = hbAutoAt(x), dn = HB.cfg && HB.cfg.autoDone && HB.cfg.autoDone[x]; return `<label>Week ${x}<input type="datetime-local" data-autolock="${x}" value="${at ? new Date(at - new Date(at).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}">${dn ? '<span class="chip g">locked</span>' : ''}</label>`; }).join('')}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button data-hb="autofill">Fill the empty weeks (+7 days each)</button></div>
+    <div class="note">At each time, lineups stop saving for everyone, that week becomes the current week, every lineup is locked, it's posted to Discord, and DSA AutoTeam gets the lineups. The lock and post happen as soon as anyone has the site open at or after that time (editing is blocked either way, and AutoTeam already has the latest lineups). Clear a box to turn it off. Unlocking by hand after an auto-lock keeps it unlocked.</div>
     <div class="note">Locking saves every team's lineup for the week and stops edits to that week. Later weeks stay open. ${hbDeadline() >= 99 ? 'There is no trade deadline; use Close trades now to stop trading.' : 'Trades close automatically: ' + hbDlTxt() + '.' + (hbDeadlineAt() ? '' : ' Set the exact close time (the date of 11:59 PM the day before those games) so trades shut on the dot; otherwise they close when you move the current week to ' + hbDeadline() + '.')}</div></div>
    <div style="display:grid;gap:10px"><b>Rosters</b><div class="note">Always live: every roster is the draft's roster (keepers, picks and in-draft trades) plus the season trades, so this app and the draft room can never disagree. ${n} players across the league.</div>
     <b>Season 7 lottery</b><div class="note">Bottom four now: ${ord.bottom.map(esc).join(', ')}. ${ord.lot ? 'Drawn order: ' + ord.lot.map(esc).join(', ') + '.' : 'Not drawn yet.'}</div>
@@ -6062,6 +6070,8 @@ document.addEventListener('click', e => {
   else if (a === 'cmrecord') { if (hbAdmin()) hbRecordTrade(); }
   else if (a === 'bxedit') { if (g && hbBxCan(g.wk)) hbBoxEdit(t.dataset.g); } else if (a === 'bxsave') { if (g && hbBxCan(g.wk)) hbBoxSave(t.dataset.g); }
   else if (a === 'bxunlock') hbBxGo();
+  else if (a === 'autofill') { const al = Object.assign({}, (HB.cfg || {}).autoLock || {}); let n = 0; HB_WEEKS.filter(x => x >= hbCur()).forEach(x => { if (!al[x] && al[x - 1]) { const d = new Date(+al[x - 1]); d.setDate(d.getDate() + 7); al[x] = d.getTime(); n++; } });
+    if (!n) toast('Set a time for a week first. Each empty week after it gets the same time one week later.', 'bad'); else hbPut('season/config', Object.assign({}, HB.cfg || {}, { autoLock: al })).then(ok => ok && toast(`Filled ${n} week${n === 1 ? '' : 's'}.`, 'good')); }
   else if (a === 'botimp') { const ta = $('#bxPaste'); hbBotImport(ta ? ta.value : '', 'paste'); }
   else if (a === 'simrun') { HB.simBusy = true; renderHub(); setTimeout(() => { try { HB.sim = hbSimRun(2000); } catch (e) { toast('The sim failed.', 'bad'); } HB.simBusy = false; renderHub(); }, 30); }
   else if (a === 'simone') { HB.simOne = hbSimOnce(); renderHub(); }
@@ -6085,6 +6095,8 @@ document.addEventListener('change', e => {
   else if (t.dataset.hbtr) { const set = HB.trade[t.dataset.hbtr], v = t.dataset.hbtr.endsWith('S7') ? t.value : +t.value; t.checked ? set.add(v) : set.delete(v); renderHub(); }
   else if (t.id === 'hbDeadline') { const v = +t.value; hbPut('season/config', Object.assign({}, HB.cfg || {}, { deadline: v })).then(ok => ok && toast(v >= 99 ? 'No deadline week.' : 'Trade deadline: week ' + v + '.', 'good')); }
   else if (t.id === 'hbDeadlineAt') { const at = t.value ? new Date(t.value).getTime() : 0; hbPut('season/config', Object.assign({}, HB.cfg || {}, { deadlineAt: at })).then(ok => ok && toast(at ? 'Trades close ' + new Date(at).toLocaleString() + '.' : 'Exact close time cleared.', 'good')); }
+  else if (t.dataset && t.dataset.autolock) { const w = +t.dataset.autolock, at = t.value ? new Date(t.value).getTime() : 0, al = Object.assign({}, (HB.cfg || {}).autoLock || {}), dn = Object.assign({}, (HB.cfg || {}).autoDone || {}); if (at) al[w] = at; else delete al[w]; delete dn[w];
+    hbPut('season/config', Object.assign({}, HB.cfg || {}, { autoLock: al, autoDone: dn })).then(ok => ok && toast(at ? `Week ${w} lineups lock ${hbAutoFmt(at)}.` : `Week ${w} auto-lock turned off.`, 'good')); }
   else if (t.id === 'hbWeek') { hbPut('season/config', Object.assign({}, HB.cfg || {}, { week: +t.value })).then(ok => ok && toast('Week ' + t.value + ' is now current.', 'good')); }
 });
 
@@ -7912,6 +7924,23 @@ function gmBotSheet(g) {
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-botsheet]'); if (!b) return; const g = gmG(b.dataset.botsheet); if (!g) return; const t = gmBotSheet(g);
   (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Blank sheet copied. Paste it to the stats bot with the game video.', 'good')).catch(() => prompt('Copy this:', t)); });
+/* auto-lock runner: checks every 15 seconds in every open copy of the site */
+let hbAutoBusy = false, hbAutoSeen = {};
+async function hbAutoTick() {
+  if (hbAutoBusy || !LV.ready || !LV.db || !HB.cfg || !HB.cfg.autoLock) return;
+  const cur = hbCur(), due = Object.keys(HB.cfg.autoLock).map(Number).filter(x => x >= cur && hbAutoHeld(x)).sort((a, b) => a - b);
+  if (!due.length) { const held = HB_WEEKS.some(hbAutoHeld); if (held !== !!hbAutoSeen.h) { hbAutoSeen.h = held; renderHub(); } return; }
+  const wk = due[due.length - 1]; hbAutoBusy = true;
+  try {
+    if (!hbAutoSeen[wk]) { hbAutoSeen[wk] = 1; renderHub(); }
+    await new Promise(r => setTimeout(r, 1500 + Math.random() * 8000)); // so two open browsers don't both lock at once
+    if (!hbAutoHeld(wk) || hbCur() > wk) return;
+    for (const t of TEAMS) { const l = hbLineup(t, wk); if (l) await hbPut('ssnap/' + hbSnap(wk, t), { wk, team: t, slots: l.slots, pos: l.pos, stars: l.stars || [], t: Date.now() }); }
+    const cfg = Object.assign({}, HB.cfg, { week: wk, locked: true, autoDone: Object.assign({}, HB.cfg.autoDone || {}, { [wk]: Date.now() }) });
+    if (await hbPut('season/config', cfg)) { if (hbAdmin && hbAdmin()) toast(`Week ${wk} lineups auto-locked.`, 'good'); if (typeof atPublish === 'function') setTimeout(() => atPublish(wk, true), 1500); }
+  } finally { hbAutoBusy = false; }
+}
+setInterval(() => { hbAutoTick().catch(() => { hbAutoBusy = false; }); }, 15000);
 /* keep a game's published lineups current: re-publish it when its stadium / Day/Night or either team's lineup for that week is saved */
 function atPublishGame(gid) {
   const g = HB_GAMES.find(x => x.gid === gid), s = g && HB.scores[gid]; if (!g || (s && s.status === 'final')) return;
