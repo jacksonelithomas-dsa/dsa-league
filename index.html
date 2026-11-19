@@ -44,6 +44,23 @@ select,input[type=text],input[type=number]{background:var(--surface);border:1px 
 .cell .v{font-family:var(--f-display);font-weight:800;font-size:24px;color:var(--bulb);line-height:1.05;text-shadow:0 0 10px rgba(242,169,0,.35)}
 .cell.team .v{font-size:20px}
 .cell.me .v{color:#fff}
+.at-cta .pad{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.at-game{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin:10px 0 0;padding:9px 12px;border:1px dashed var(--accent);border-radius:8px;font-size:13px;background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.at-help{display:grid;gap:14px}.at-help .panel{margin:0}
+.at-hero-t{display:flex;gap:20px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.at-hero h1{margin:0 0 6px;font:800 34px/1 var(--f-display);text-transform:uppercase}.at-hero p{margin:0;max-width:640px;font-size:15px;line-height:1.5}
+.at-dl{display:grid;gap:6px;justify-items:center;text-align:center}
+.at-big{background:var(--accent);color:var(--accent-ink,#fff)!important;display:inline-block;padding:14px 22px;border-radius:10px;font-size:17px;font-weight:800;text-decoration:none}
+.at-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.at-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px;align-items:start}
+.at-steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.at-step{display:grid;grid-template-columns:30px 1fr;gap:10px;font-size:14px;line-height:1.45}
+.at-step ul{margin:6px 0 0;padding-left:18px}
+.at-n{width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--accent-ink,#fff);display:grid;place-items:center;font-weight:800}
+.at-big-steps .at-step{font-size:15px}
+.at-c{font-weight:800;padding:0 5px;border-radius:4px}.at-c.o{background:#f6c08a;color:#5a2d00}.at-c.y{background:#f7e58a;color:#4a3d00}.at-c.r{background:#f4a3a3;color:#5c0a0a}
+.at-dont{margin:0;padding-left:18px;display:grid;gap:4px;font-size:14px}.at-dont li::marker{content:'✖  ';color:var(--bad)}
+.at-err td,.at-err th{padding:8px 12px;font-size:13.5px;vertical-align:top}
 .tplink{cursor:pointer}.tplink:hover{text-decoration:underline;text-underline-offset:2px}.tdot.tplink:hover{outline:2px solid var(--accent);outline-offset:1px}
 .linkb{background:none;border:0;padding:0;color:var(--accent);font-weight:700;cursor:pointer;font-size:13px}.linkb:hover{text-decoration:underline}
 .tp-hdr{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 16px 0;margin-bottom:14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
@@ -608,7 +625,7 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
     <button class="tab" role="tab" data-tab="ht" aria-selected="false" hidden>Trades</button>
     <button class="tab" role="tab" data-tab="fa" aria-selected="false" hidden>Free Agents</button>
     <button class="tab" role="tab" data-tab="news" aria-selected="false" hidden>News</button>
-    <button class="tab" role="tab" data-tab="stats" aria-selected="false" hidden>Stats</button><button class="tab" role="tab" data-tab="team" aria-selected="false" hidden>Team</button>
+    <button class="tab" role="tab" data-tab="stats" aria-selected="false" hidden>Stats</button><button class="tab" role="tab" data-tab="team" aria-selected="false" hidden>Team</button><button class="tab" role="tab" data-tab="autoteam" aria-selected="false" hidden>AutoTeam</button>
     <button class="tab" role="tab" data-tab="hsim" aria-selected="false" hidden>Season Sim</button>
     <button class="tab" role="tab" data-tab="bx" aria-selected="false" hidden>Box Scores</button>
     <button class="tab" role="tab" data-tab="cm" aria-selected="false" hidden>Commish</button>
@@ -707,6 +724,7 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
   <section id="tab-news" hidden><div id="hv_news"></div></section>
   <section id="tab-stats" hidden><div id="hv_stats"></div></section>
   <section id="tab-team" hidden><div id="hv_team"></div></section>
+  <section id="tab-autoteam" hidden><div id="hv_autoteam"></div></section>
   <section id="tab-hsim" hidden><div id="hv_hsim"></div></section>
   <section id="tab-bx" hidden><div id="hv_bx"></div></section>
   <section id="tab-cm" hidden><div id="hv_cm"></div></section>
@@ -762,6 +780,7 @@ svg text{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
   </section>
 
   <section id="tab-setup" hidden>
+    <div class="panel at-cta" data-su="keep" style="margin-bottom:14px"><div class="pad"><div><b>Hosting a league game?</b> DSA AutoTeam sets up both teams, the stadium and the rules in Dolphin for you, straight from this site.</div><button class="primary" data-atgo="1">How to use DSA AutoTeam ›</button></div></div>
     <div id="hbAdmin" hidden></div>
     <div class="panel keep ownly" style="margin-bottom:14px" hidden><h2>Commissioner <span>Clock, coaches and player icons</span></h2><div id="commish"></div></div>
     <div class="panel ownly" hidden style="margin-bottom:14px">
@@ -1991,8 +2010,8 @@ document.addEventListener('click', e => {
 });
 function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.tab === name));
-  ['draft', 'board', 'rosters', 'trades', 'watch', 'season', 'hub', 'hl', 'hm', 'hr', 'hs', 'ht', 'fa', 'news', 'stats', 'hsim', 'bx', 'cm', 'history', 'setup', 'team'].forEach(n => { const el = $('#tab-' + n); if (el) el.hidden = n !== name; });
-  if (['hub', 'hl', 'hm', 'hr', 'hs', 'ht', 'fa', 'news', 'stats', 'hsim', 'bx', 'cm', 'setup', 'team'].includes(name) && typeof renderHub === 'function') { hubStart(); renderHub(); }
+  ['draft', 'board', 'rosters', 'trades', 'watch', 'season', 'hub', 'hl', 'hm', 'hr', 'hs', 'ht', 'fa', 'news', 'stats', 'hsim', 'bx', 'cm', 'history', 'setup', 'team', 'autoteam'].forEach(n => { const el = $('#tab-' + n); if (el) el.hidden = n !== name; });
+  if (['hub', 'hl', 'hm', 'hr', 'hs', 'ht', 'fa', 'news', 'stats', 'hsim', 'bx', 'cm', 'setup', 'team', 'autoteam'].includes(name) && typeof renderHub === 'function') { hubStart(); renderHub(); }
   if (name === 'history' && typeof renderHistory === 'function') renderHistory();
   if (name === 'rosters') renderRostersTab();
   if (name === 'board') { try { if (typeof hubStart === 'function') hubStart(); } catch (e) {} if (typeof dbRender === 'function') dbRender(); }
@@ -5117,7 +5136,7 @@ const hbCur = () => (HB.cfg && HB.cfg.week) || HB_WEEKS[0];
 const pcl = id => `<span class="pclick" data-pid="${id}">${esc(hbSn(id))}</span>`;
 /* every save goes through hbPut; Discord posts are sent after a save that is new news (see DISCORD POSTS below) */
 function hbPut(path, data, merge) { let prev = null; try { prev = typeof dcPrev === 'function' ? dcPrev(path) : null; } catch (e) {}
-  return hbPut0(path, data, merge).then(ok => { if (ok) { try { if (typeof dcAfter === 'function') dcAfter(path, data, prev); } catch (e) { console.warn(e); } } return ok; }); }
+  return hbPut0(path, data, merge).then(ok => { if (ok) { try { if (typeof dcAfter === 'function') dcAfter(path, data, prev); } catch (e) { console.warn(e); } try { if (typeof atAfter === 'function') atAfter(path); } catch (e) { console.warn(e); } } return ok; }); }
 function hbPut0(path, data, merge) { try { const r = LV.db.doc(path); return (merge ? r.update(data) : r.set(data)).then(() => true).catch(e => { dbErr(e); toast('Could not save that. Try again.', 'bad'); return false; }); } catch (e) { dbErr(e); return Promise.resolve(false); } }
 
 /* ---- rosters: the draft's own rosters, then season trades on top ---- */
@@ -6033,7 +6052,7 @@ const HB_POST = ['hl', 'hm', 'hr', 'hs', 'ht', 'fa', 'news', 'stats', 'hsim', 'b
 let hbDoneWas = null;
 function hbLayout() {
   hbSetupTag();
-  const tpWant = hbDoneWas === null && /^#team=/.test(location.hash) ? location.hash : null;
+  const tpWant = hbDoneWas === null && /^#team=/.test(location.hash) ? location.hash : null, tpWant0 = hbDoneWas === null ? location.hash : '';
   let fin = false; try { fin = typeof done === 'function' && LV.ready && ORDER.length > 0 && done(); } catch (e) {}
   const bar = document.querySelector('.tabs'); if (!bar) return;
   const btn = n => bar.querySelector('.tab[data-tab=' + n + ']');
@@ -6042,8 +6061,9 @@ function hbLayout() {
     [...HB_PRE, ...HB_POST, 'season', 'watch'].forEach(n => { const b = btn(n); if (b) b.hidden = !(fin ? HB_POST : HB_PRE).includes(n); });
     const first = hbDoneWas === null; hbDoneWas = fin;
     const cur = hbActiveTab();
-    if (fin && (!cur || (!HB_POST.includes(cur) && cur !== 'team') || first && !location.hash.slice(1))) showTab('hl');
-    else if (!fin && !first && cur && !HB_PRE.includes(cur) && cur !== 'team') showTab('draft');
+    if (fin && (!cur || (!HB_POST.includes(cur) && cur !== 'team' && cur !== 'autoteam') || first && !location.hash.slice(1))) showTab('hl');
+    else if (!fin && !first && cur && !HB_PRE.includes(cur) && cur !== 'team' && cur !== 'autoteam') showTab('draft');
+    if (first && /^#autoteam/.test(tpWant0)) setTimeout(() => showTab('autoteam'), 0);
     if (tpWant && typeof tpOpen === 'function') { const q = new URLSearchParams(tpWant.slice(1)); setTimeout(() => tpOpen(q.get('team'), q.get('s') ? +q.get('s') : null), 0); }
   }
   const bd = document.querySelector('header.board'); if (bd) { bd.classList.toggle('in-season', !!fin); if (fin) sbSeason(); }
@@ -7775,12 +7795,86 @@ async function atPublish(wk, quiet) {
   if (!quiet || bad.length) toast(`Published ${n} game${n === 1 ? '' : 's'} for AutoTeam (week ${wk}).${bad.length ? ' No game ID for: ' + [...new Set(bad)].join(', ') + '.' : ''}`, bad.length ? 'bad' : 'good');
   return n;
 }
+/* ============ DSA AUTOTEAM HELP PAGE (for game hosts) ============ */
+const AT_VER = '0.1.0', AT_DL = 'https://github.com/jacksonelithomas-dsa/dsa-league/releases/latest';
+const AT_DISCORD = () => `**DSA AutoTeam** sets up league games in Mario Super Sluggers for you (both lineups, Miis, stars, stadium, rules) straight from the league site.\n\n1. Download: ${AT_DL}\n2. Put DSA-AutoTeam.exe in its own folder and open it (if Windows warns you: More info → Run anyway)\n3. Tools → Setup check until it says "Ready to run league games"\n4. Game night: start Sluggers, highlight Exhibition on the main menu, pick the game in the app, click Set teams, hands off\n\nFull guide: ${location.origin + location.pathname}#autoteam`;
+function atHelpView() {
+  const step = (n, t, b) => `<li class="at-step"><span class="at-n">${n}</span><div><b>${t}</b>${b ? `<div>${b}</div>` : ''}</div></li>`;
+  const err = (m, f) => `<tr><td class="l"><b>${m}</b></td><td class="l">${f}</td></tr>`;
+  return `<div class="at-help">
+  <div class="panel at-hero"><div class="pad">
+   <div class="at-hero-t"><div><h1>DSA AutoTeam</h1><p>Sets up a league game in Mario Super Sluggers for you: <b>both lineups</b> (characters, Miis, batting order, positions, captains, stars), the <b>stadium</b>, <b>Day/Night</b> and the <b>innings</b>, straight from this site. You pick the game and click one button.</p></div>
+   <div class="at-dl"><a class="primary at-big" href="${AT_DL}" target="_blank" rel="noopener">⬇ Download DSA AutoTeam</a><div class="note">Version ${AT_VER} · Windows · free · no install</div><button class="linkb" data-atcopy="1">Copy a how-to message for Discord</button></div></div>
+   <div class="at-chips"><span class="chip">1 host per game</span><span class="chip">Played offline, CPU vs CPU</span><span class="chip">USA game (RMBE01) only</span><span class="chip">Setup once, then 1 click</span></div></div></div>
+
+  <div class="at-grid">
+   <div class="panel"><h2>Step 1 · Download (once)</h2><div class="pad"><ol class="at-steps">
+    ${step(1, 'Download DSA-AutoTeam.exe', `Click the Download button above and get <b>DSA-AutoTeam.exe</b> from the newest release.`)}
+    ${step(2, 'Give it its own folder', 'For example <b>Documents › DSA AutoTeam</b>. Its settings and log file are saved next to it.')}
+    ${step(3, 'Open it', 'Double-click it. If Windows says <b>"Windows protected your PC"</b>, click <b>More info</b>, then <b>Run anyway</b>. It isn\'t code-signed, which is normal for small community tools.')}
+   </ol><div class="note">Nothing to install and no admin rights needed. The app checks for new versions when it starts and offers to update itself.</div></div></div>
+
+   <div class="panel"><h2>Step 2 · One-time setup</h2><div class="pad"><ol class="at-steps">
+    ${step(1, 'Open Tools › Setup check', 'It also opens by itself if something needs fixing. You want every line to show a green ✔ and <b>"Ready to run league games."</b>')}
+    ${step(2, 'Dolphin folder', 'Found automatically. If not, click <b>Browse…</b> and pick the <b>Dolphin Emulator</b> folder (the one with the <b>Config</b> and <b>Wii</b> folders inside).')}
+    ${step(3, 'Mii database', 'Found automatically, with how many Miis you have. If not, click <b>Browse…</b> and find <b>RFL_DB.dat</b> (Dolphin folder › Wii › shared2 › menu › FaceLib).')}
+    ${step(4, 'Wii Remote 1', 'If it shows a red ✖: <b>close Dolphin completely</b>, then click <b>Fix it</b>. The app turns the pointer off and maps any missing buttons, and backs up your old settings first.')}
+    ${step(5, 'CPU vs CPU Gecko code', 'In Dolphin, right-click Mario Super Sluggers › <b>Properties</b> › <b>Gecko Codes</b>, and make sure the league\'s <b>CPU vs CPU</b> code is ticked. Cheats must be enabled in Dolphin\'s settings. The app doesn\'t add or change Gecko codes.')}
+    ${step(6, 'Miis', 'Every league Mii must be on your Dolphin with the <b>same name and favorite color</b> as on this site. Capitals, spaces and the Wii\'s 10-letter limit don\'t matter. <b>Easiest:</b> get the commissioner\'s Mii file and copy it over yours. Close Dolphin and back yours up first.')}
+    ${step(7, 'Only if a Mii has a really different name', 'Open <b>Tools › Mii name fixes</b> and type one line per Mii: <i>league name = name on your Wii</i>. Click <b>Save</b>.')}
+   </ol></div></div>
+  </div>
+
+  <div class="panel at-run"><h2>Step 3 · Running a league game</h2><div class="pad"><ol class="at-steps at-big-steps">
+    ${step(1, 'Open Dolphin and start Mario Super Sluggers', 'Only <b>one</b> Dolphin window may be open. Play offline: <b>don\'t start a netplay session</b>.')}
+    ${step(2, 'On the game\'s main menu, highlight Exhibition', '<b>Don\'t press it.</b> This is the screen to be on when you click Set teams.')}
+    ${step(3, 'In DSA AutoTeam, pick the week and the game', 'Then check the preview:<ul><li>Names that differ in the game show both, like <i>Kamek → Blue Magikoopa</i>.</li><li>Each Mii shows its page and slot in the Mii picker.</li><li><span class="at-c o">Orange</span> team line: that team didn\'t set a lineup this week.</li><li><span class="at-c y">Yellow</span> note: no stadium picked yet, so the app leaves the stadium as it is.</li><li><span class="at-c r">Red ✖</span>: the game can\'t be set. Tell the commissioner.</li></ul>')}
+    ${step(4, 'Leave "Start the game when everything is set" ticked and click Set teams', '')}
+    ${step(5, 'Hands off the keyboard and mouse', 'In about 30–60 seconds the app goes through the menus (difficulty is always Level 4), picks the Miis, sets every player, checks everything, and starts the game. Wait for the green <b>✔ Done</b>.')}
+  </ol><div class="note">Tip: if a step times out, set <b>Speed</b> (top right) to <b>Slow</b> and try again from the main menu.</div></div></div>
+
+  <div class="at-grid">
+   <div class="panel"><h2>The other team</h2><div class="pad"><p><b>Nothing to do.</b> The host does everything. Just make sure your lineup is set on the site before the deadline.</p></div></div>
+   <div class="panel"><h2>Don't</h2><div class="pad"><ul class="at-dont">
+    <li>touch the keyboard or mouse while the app is working</li><li>click Set teams from any screen except the main menu with Exhibition highlighted</li><li>keep two Dolphin windows open</li><li>turn the Wii Remote pointer back on</li><li>turn off the CPU vs CPU Gecko code, or change Gecko codes during a game</li><li>start a netplay session for league games</li><li>change the Rules screen if you turned off auto-start (the app already set it)</li></ul></div></div>
+  </div>
+
+  <div class="panel"><h2>If something goes wrong</h2><div class="tbl-wrap"><table class="at-err"><thead><tr><th class="l">The app says…</th><th class="l">Do this</th></tr></thead><tbody>
+   ${err('More than one Dolphin is open', 'Close the extra Dolphin windows and try again.')}
+   ${err('Dolphin isn\'t running / no game is running', 'Open Dolphin and start Mario Super Sluggers itself, not just the game list.')}
+   ${err('The running game is … (not RMBE01)', 'You need the USA version of Mario Super Sluggers.')}
+   ${err('Fix the controller settings first', 'Tools › Setup check, close Dolphin, click Fix it.')}
+   ${err('Some Miis aren\'t in this PC\'s Mii database', 'The message lists them. Add them, add a Mii name fix, or copy the commissioner\'s Mii file.')}
+   ${err('This game can\'t be set', 'Something\'s wrong with that lineup on the site. Tell the commissioner.')}
+   ${err('Timed out… / Couldn\'t get past the captain screen', 'Back to the main menu, highlight Exhibition, set Speed to Slow, try again.')}
+   ${err('The Mii picker didn\'t open / page didn\'t change', 'Your PC was busy. Back to the main menu and try again on Slow.')}
+   ${err('Couldn\'t bring Dolphin to the front', 'Click once on the Dolphin game window, then click Set teams again.')}
+   ${err('A memory write didn\'t stick / These didn\'t stay set', '<b>Don\'t start the game.</b> Send the log to the commissioner.')}
+  </tbody></table></div><div class="pad note">Anything else: in the app open <b>Tools › Open log folder</b> and send <b>autoteam-log.txt</b> to the commissioner in Discord.</div></div>
+ </div>`;
+}
+if (typeof HB_VIEWS !== 'undefined') HB_VIEWS.autoteam = atHelpView;
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-atgo]')) { e.preventDefault(); showTab('autoteam'); try { history.replaceState(null, '', '#autoteam'); window.scrollTo({ top: 0 }); } catch (x) {} return; }
+  if (e.target.closest('[data-atcopy]')) { const t = AT_DISCORD(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copied. Paste it in Discord.', 'good')).catch(() => { prompt('Copy this message:', t); }); }
+});
+/* keep a game's published lineups current: re-publish it when its stadium / Day/Night or either team's lineup for that week is saved */
+function atPublishGame(gid) {
+  const g = HB_GAMES.find(x => x.gid === gid), s = g && HB.scores[gid]; if (!g || (s && s.status === 'final')) return;
+  try { LV.db.doc('ssnap/auto_' + gid).set(atExport(g)).catch(() => {}); } catch (e) {}
+}
+function atAfter(path) {
+  let gid = null;
+  if (path.startsWith('smaps/')) gid = path.slice(6);
+  else { const m = /^slineups\/(.+)_w(\d+)$/.exec(path); if (m) { const t = TEAMS.find(x => hbTK(x) === m[1]), wk = +m[2], g = t && HB_GAMES.find(x => x.wk === wk && (x.away === t || x.home === t)); gid = g && g.gid; } }
+  if (gid) setTimeout(() => atPublishGame(gid), 1500);
+}
 function atAdminHtml() {
   const wk = hbCur(), pub = HB_GAMES.filter(g => g.wk === wk).map(g => HB.snaps['auto_' + g.gid]).filter(Boolean);
   const when = pub.length ? new Date(Math.max(...pub.map(x => Date.parse(x.published) || 0))).toLocaleString() : null;
   return `<div class="panel" style="margin-top:14px"><h2>DSA AutoTeam <span>Lineups for the app that sets both teams in Dolphin</span></h2><div class="pad" style="display:grid;gap:10px">
-   <div class="note">The app reads each game's lineups, stadium and Day/Night from here. They publish automatically when you lock lineups. Publish again after any late change. ${when ? `Week ${wk}: ${pub.length} game${pub.length === 1 ? '' : 's'} published, last at ${esc(when)}.` : `Week ${wk} is not published yet.`}</div>
-   <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="primary" data-at="pub">Publish week ${wk} lineups</button><button data-at="dl">Download week ${wk} as a file</button></div></div></div>`;
+   <div class="note">The app reads each game's lineups, stadium and Day/Night from here. They publish automatically when you lock lineups, and each game updates itself whenever its stadium, Day/Night or a lineup is saved. ${when ? `Week ${wk}: ${pub.length} game${pub.length === 1 ? '' : 's'} published, last at ${esc(when)}.` : `Week ${wk} is not published yet.`}</div>
+   <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="primary" data-at="pub">Publish week ${wk} lineups</button><button data-at="dl">Download week ${wk} as a file</button><button data-atgo="1">Host help page ›</button></div></div></div>`;
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-at]'); if (!b || !hbAdmin()) return; const wk = hbCur();
@@ -8501,6 +8595,7 @@ function gmPage() {
   const status = fin ? `<b>${esc(hbFinTxt(s).toUpperCase())}</b>` : live ? `<b class="live">LIVE${s.inn ? ' · ' + esc(s.inn) : ''}</b>` : `<b>WEEK ${g.wk}</b><span>Upcoming</span>`;
   return `<div class="gm"><div class="gm-top"><button class="hb-mini" data-gm="back">← Scoreboard</button><span class="note">Week ${g.wk} · Game ${g.gid.slice(g.gid.indexOf('g') + 1)}</span></div>
    <div class="gm-hd">${tm(ord[0], 'away')}<div class="gm-mid">${status}<span>${esc(gmVenue(g, s))}</span></div>${tm(ord[1], 'home')}</div>
+   ${!fin && !live ? `<div class="at-cta at-game"><span>🎮 <b>Hosting this game?</b> DSA AutoTeam sets both teams, the stadium and the rules in Dolphin for you.</span><span><a class="linkb" href="${AT_DL}" target="_blank" rel="noopener">Download</a> · <button class="linkb" data-atgo="1">How to use it</button></span></div>` : ''}
    ${fin ? gmPosted(g, s) : `<div style="margin-bottom:14px">${hbStad(g, s)}</div>${gmUpcoming(g, s)}`}</div>`;
 }
 
