@@ -44,6 +44,7 @@ select,input[type=text],input[type=number]{background:var(--surface);border:1px 
 .cell .v{font-family:var(--f-display);font-weight:800;font-size:24px;color:var(--bulb);line-height:1.05;text-shadow:0 0 10px rgba(242,169,0,.35)}
 .cell.team .v{font-size:20px}
 .cell.me .v{color:#fff}
+.gm-botsheet{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:8px 2px 0;font-size:13px}.btn-file{display:inline-block;padding:7px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-weight:600;font-size:13.5px;background:var(--surface2,transparent)}.btn-file:hover{border-color:var(--accent)}
 .at-cta .pad{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .at-game{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin:10px 0 0;padding:9px 12px;border:1px dashed var(--accent);border-radius:8px;font-size:13px;background:color-mix(in srgb,var(--accent) 6%,transparent)}
 .at-help{display:grid;gap:14px}.at-help .panel{margin:0}
@@ -5742,7 +5743,35 @@ function hbParseFinder(txt) {
   }
   return { games, notes };
 }
+/* ---- stats bot report (Markdown tables, e.g. "Jazz vs Toadstool Titans — game statistics"): turned into the sheet layout, then read like a sheet paste ---- */
+function hbFromMd(txt) {
+  const L = String(txt || '').split(/\r?\n/); if (L.filter(l => /^\s*\|.*\|\s*$/.test(l)).length < 4) return null;
+  const out = [], notes = [], flags = [], cells = l => l.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim().replace(/\*\*/g, ''));
+  let pad = -1, padAt = 0, inP = false, sec = '', bul = [];
+  const wk = (String(txt).match(/\bweek\s*(\d{1,2})\b/i) || [])[1]; if (wk) out.push('Season\tWeek', '6\t' + wk);
+  const prose = hbK(L.filter(l => !/^\s*\|/.test(l)).slice(0, 8).join(' ')), alt = { 'Luigi Mansion': 'luigismansion', 'Ice Garden': 'peachicegarden' };
+  const fd = HB_STADS.find(x => prose.includes(hbK(x)) || (alt[x] && prose.includes(alt[x]))); if (fd) out.push('Field\tTime', fd + '\t');
+  for (const l of L) {
+    if (/^\s*\|/.test(l)) {
+      let r = cells(l); if (r.every(c => /^:?-{2,}:?$/.test(c) || c === '')) continue;
+      const i = r.findIndex((x, k) => x === '1' && r[k + 1] === '2' && r[k + 2] === '3');
+      if (i > 0) { let n = 0; while (r[i + n] === String(n + 1)) n++; pad = Math.max(0, 10 - n); padAt = i + n; inP = false; }
+      else if (r.some((x, k) => k > 0 && hbK(x) === 'ab' && hbK(r[k + 1]) === '1b')) { pad = -1; inP = r[0]; }
+      else if (pad >= 0 && !/^\d/.test(r[1] || '')) pad = -1;
+      if (pad > 0) r = r.slice(0, padAt).concat(new Array(pad).fill(''), r.slice(padAt));
+      if (inP && r.some(c => /[*†‡]/.test(c)) && hbK(r[0]) !== hbK(inP)) flags.push(r[0]);
+      out.push(r.map(c => c.replace(/[*†‡]/g, '').trim()).join('\t'));
+    } else {
+      out.push(''); inP = false; pad = -1;
+      if (/^\s*#/.test(l)) sec = l; else if (/pending|confirm|note/i.test(sec) && /^\s*[-*]\s+/.test(l)) { let b = l.replace(/^\s*[-*]\s+/, '').replace(/[*†]/g, ''); const c = b.search(/:\s/); b = c > 0 && c < 60 ? b.slice(0, c) : b.split(/(?<=[.;])\s/)[0].replace(/[.;]$/, ''); if (b.length > 60) b = b.slice(0, 58).replace(/\s+\S*$/, '') + '…'; bul.push(b); }
+    }
+  }
+  if (flags.length) notes.push(`Heads up: the bot marked some numbers as not confirmed (* or †) for ${[...new Set(flags)].join(', ')}. They were imported as written. Use "Edit box score" below if you want to change any.`);
+  if (bul.length) notes.push('Things the bot asked you to confirm: ' + bul.join(' · ') + '.');
+  return { txt: out.join('\n'), notes };
+}
 function hbParseBot(txt) {
+  const md = hbFromMd(txt); if (md) { const r = hbParseFinder(md.txt) || { games: [], notes: ['I could not find the player tables in that file.'] }; r.notes = r.notes.concat(md.notes); return r; }
   const fin = hbParseFinder(txt); if (fin) return fin;
   txt = String(txt || '').trim(); const games = [], notes = [];
   const mkGame = o => { const g = { players: [] }; const get = (...ks) => { for (const k of ks) for (const kk of Object.keys(o)) if (hbK(kk) === hbK(k) && o[kk] !== '' && o[kk] != null) return o[kk]; return null; };
@@ -5810,6 +5839,7 @@ async function hbBotImport(txt, who) {
   HB.bxLog = log; toast(n ? n + ' game' + (n === 1 ? '' : 's') + ' imported.' : 'Nothing was imported.', n ? 'good' : 'bad'); renderHub();
 }
 const hbImport = txt => hbBotImport(txt, 'cm');
+document.addEventListener('change', e => { if (e.target && e.target.id === 'bxFile' && e.target.files[0]) { const f = e.target.files[0]; f.text().then(t => hbBotImport(t, 'statbot')); } });
 async function hbLock() {
   const w = hbCur(), cfg = Object.assign({ week: w }, HB.cfg || {});
   if (!cfg.locked) { for (const t of TEAMS) { const l = hbLineup(t, w); if (l) await hbPut('ssnap/' + hbSnap(w, t), { wk: w, team: t, slots: l.slots, pos: l.pos, stars: l.stars || [], t: Date.now() }); } cfg.locked = true; } else cfg.locked = false;
@@ -5879,7 +5909,8 @@ const HB_SPEC_JSON = `{"games":[{
 function hbBotSpec() {
   return `<details class="hb-spec"><summary>How to paste, and the exact format for the bot</summary><div class="note" style="display:grid;gap:6px;margin-top:6px">
    <div><b>From the Game Stats Generator sheet:</b> copy the blue team row and the purple player rows from the "Game Stats (Teams)" and "Game Stats (Players)" blocks (with their header rows if you can) and paste them here as they are. Either block alone works too. The first team in the sheet is the away team.</div>
-   <div><b>From the bot:</b> send JSON like this. Games match by week plus the two team names (old team names also work). Missing fields count as 0. IP can be 5.333 or baseball style 5.1 (one out). Yes, true and 1 all mean yes. Stats not in the sheet, like runs scored, are optional ("R").</div>
+   <div><b>From the stats bot that watches the games:</b> click <b>Choose the stats bot's file…</b> and pick its .md report (for example "Jazz_vs_Toadstool_Titans_Stats.md"), or open the file and paste all of it. The game is found from the two team names. If those teams play each other more than once this season, add "Week 3" (the right week) to the file's first line.</div>
+   <div><b>From a custom bot:</b> send JSON like this. Games match by week plus the two team names (old team names also work). Missing fields count as 0. IP can be 5.333 or baseball style 5.1 (one out). Yes, true and 1 all mean yes. Stats not in the sheet, like runs scored, are optional ("R").</div>
    <pre style="white-space:pre-wrap;font:11.5px var(--f-mono);background:var(--surface2);padding:8px;border-radius:6px;overflow:auto">${esc(HB_SPEC_JSON)}</pre>
    <div>Pasting a game again replaces its score and box score. Only the weeks you have unlocked can be written.</div></div></details>`;
 }
@@ -5888,7 +5919,7 @@ function hbBxView() {
   const weeks = HB_WEEKS.filter(hbBxCan), gate = `<div class="panel"><h2>Box scores <span>Each week has its own password</span></h2><div class="pad" style="display:grid;gap:10px"><div class="note">Enter the password for a week to type in that week's box scores. A password only opens its own week, and it does not give you any commissioner powers.</div>
    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="password" id="bxpw" placeholder="Week password" autocomplete="off" style="min-width:200px"><button class="primary" data-hb="bxunlock">Unlock</button></div>${weeks.length ? `<div class="note">Open weeks: ${weeks.join(', ')}</div>` : ''}</div></div>`;
   if (!weeks.length) return gate;
-  const paste = `<div class="panel" style="margin-top:14px"><h2>Paste box scores <span>From the bot or the Game Stats Generator sheet</span></h2><div class="pad" style="display:grid;gap:8px">${hbBotSpec()}<textarea id="bxPaste" style="min-height:140px;font:12px var(--f-mono);width:100%" placeholder="Paste the sheet rows (tab separated) or the bot's JSON here"></textarea><div><button class="primary" data-hb="botimp">Import</button></div>${hbBotLog()}</div></div>`;
+  const paste = `<div class="panel" style="margin-top:14px"><h2>Paste box scores <span>From the bot or the Game Stats Generator sheet</span></h2><div class="pad" style="display:grid;gap:8px">${hbBotSpec()}<textarea id="bxPaste" style="min-height:140px;font:12px var(--f-mono);width:100%" placeholder="Paste the sheet rows, the stats bot's report, or JSON here"></textarea><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="primary" data-hb="botimp">Import</button><span class="note">or</span><label class="btn-file"><input type="file" id="bxFile" accept=".md,.txt,.csv,.tsv,.json,text/*" hidden>Choose the stats bot's file…</label></div>${hbBotLog()}</div></div>`;
   const w = weeks.includes(HB.bxweek) ? HB.bxweek : weeks[0]; HB.bxweek = w;
   return gate + paste + `<div class="panel" style="margin-top:14px"><h2>Week ${w} games <span>Pick a game and enter its score and box score</span></h2><div class="pad"><div class="hb-weeks">${weeks.map(x => `<button data-hbweek="${x}" data-hbkey="bxweek" aria-pressed="${x === w}">${x}</button>`).join('')}</div></div>
    ${HB_GAMES.filter(g => g.wk === w).map(g => { const sc = HB.scores[g.gid] || {}; return `<div class="hb-offer"><div><b>${hbLogo(g.away)}${esc(g.away)}</b> at <b>${hbLogo(g.home)}${esc(g.home)}</b> <span class="chip ${sc.status === 'final' ? 'g' : ''}">${esc(sc.status || 'scheduled')}</span>${sc.status && sc.status !== 'scheduled' && sc.as != null ? ` <b class="num">${sc.as}-${sc.hs}</b>` : ''}</div><div><button class="primary" data-hb="bxedit" data-g="${g.gid}">${sc.box ? 'Edit box score' : 'Enter box score'}</button></div></div>`; }).join('')}</div>`;
@@ -7871,6 +7902,16 @@ document.addEventListener('click', e => {
   const j = e.target.closest('[data-atjump]'); if (j) { const el = document.getElementById(j.dataset.atjump); if (el) el.scrollIntoView({ behavior: 'smooth' }); return; }
   if (e.target.closest('[data-atcopy]')) { const t = AT_DISCORD(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copied. Paste it in Discord.', 'good')).catch(() => { prompt('Copy this message:', t); }); }
 });
+/* ---- blank score sheet for the stats bot (it watches the video and fills in the stats) ---- */
+function gmBotSheet(g) {
+  const s = HB.scores[g.gid] || {}, pl = s.played && s.played.away ? s.played : { away: g.away, home: g.home };
+  const side = t => { const x = atTeam(t, g.wk); return [dcName ? dcName(t) : t].concat(x ? x.players.map(p => p.name) : hbRoster(t).map(id => P[id] && P[id].name).filter(Boolean)); };
+  const A = side(pl.away), H = side(pl.home), rows = A.slice(1).concat([''], H), w = Math.max(...A.concat(H).map(x => x.length)) + 4;
+  const ctr = x => { const l = Math.floor((w - x.length) / 2); return '|' + ' '.repeat(l) + x + ' '.repeat(w - x.length - l) + '|'; };
+  return `Week ${g.wk} · ${pl.away} at ${pl.home}\n\n` + [ctr(A[0]), '| :' + '-'.repeat(w - 4) + ': |'].concat(rows.map(ctr)).join('\n');
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-botsheet]'); if (!b) return; const g = gmG(b.dataset.botsheet); if (!g) return; const t = gmBotSheet(g);
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Blank sheet copied. Paste it to the stats bot with the game video.', 'good')).catch(() => prompt('Copy this:', t)); });
 /* keep a game's published lineups current: re-publish it when its stadium / Day/Night or either team's lineup for that week is saved */
 function atPublishGame(gid) {
   const g = HB_GAMES.find(x => x.gid === gid), s = g && HB.scores[gid]; if (!g || (s && s.status === 'final')) return;
@@ -8608,6 +8649,7 @@ function gmPage() {
   const status = fin ? `<b>${esc(hbFinTxt(s).toUpperCase())}</b>` : live ? `<b class="live">LIVE${s.inn ? ' · ' + esc(s.inn) : ''}</b>` : `<b>WEEK ${g.wk}</b><span>Upcoming</span>`;
   return `<div class="gm"><div class="gm-top"><button class="hb-mini" data-gm="back">← Scoreboard</button><span class="note">Week ${g.wk} · Game ${g.gid.slice(g.gid.indexOf('g') + 1)}</span></div>
    <div class="gm-hd">${tm(ord[0], 'away')}<div class="gm-mid">${status}<span>${esc(gmVenue(g, s))}</span></div>${tm(ord[1], 'home')}</div>
+   <div class="gm-botsheet"><button class="linkb" data-botsheet="${esc(g.gid)}">📋 Copy blank sheet for the stats bot</button><span class="note">Both lineups, with the week in the title so the bot's file goes into the right game.</span></div>
    ${!fin && !live ? `<div class="at-cta at-game"><span>🎮 <b>Hosting this game?</b> DSA AutoTeam sets both teams, the stadium and the rules in Dolphin for you.</span><span><a class="linkb" href="${AT_DL}" target="_blank" rel="noopener">Download</a> · <button class="linkb" data-atgo="1">How to use it</button></span></div>` : ''}
    ${fin ? gmPosted(g, s) : `<div style="margin-bottom:14px">${hbStad(g, s)}</div>${gmUpcoming(g, s)}`}</div>`;
 }
