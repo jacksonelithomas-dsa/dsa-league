@@ -52,14 +52,24 @@ select,input[type=text],input[type=number]{background:var(--surface);border:1px 
 .at-dl{display:grid;gap:6px;justify-items:center;text-align:center}
 .at-big{background:var(--accent);color:var(--accent-ink,#fff)!important;display:inline-block;padding:14px 22px;border-radius:10px;font-size:17px;font-weight:800;text-decoration:none}
 .at-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.at-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px;align-items:start}
+.at-help{max-width:900px;margin:0 auto}
+.at-road{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.at-rc{display:grid;justify-items:center;gap:4px;padding:16px 10px;border-radius:12px;border:1px solid var(--line);background:var(--card,#fff);cursor:pointer;text-align:center;font:inherit;color:inherit}
+.at-rc:hover{border-color:var(--accent)}.at-rc b{font-size:17px}.at-rc span:last-child{font-size:12.5px;opacity:.7}
+.at-rn{width:34px;height:34px;border-radius:50%;background:var(--accent);color:var(--accent-ink,#fff);display:grid;place-items:center;font-weight:800;font-size:17px;flex:none}
+.at-other{padding:11px 14px;border-radius:10px;background:color-mix(in srgb,var(--accent) 7%,transparent);border-left:4px solid var(--accent);font-size:14px}
+.at-sec{scroll-margin-top:16px}.at-sh{display:flex;gap:12px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
+.at-sh h2{margin:0!important;padding:0!important;border:0!important;background:none!important;font-size:19px}.at-sh h2::after,.at-sh h2::before{display:none!important}.at-sh>div>span{font-size:13px;opacity:.7}.at-sh .at-rn{width:40px;height:40px;font-size:20px}
+.at-tip{margin-top:14px;padding:9px 12px;border-radius:8px;background:color-mix(in srgb,var(--fg,#000) 5%,transparent);font-size:13px}
+.at-sub{margin-top:6px;font-size:13px;opacity:.85}
+@media(max-width:560px){.at-err thead{display:none}.at-err tr,.at-err td{display:block;width:auto}.at-err tr{padding:6px 0;border-bottom:1px solid var(--line)}.at-err td{border:0!important;padding:3px 12px!important;white-space:normal!important}.at-err{width:100%;table-layout:fixed}.at-road{grid-template-columns:1fr}.at-rc{grid-template-columns:auto 1fr;justify-items:start;text-align:left;align-items:center}.at-rc .at-rn{grid-row:span 2}}
 .at-steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
-.at-step{display:grid;grid-template-columns:30px 1fr;gap:10px;font-size:14px;line-height:1.45}
+.at-step{display:grid;grid-template-columns:30px 1fr;gap:12px;font-size:14.5px;line-height:1.5}.at-steps{gap:16px!important}
 .at-step ul{margin:6px 0 0;padding-left:18px}
-.at-n{width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--accent-ink,#fff);display:grid;place-items:center;font-weight:800}
+.at-n{width:26px;height:26px;border-radius:50%;border:2px solid var(--accent);color:var(--accent);font-size:13px;text-transform:uppercase;display:grid;place-items:center;font-weight:800}
 .at-big-steps .at-step{font-size:15px}
 .at-c{font-weight:800;padding:0 5px;border-radius:4px}.at-c.o{background:#f6c08a;color:#5a2d00}.at-c.y{background:#f7e58a;color:#4a3d00}.at-c.r{background:#f4a3a3;color:#5c0a0a}
-.at-dont{margin:0;padding-left:18px;display:grid;gap:4px;font-size:14px}.at-dont li::marker{content:'✖  ';color:var(--bad)}
+.at-dont{margin:0;padding-left:18px;columns:2 260px;column-gap:28px;font-size:14px}.at-dont li{margin-bottom:5px;break-inside:avoid}.at-dont li::marker{content:'✖  ';color:var(--bad)}
 .at-err td,.at-err th{padding:8px 12px;font-size:13.5px;vertical-align:top}
 .tplink{cursor:pointer}.tplink:hover{text-decoration:underline;text-underline-offset:2px}.tdot.tplink:hover{outline:2px solid var(--accent);outline-offset:1px}
 .linkb{background:none;border:0;padding:0;color:var(--accent);font-weight:700;cursor:pointer;font-size:13px}.linkb:hover{text-decoration:underline}
@@ -7807,39 +7817,41 @@ function atHelpView() {
    <div class="at-dl"><a class="primary at-big" href="${AT_DL}" target="_blank" rel="noopener">⬇ Download DSA AutoTeam</a><div class="note">Version ${AT_VER} · Windows · free · no install</div><button class="linkb" data-atcopy="1">Copy a how-to message for Discord</button></div></div>
    <div class="at-chips"><span class="chip">1 host per game</span><span class="chip">Played offline, CPU vs CPU</span><span class="chip">USA game (RMBE01) only</span><span class="chip">Setup once, then 1 click</span></div></div></div>
 
-  <div class="at-grid">
-   <div class="panel"><h2>Step 1 · Download (once)</h2><div class="pad"><ol class="at-steps">
-    ${step(1, 'Download DSA-AutoTeam.exe', `Click the Download button above and get <b>DSA-AutoTeam.exe</b> from the newest release.`)}
-    ${step(2, 'Give it its own folder', 'For example <b>Documents › DSA AutoTeam</b>. Its settings and log file are saved next to it.')}
-    ${step(3, 'Open it', 'Double-click it. If Windows says <b>"Windows protected your PC"</b>, click <b>More info</b>, then <b>Run anyway</b>. It isn\'t code-signed, which is normal for small community tools.')}
-   </ol><div class="note">Nothing to install and no admin rights needed. The app checks for new versions when it starts and offers to update itself.</div></div></div>
+  <div class="at-road">
+   <button class="at-rc" data-atjump="at-s1"><span class="at-rn">1</span><b>Download</b><span>Once · 1 minute</span></button>
+   <button class="at-rc" data-atjump="at-s2"><span class="at-rn">2</span><b>Set up</b><span>Once · about 10 minutes</span></button>
+   <button class="at-rc" data-atjump="at-s3"><span class="at-rn">3</span><b>Game night</b><span>Every game you host · 1 click</span></button>
+  </div>
 
-   <div class="panel"><h2>Step 2 · One-time setup</h2><div class="pad"><ol class="at-steps">
-    ${step(1, 'Open Tools › Setup check', 'It also opens by itself if something needs fixing. You want every line to show a green ✔ and <b>"Ready to run league games."</b>')}
-    ${step(2, 'Dolphin folder', 'Found automatically. If not, click <b>Browse…</b> and pick the <b>Dolphin Emulator</b> folder (the one with the <b>Config</b> and <b>Wii</b> folders inside).')}
-    ${step(3, 'Mii database', 'Found automatically, with how many Miis you have. If not, click <b>Browse…</b> and find <b>RFL_DB.dat</b> (Dolphin folder › Wii › shared2 › menu › FaceLib).')}
-    ${step(4, 'Wii Remote 1', 'If it shows a red ✖: <b>close Dolphin completely</b>, then click <b>Fix it</b>. The app turns the pointer off and maps any missing buttons, and backs up your old settings first.')}
-    ${step(5, 'CPU vs CPU Gecko code', 'In Dolphin, right-click Mario Super Sluggers › <b>Properties</b> › <b>Gecko Codes</b>, and make sure the league\'s <b>CPU vs CPU</b> code is ticked. Cheats must be enabled in Dolphin\'s settings. The app doesn\'t add or change Gecko codes.')}
-    ${step(6, 'Miis', 'Every league Mii must be on your Dolphin with the <b>same name and favorite color</b> as on this site. Capitals, spaces and the Wii\'s 10-letter limit don\'t matter. <b>Easiest:</b> get the commissioner\'s Mii file and copy it over yours. Close Dolphin and back yours up first.')}
-    ${step(7, 'Only if a Mii has a really different name', 'Open <b>Tools › Mii name fixes</b> and type one line per Mii: <i>league name = name on your Wii</i>. Click <b>Save</b>.')}
+  <div class="at-other"><b>Not hosting?</b> You don't need the app. Just set your lineup on the site before the deadline. The host does everything else.</div>
+
+  <div class="panel at-sec" id="at-s1"><div class="at-sh"><span class="at-rn">1</span><div><h2>Download</h2><span>Do this once</span></div></div><div class="pad"><ol class="at-steps">
+    ${step('a', 'Download DSA-AutoTeam.exe', 'Click the red <b>Download</b> button at the top of this page. Under <b>Assets</b>, click <b>DSA-AutoTeam.exe</b>.')}
+    ${step('b', 'Give it its own folder', 'For example <b>Documents › DSA AutoTeam</b>. The app saves its settings and log file next to it.')}
+    ${step('c', 'Open it', 'Double-click it. If Windows says <b>"Windows protected your PC"</b>, click <b>More info</b>, then <b>Run anyway</b>. That warning is normal for small community tools.')}
+   </ol><div class="at-tip">Nothing to install and no admin rights needed. The app checks for new versions when it opens and offers to update itself.</div></div></div>
+
+  <div class="panel at-sec" id="at-s2"><div class="at-sh"><span class="at-rn">2</span><div><h2>Set up</h2><span>Do this once. The app checks everything for you.</span></div></div><div class="pad"><ol class="at-steps">
+    ${step('a', 'In the app, open Tools › Setup check', 'It shows a checklist. Your goal is a green ✔ on every line and <b>"Ready to run league games."</b> If something is red, fix it with the steps below.')}
+    ${step('b', 'Dolphin folder', 'Usually found automatically. If not, click <b>Browse…</b> and pick your <b>Dolphin Emulator</b> folder (the one with the <b>Config</b> and <b>Wii</b> folders inside).')}
+    ${step('c', 'Mii database', 'Usually found automatically. If not, click <b>Browse…</b> and pick <b>RFL_DB.dat</b> (Dolphin folder › Wii › shared2 › menu › FaceLib).')}
+    ${step('d', 'Wii Remote 1', 'If it\'s red, <b>close Dolphin completely</b>, then click <b>Fix it</b>. The app turns the pointer off and backs up your old settings first.')}
+    ${step('e', 'CPU vs CPU code', 'In Dolphin, right-click Mario Super Sluggers › <b>Properties</b> › <b>Gecko Codes</b> and tick the league\'s <b>CPU vs CPU</b> code. Cheats must be turned on in Dolphin\'s settings.')}
+    ${step('f', 'Miis', 'Every league Mii has to be on your Dolphin with the <b>same name and favorite color</b> as on this site. Capitals and spaces don\'t matter. <b>Easiest:</b> back up your Mii file, then copy the commissioner\'s over it (with Dolphin closed).<div class="at-sub">Mii named something really different on your Wii? Open <b>Tools › Mii name fixes</b>, type <i>league name = name on your Wii</i>, and click <b>Save</b>.</div>')}
    </ol></div></div>
-  </div>
 
-  <div class="panel at-run"><h2>Step 3 · Running a league game</h2><div class="pad"><ol class="at-steps at-big-steps">
-    ${step(1, 'Open Dolphin and start Mario Super Sluggers', 'Only <b>one</b> Dolphin window may be open. Play offline: <b>don\'t start a netplay session</b>.')}
-    ${step(2, 'On the game\'s main menu, highlight Exhibition', '<b>Don\'t press it.</b> This is the screen to be on when you click Set teams.')}
-    ${step(3, 'In DSA AutoTeam, pick the week and the game', 'Then check the preview:<ul><li>Names that differ in the game show both, like <i>Kamek → Blue Magikoopa</i>.</li><li>Each Mii shows its page and slot in the Mii picker.</li><li><span class="at-c o">Orange</span> team line: that team didn\'t set a lineup this week.</li><li><span class="at-c y">Yellow</span> note: no stadium picked yet, so the app leaves the stadium as it is.</li><li><span class="at-c r">Red ✖</span>: the game can\'t be set. Tell the commissioner.</li></ul>')}
-    ${step(4, 'Leave "Start the game when everything is set" ticked and click Set teams', '')}
-    ${step(5, 'Hands off the keyboard and mouse', 'In about 30–60 seconds the app goes through the menus (difficulty is always Level 4), picks the Miis, sets every player, checks everything, and starts the game. Wait for the green <b>✔ Done</b>.')}
-  </ol><div class="note">Tip: if a step times out, set <b>Speed</b> (top right) to <b>Slow</b> and try again from the main menu.</div></div></div>
+  <div class="panel at-sec" id="at-s3"><div class="at-sh"><span class="at-rn">3</span><div><h2>Game night</h2><span>Every game you host</span></div></div><div class="pad"><ol class="at-steps">
+    ${step('a', 'Open Dolphin and start Mario Super Sluggers', 'Only <b>one</b> Dolphin window. Play offline, <b>no netplay</b>.')}
+    ${step('b', 'On the main menu, highlight Exhibition', '<b>Don\'t press it.</b> Just leave it highlighted.')}
+    ${step('c', 'In the app, pick the week and the game', 'Glance at the preview:<ul><li><span class="at-c o">Orange</span> a team didn\'t set a lineup this week</li><li><span class="at-c y">Yellow</span> no stadium picked yet, so it isn\'t changed</li><li><span class="at-c r">Red ✖</span> the game can\'t be set. Tell the commissioner</li></ul>')}
+    ${step('d', 'Click Set teams', 'Leave <b>"Start the game when everything is set"</b> ticked.')}
+    ${step('e', 'Hands off for 30–60 seconds', 'Don\'t touch the keyboard or mouse. The app sets both teams, the stadium and the rules, then starts the game. Wait for the green <b>✔ Done</b>.')}
+   </ol><div class="at-tip">Timed out? Go back to the main menu, set <b>Speed</b> (top right of the app) to <b>Slow</b>, and try again.</div></div></div>
 
-  <div class="at-grid">
-   <div class="panel"><h2>The other team</h2><div class="pad"><p><b>Nothing to do.</b> The host does everything. Just make sure your lineup is set on the site before the deadline.</p></div></div>
-   <div class="panel"><h2>Don't</h2><div class="pad"><ul class="at-dont">
-    <li>touch the keyboard or mouse while the app is working</li><li>click Set teams from any screen except the main menu with Exhibition highlighted</li><li>keep two Dolphin windows open</li><li>turn the Wii Remote pointer back on</li><li>turn off the CPU vs CPU Gecko code, or change Gecko codes during a game</li><li>start a netplay session for league games</li><li>change the Rules screen if you turned off auto-start (the app already set it)</li></ul></div></div>
-  </div>
+  <div class="panel"><h2>Don't</h2><div class="pad"><ul class="at-dont">
+    <li>touch the keyboard or mouse while the app works</li><li>click Set teams from anywhere but the main menu</li><li>have two Dolphin windows open</li><li>turn the Wii Remote pointer back on</li><li>turn off the CPU vs CPU code</li><li>use netplay for league games</li></ul></div></div>
 
-  <div class="panel"><h2>If something goes wrong</h2><div class="tbl-wrap"><table class="at-err"><thead><tr><th class="l">The app says…</th><th class="l">Do this</th></tr></thead><tbody>
+  <div class="panel"><h2>If something goes wrong</h2><div class="tbl-wrap" style="max-height:none"><table class="at-err"><thead><tr><th class="l">The app says…</th><th class="l">Do this</th></tr></thead><tbody>
    ${err('More than one Dolphin is open', 'Close the extra Dolphin windows and try again.')}
    ${err('Dolphin isn\'t running / no game is running', 'Open Dolphin and start Mario Super Sluggers itself, not just the game list.')}
    ${err('The running game is … (not RMBE01)', 'You need the USA version of Mario Super Sluggers.')}
@@ -7856,6 +7868,7 @@ function atHelpView() {
 if (typeof HB_VIEWS !== 'undefined') HB_VIEWS.autoteam = atHelpView;
 document.addEventListener('click', e => {
   if (e.target.closest('[data-atgo]')) { e.preventDefault(); showTab('autoteam'); try { history.replaceState(null, '', '#autoteam'); window.scrollTo({ top: 0 }); } catch (x) {} return; }
+  const j = e.target.closest('[data-atjump]'); if (j) { const el = document.getElementById(j.dataset.atjump); if (el) el.scrollIntoView({ behavior: 'smooth' }); return; }
   if (e.target.closest('[data-atcopy]')) { const t = AT_DISCORD(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copied. Paste it in Discord.', 'good')).catch(() => { prompt('Copy this message:', t); }); }
 });
 /* keep a game's published lineups current: re-publish it when its stadium / Day/Night or either team's lineup for that week is saved */
