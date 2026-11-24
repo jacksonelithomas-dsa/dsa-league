@@ -48,6 +48,7 @@ select,input[type=text],input[type=number]{background:var(--surface);border:1px 
 .gm-lu h3{display:flex;gap:8px;align-items:center;margin:0 0 6px;font-size:15px;flex-wrap:wrap}.gm-lu table{width:100%}.gm-lu td{padding:4px 6px;font-size:13.5px}
 .gm-lu.sm ol{margin:4px 0 0;padding-left:20px;font-size:12.5px;line-height:1.5}.hb-lus{margin:6px 0;font-size:13px}.hb-lus summary{cursor:pointer;font-weight:600}.hb-lus .gm-lus-in{padding:6px 0;gap:10px;grid-template-columns:1fr 1fr}
 .chip.bad{background:#f4a3a3;color:#5c0a0a}.hb-lockflag{padding:10px 12px;border-radius:8px;border-left:4px solid var(--bad,#c33);background:color-mix(in srgb,var(--bad,#c33) 8%,transparent);font-size:13px}.hb-lockflag ul{margin:6px 0;padding-left:18px}
+.lu-diff{background:#f7e58a;color:#4a3d00;border-radius:4px;padding:0 4px;font-weight:700}.gm-lu ol{margin:0;padding-left:22px;font-size:13.5px;line-height:1.6}
 .hb-autolock{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 12px}.hb-autolock label{display:flex;gap:8px;align-items:center;font-size:13px;white-space:nowrap}.hb-autolock input{flex:1;min-width:0}
 .gm-botsheet{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:8px 2px 0;font-size:13px}.btn-file{display:inline-block;padding:7px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-weight:600;font-size:13.5px;background:var(--surface2,transparent)}.btn-file:hover{border-color:var(--accent)}
 .at-cta .pad{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
@@ -5179,6 +5180,17 @@ const hbRoster = t => { if (!HB.rn) HB.rn = hbReplay(); return HB.rn.r[t] || [];
 const hbS7Owner = (r, o) => { if (!HB.rn) HB.rn = hbReplay(); return HB.rn.s7[r + '|' + o] || o; };
 const hbS7Of = t => { const out = []; for (let r = 1; r <= 9; r++) for (const o of TEAMS) if (hbS7Owner(r, o) === t) out.push({ r, o }); return out; };
 const hbProfs = ids => ids.map(i => P[i]).filter(Boolean);
+function hbRosterAt(team, ts) {
+  if (!ts) return hbRoster(team); HB.rat = HB.rat || {}; const key = ts + '|' + HB.tlog.length + '|' + (((HB.fa || {}).moves) || []).length;
+  if (!HB.rat[key]) { const T = HB.tlog, F = HB.fa; try { HB.tlog = T.filter(l => (l.t || 0) <= ts); HB.fa = Object.assign({}, F || {}, { moves: (((F || {}).moves) || []).filter(m => (m.t || 0) <= ts) }); HB.rat[key] = hbReplay().r; } finally { HB.tlog = T; HB.fa = F; } }
+  return HB.rat[key][team] || [];
+}
+// when a week's lineups were set: the lock copy's time, else when its game's lineups were last sent to AutoTeam, else the auto-lock time
+function hbWeekTs(team, wk) {
+  const sn = HB.snaps && HB.snaps[hbSnap(wk, team)]; if (sn && sn.t && !sn.fix) return sn.t;
+  const g = HB_GAMES.find(x => x.wk === wk && (x.away === team || x.home === team)), ex = g && HB.snaps && HB.snaps['auto_' + g.gid]; if (ex && ex.published) return Date.parse(ex.published) || 0;
+  return (HB.cfg && HB.cfg.autoLock && +HB.cfg.autoLock[wk]) || 0;
+}
 
 /* ---- weekly lineups ---- */
 function hbDoc(team, wk) { const d = HB.lw[team] && HB.lw[team][wk]; return d || null; }
@@ -5194,7 +5206,7 @@ function hbAuto(team) {
 const hbTeamDone = (team, wk) => HB_GAMES.some(g => g.wk === wk && (g.away === team || g.home === team) && typeof gmFin === 'function' && gmFin(HB.scores[g.gid]));
 const hbFrozen = (team, wk) => !!(HB.snaps && HB.snaps[hbSnap(wk, team)]) || wk < hbCur() || (wk === hbCur() && !!(HB.cfg && HB.cfg.locked)) || hbTeamDone(team, wk);
 function hbAsPlayed(team, wk) {
-  const sn = HB.snaps && HB.snaps[hbSnap(wk, team)]; if (sn && sn.slots && sn.slots.length) return { slots: Array.from(sn.slots), pos: Object.assign({}, sn.pos || {}), stars: sn.stars || [], bad: sn.bad || [], saved: true, from: wk, src: 'locked' };
+  const sn = HB.snaps && HB.snaps[hbSnap(wk, team)]; if (sn && sn.slots && sn.slots.length) return { slots: Array.from(sn.slots), pos: Object.assign({}, sn.pos || {}), stars: sn.stars || [], bad: sn.bad || [], saved: true, from: wk, src: sn.fix === 'box' ? 'set from the box score' : sn.fix === 'site' ? 'checked against the box score' : 'locked' };
   const ax = hbFromAuto(team, wk); if (ax) return ax;
   for (let w = wk; w >= 0; w--) { const d = hbDoc(team, w); if (d && d.slots && d.slots.length) return { slots: Array.from(d.slots), pos: Object.assign({}, d.pos || {}), stars: w === wk ? (d.stars || []) : [], bad: [], saved: true, from: w, src: w === wk ? 'saved' : 'carried over from week ' + w }; }
   const a = hbAuto(team); return a ? Object.assign(a, { stars: [], bad: [], saved: false, from: null, src: 'automatic' }) : null;
@@ -5592,10 +5604,10 @@ document.addEventListener('dragend', () => { HE.drag = null; });
 function hbRostersView() {
   const wk = HB.rweek || hbCur(); HB.rweek = wk;
   const cards = TEAMS.map(t => {
-    const l = hbLineup(t, wk), r = hbProfs(hbRoster(t)), doc = hbDoc(t, wk), prev = (hbDoc(t, wk - 1) || {}).stars || [];
+    const fz = hbFrozen(t, wk), ts = fz ? hbWeekTs(t, wk) : 0, l = hbLineup(t, wk), r = hbProfs(fz && ts ? hbRosterAt(t, ts) : hbRoster(t)), doc = hbDoc(t, wk), prev = (hbDoc(t, wk - 1) || {}).stars || [];
     const starters = l ? l.slots : [], bench = r.filter(p => !starters.includes(p.id)), tm = l ? hbBuilt(t, l) : null, stars = l ? l.stars : [];
     const row = (id, i) => `<tr><td class="l">${i != null ? `<span class="muted">${i + 1}</span> ` : ''}${ico(P[id], 20)}<b class="pclick" data-pid="${id}">${esc(hbSn(id))}</b> ${P[id].cap ? '<span class="chip cap">C</span>' : ''}${stars.includes(id) ? ' <b class="hb-s" title="Starred this week">★</b>' : ''}${prev.includes(id) ? ' <span class="chip w" title="Starred last week, so not eligible this week">★ last wk</span>' : ''}</td><td>${esc(l && l.pos[id] || '')}</td><td class="num">${P[id].bat.toFixed(2)}</td><td class="num">${P[id].ra.toFixed(1)}</td></tr>`;
-    return `<div class="panel"><h2>${hbLogo(t, true)}${esc(t)} <span>${hbRec(t)} · ${r.length} players${tm ? ' · chem ' + (tm.chem.good - tm.chem.bad) : ''} · ${doc ? 'saved for week ' + wk : l && l.saved ? 'carried from week ' + l.from : 'auto lineup, not saved'}</span></h2>
+    return `<div class="panel"><h2>${hbLogo(t, true)}${esc(t)} <span>${hbRec(t)} · ${r.length} players${tm ? ' · chem ' + (tm.chem.good - tm.chem.bad) : ''} · ${fz && l ? 'week ' + wk + ' lineup, ' + esc(gmLuSrc(l)) + (ts ? ' · roster as of then' : '') : doc ? 'saved for week ' + wk : l && l.saved ? 'carried from week ' + l.from : 'auto lineup, not saved'}</span></h2>
      <div class="tbl-wrap"><table><thead><tr><th class="l">Lineup</th><th>Pos</th><th>Bat</th><th>RA</th></tr></thead><tbody>${starters.map((id, i) => row(id, i)).join('') || '<tr><td class="l muted" colspan="4">No roster yet.</td></tr>'}</tbody></table></div>
      ${bench.length ? `<div class="pad"><div class="note" style="margin-bottom:4px">Dugout</div><div class="chips">${bench.map(p => `<span class="chip">${ico(p, 16)}<span class="pclick" data-pid="${p.id}">${esc(hbSn(p.id))}</span>${stars.includes(p.id) ? ' <b class="hb-s">★</b>' : ''}</span>`).join('')}</div></div>` : ''}</div>`; }).join('');
   return `<div class="panel"><h2>Rosters <span>Most recent saved lineup for each team, with this week's stars</span></h2><div class="pad" style="display:grid;gap:10px">${hbWeekBar('rweek', wk)}
@@ -5690,6 +5702,7 @@ function hbCommishView() {
     <label class="hb-f">Exact close time<input type="datetime-local" id="hbDeadlineAt" value="${(() => { const at = hbDeadlineAt(); if (!at) return ''; const d = new Date(at - new Date(at).getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); })()}"></label>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="${HB.cfg && HB.cfg.locked ? '' : 'primary'}" data-hb="lock">${HB.cfg && HB.cfg.locked ? 'Unlock lineups' : 'Lock lineups for week ' + w}</button><button data-hb="closetrades">${HB.cfg && HB.cfg.tradesClosed ? 'Reopen trades' : 'Close trades now'}</button></div>
     ${(() => { const bad = TEAMS.map(t => { const sn = HB.snaps[hbSnap(w, t)]; return sn && sn.bad && sn.bad.length ? `<li><b>${esc(t)}</b>: ${sn.bad.map(id => esc(P[id] ? P[id].name : String(id))).join(', ')}</li>` : ''; }).join(''); return bad ? `<div class="hb-lockflag"><b>⚠ Week ${w} lineups locked with players no longer on the team</b><ul>${bad}</ul><span class="note">They were locked exactly as the coach saved them. To change one: Unlock lineups, fix it in My Lineup as that team, and lock again.</span></div>` : ''; })()}
+    <div><button data-luall="1">Check every game's lineup against its box score</button></div>
     <div class="note">Locked copies saved: ${HB_WEEKS.filter(x => x <= w + 1).map(x => { const n = TEAMS.filter(t => HB.snaps[hbSnap(x, t)]).length; return n ? `week ${x}: <b>${n}/${TEAMS.length}</b>` : ''; }).filter(Boolean).join(' · ') || 'none yet'}</div>
     <b>Auto-lock</b><div class="hb-autolock">${HB_WEEKS.filter(x => x >= w).map(x => { const at = hbAutoAt(x), dn = HB.cfg && HB.cfg.autoDone && HB.cfg.autoDone[x]; return `<label>Week ${x}<input type="datetime-local" data-autolock="${x}" value="${at ? new Date(at - new Date(at).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}">${dn ? '<span class="chip g">locked</span>' : ''}</label>`; }).join('')}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button data-hb="autofill">Fill the empty weeks (+7 days each)</button></div>
@@ -5869,9 +5882,10 @@ async function hbBotImport(txt, who) {
       if (x.byTeam) for (const sd of ['away', 'home']) { const T = x.byTeam[g[sd]], hh = ((box[sd] || {}).bat || []).reduce((q, b) => q + (+b.h || 0), 0); log.push(`${g[sd]}: read ${((box[sd] || {}).bat || []).length} batters and ${((box[sd] || {}).pit || []).length} pitchers.`); if (T && hh !== T.h) log.push(`Check: ${g[sd]}'s player rows add up to ${hh} hits but the sheet says ${T.h}. Look at that team's rows.`); }
       d.box = box; }
     if (!d.status) d.status = 'final';
-    if (await hbPut('sscores/' + g.gid, d)) { n++; log.push(`Week ${g.wk}: ${g.away} ${d.as == null ? '–' : d.as}, ${g.home} ${d.hs == null ? '–' : d.hs} saved${d.box ? ' with box score' : ''}.`); }
+    x._gid = g.gid; if (await hbPut('sscores/' + g.gid, d)) { n++; log.push(`Week ${g.wk}: ${g.away} ${d.as == null ? '–' : d.as}, ${g.home} ${d.hs == null ? '–' : d.hs} saved${d.box ? ' with box score' : ''}.`); }
   }
   HB.bxLog = log; toast(n ? n + ' game' + (n === 1 ? '' : 's') + ' imported.' : 'Nothing was imported.', n ? 'good' : 'bad'); renderHub();
+  if (n) setTimeout(() => hbLuReview(games.map(x => x._gid).filter(Boolean)), 1200);
 }
 const hbImport = txt => hbBotImport(txt, 'cm');
 document.addEventListener('change', e => { if (e.target && e.target.id === 'bxFile' && e.target.files[0]) { const f = e.target.files[0]; f.text().then(t => hbBotImport(t, 'statbot')); } });
@@ -5985,7 +5999,7 @@ async function hbBoxSave(gid) {
     const prev = (((HB.scores[gid] || {}).box || {})[k] || {})[t === 'b' ? 'bat' : 'pit'] || [], was = prev.find(x => x.p === o.p); if (any) box[k][t === 'b' ? 'bat' : 'pit'].push(Object.assign({}, was || {}, o)); });
   const stars = { away: [], home: [] }; document.querySelectorAll('#hbModal tr[data-bxn]').forEach(tr => { const cb = tr.querySelector('.bxstar'); if (cb && cb.checked && !stars[tr.dataset.bxk].includes(tr.dataset.bxn)) stars[tr.dataset.bxk].push(tr.dataset.bxn); });
   const old = HB.scores[gid] || {}, inn = parseInt($('#bxIn').value, 10), d = Object.assign({}, old, { gid, wk: g.wk, away: g.away, home: g.home, status: st, as: A === '' ? null : +A, hs: H === '' ? null : +H, stadium: $('#bxSd').value, box, stars, innings: inn > 0 ? inn : null, t: Date.now(), src: old.src || 'manual' });
-  if (await hbPut('sscores/' + gid, d)) { toast('Box score saved.', 'good'); $('#hbModal').hidden = true; }
+  if (await hbPut('sscores/' + gid, d)) { toast('Box score saved.', 'good'); $('#hbModal').hidden = true; setTimeout(() => hbLuReview([gid]), 1200); }
 }
 async function hbRecordTrade() {
   const A = HB.cfrom, T = HB.trade, k = x => { const [r, ...o] = x.split('|'); return { r: +r, o: o.join('|') }; };
@@ -7943,7 +7957,7 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-atcopy]')) { const t = AT_DISCORD(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copied. Paste it in Discord.', 'good')).catch(() => { prompt('Copy this message:', t); }); }
 });
 /* ---- locked lineups on the game page and the matchup cards (shown once that team's lineup is locked or the game is played) ---- */
-const gmLuSrc = l => l.src === 'locked' ? 'locked' : l.src === 'as sent to AutoTeam' ? 'as sent to AutoTeam for this game' : l.src === 'saved' ? 'as saved (week not locked)' : l.src === 'automatic' ? 'automatic, no lineup was saved' : l.src;
+const gmLuSrc = l => /box score/.test(l.src) ? l.src : l.src === 'locked' ? 'locked' : l.src === 'as sent to AutoTeam' ? 'as sent to AutoTeam for this game' : l.src === 'saved' ? 'as saved (week not locked)' : l.src === 'automatic' ? 'automatic, no lineup was saved' : l.src;
 function gmLuTeam(g, t, full) {
   if (!hbFrozen(t, g.wk)) { const at = hbAutoAt(g.wk); return `<div class="gm-lu"><h3>${hbLogo(t)}${esc(t)}</h3><div class="note">Shows here when lineups lock${at && Date.now() < at ? ' (' + hbAutoFmt(at) + ')' : ''}.</div></div>`; }
   const l = hbAsPlayed(t, g.wk); if (!l) return `<div class="gm-lu"><h3>${hbLogo(t)}${esc(t)}</h3><div class="note">No lineup.</div></div>`;
@@ -7951,8 +7965,45 @@ function gmLuTeam(g, t, full) {
   if (!full) return `<div class="gm-lu sm"><b>${esc(t)}</b><ol>${l.slots.map(id => `<li>${esc(hbSn(id))}${(l.pos || {})[id] ? ' <span class="note">' + esc(l.pos[id]) + '</span>' : ''}${(l.stars || []).includes(id) ? ' <b class="hb-s">★</b>' : ''}${bad.has(id) ? ' ⚠' : ''}</li>`).join('')}</ol></div>`;
   return `<div class="gm-lu"><h3>${hbLogo(t)}${esc(t)} <span class="note">${esc(gmLuSrc(l))}</span></h3><table><tbody>${l.slots.map((id, i) => `<tr><td class="l">${i + 1}. ${ico(P[id], 20)}<span class="pclick" data-pid="${id}">${esc(hbSn(id))}</span> ${P[id] && P[id].cap ? '<span class="chip cap">C</span>' : ''}${(l.stars || []).includes(id) ? ' <b class="hb-s">★</b>' : ''}${bad.has(id) ? ' <span class="chip bad" title="Not on the team when lineups locked">⚠ not on roster at lock</span>' : !ros.has(id) ? ' <span class="note">(traded since)</span>' : ''}</td><td>${esc((l.pos || {})[id] || '')}</td></tr>`).join('')}</tbody></table></div>`;
 }
-function gmLus(g, s) { const o = hbPlayedOrder(g, s); return `<div class="panel gm-lus"><h2>Lineups <span>Week ${g.wk} · as locked or played</span></h2><div class="gm-lus-in">${gmLuTeam(g, g[o[0]], true)}${gmLuTeam(g, g[o[1]], true)}</div></div>`; }
+function gmLus(g, s) { const o = hbPlayedOrder(g, s), df = hbLuDiffs(g.gid); return `${df.length ? `<div class="hb-lockflag" style="margin:12px 0"><b>⚠ The box score and the lineup don't match for ${df.map(x => esc(x.team)).join(' and ')}.</b> <button class="hb-mini" data-luchk="${g.gid}">Pick the right one</button></div>` : ''}<div class="panel gm-lus"><h2>Lineups <span>Week ${g.wk} · as locked or played</span></h2><div class="gm-lus-in">${gmLuTeam(g, g[o[0]], true)}${gmLuTeam(g, g[o[1]], true)}</div></div>`; }
 function hbCardLus(g, s) { if (!hbFrozen(g.away, g.wk) && !hbFrozen(g.home, g.wk)) return ''; const o = hbPlayedOrder(g, s); return `<details class="hb-lus"><summary>Locked lineups</summary><div class="gm-lus-in">${gmLuTeam(g, g[o[0]], false)}${gmLuTeam(g, g[o[1]], false)}</div></details>`; }
+/* ---- lineup check: the players in a box score vs the lineup the site has for that game ---- */
+function hbBoxIds(team, names, wk) {
+  const lu = hbAsPlayed(team, wk), pool = [...new Set((lu ? lu.slots : []).concat(hbRosterAt(team, hbWeekTs(team, wk) || 0), hbRoster(team)))];
+  return names.map(n => { const k = hbNk(n); let id = pool.find(i => P[i] && (hbNk(hbSn(i)) === k || hbNk(P[i].name) === k)); if (id == null) id = P.findIndex(p => p && (hbNk(p.name) === k)); return id >= 0 && id != null ? id : null; });
+}
+function hbLuDiffs(gid) {
+  const g = HB_GAMES.find(x => x.gid === gid), s = g && HB.scores[gid]; if (!s || !s.box) return [];
+  const out = []; for (const sd of ['away', 'home']) {
+    const team = g[sd], bat = ((s.box[sd] || {}).bat || []), names = bat.map(b => b.p); if (!names.length) continue;
+    const sn = HB.snaps[hbSnap(g.wk, team)]; if (sn && sn.fix && sn.boxSig === names.join('|')) continue; // already decided for this box score
+    const ids = hbBoxIds(team, names, g.wk), lu = hbAsPlayed(team, g.wk), site = lu ? lu.slots : [];
+    const a = new Set(ids.filter(x => x != null)), b = new Set(site);
+    const onlyBox = names.filter((n, i) => ids[i] == null || !b.has(ids[i])), onlySite = site.filter(i => !a.has(i));
+    if (onlyBox.length || onlySite.length) out.push({ g, sd, team, names, ids, lu, onlyBox, onlySite, unknown: names.filter((n, i) => ids[i] == null) });
+  }
+  return out;
+}
+function hbLuReview(gids) {
+  const df = [].concat(...gids.map(hbLuDiffs)); if (!df.length) return;
+  const one = x => `<div class="panel" style="margin:10px 0"><h2>${hbLogo(x.team)}${esc(x.team)} <span>Week ${x.g.wk} · ${esc(x.g.away)} at ${esc(x.g.home)}</span></h2><div class="gm-lus-in">
+     <div class="gm-lu"><h3>In the box score</h3><ol>${x.names.map((n, i) => `<li${x.onlyBox.includes(n) ? ' class="lu-diff"' : ''}>${esc(x.ids[i] != null ? hbSn(x.ids[i]) : n)}${x.ids[i] == null ? ' <span class="note">(unknown player)</span>' : ''}</li>`).join('')}</ol></div>
+     <div class="gm-lu"><h3>Site lineup <span class="note">${esc(x.lu ? gmLuSrc(x.lu) : 'none')}</span></h3><ol>${(x.lu ? x.lu.slots : []).map(i => `<li${x.onlySite.includes(i) ? ' class="lu-diff"' : ''}>${esc(hbSn(i))}${(x.lu.pos || {})[i] ? ' <span class="note">' + esc(x.lu.pos[i]) + '</span>' : ''}</li>`).join('')}</ol></div></div>
+     <div class="pad" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${x.unknown.length ? `<span class="note">Fix ${x.unknown.map(esc).join(', ')} in Edit box score before using the box score's lineup.</span>` : `<button class="primary" data-lufix="box" data-g="${x.g.gid}" data-sd="${x.sd}">Box score is right</button>`}<button data-lufix="site" data-g="${x.g.gid}" data-sd="${x.sd}">Site lineup is right</button></div></div>`;
+  hbModal(`<h2 class="hb-mh">⚠ Lineup check</h2><div class="note">These players in the box score don't match the lineup the site has for that game (<span class="lu-diff">highlighted</span>). Pick which one is right. Your pick becomes that team's lineup for the week everywhere on the site.</div>${df.map(one).join('')}`);
+}
+async function hbLuFix(gid, sd, which) {
+  const x = hbLuDiffs(gid).find(y => y.sd === sd); if (!x) { toast('Already sorted.', 'good'); return; }
+  const lu = x.lu || { slots: [], pos: {}, stars: [] }, sig = x.names.join('|');
+  let doc;
+  if (which === 'box') { const ids = x.ids; if (ids.some(i => i == null)) return; const pos = {}; ids.forEach(i => { if ((lu.pos || {})[i]) pos[i] = lu.pos[i]; });
+    const box = ((HB.scores[gid] || {}).stars || {})[sd]; const stars = Array.isArray(box) ? box.map(n => hbBoxIds(x.team, [n], x.g.wk)[0]).filter(i => i != null) : (lu.stars || []).filter(i => ids.includes(i));
+    doc = { wk: x.g.wk, team: x.team, slots: ids, pos, stars, bad: [], fix: 'box', boxSig: sig, t: Date.now() }; }
+  else doc = { wk: x.g.wk, team: x.team, slots: lu.slots, pos: lu.pos || {}, stars: lu.stars || [], bad: lu.bad || [], fix: 'site', boxSig: sig, t: Date.now() };
+  if (await hbPut('ssnap/' + hbSnap(x.g.wk, x.team), doc)) { toast(which === 'box' ? `${x.team}'s week ${x.g.wk} lineup now matches the box score.` : `Kept the site lineup for ${x.team}. The stats still go to the players named in the box score; use Edit box score to change names.`, 'good');
+    setTimeout(() => { const left = HB_GAMES.filter(g => g.wk === x.g.wk).map(g => g.gid).filter(id => hbLuDiffs(id).length); if (left.length) hbLuReview(left); else { const m = $('#hbModal'); if (m) m.hidden = true; } renderHub(); }, 900); }
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-luall]')) { const ids = HB_GAMES.map(g => g.gid).filter(id => hbLuDiffs(id).length); if (ids.length) hbLuReview(ids); else toast('Every box score matches its lineup.', 'good'); return; } const f = e.target.closest('[data-lufix]'); if (f) { hbLuFix(f.dataset.g, f.dataset.sd, f.dataset.lufix); return; } const c = e.target.closest('[data-luchk]'); if (c) hbLuReview([c.dataset.luchk]); });
 /* ---- blank score sheet for the stats bot (it watches the video and fills in the stats) ---- */
 function gmBotSheet(g) {
   const s = HB.scores[g.gid] || {}, pl = s.played && s.played.away ? s.played : { away: g.away, home: g.home };
