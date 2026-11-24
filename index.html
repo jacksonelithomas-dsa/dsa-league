@@ -5195,8 +5195,16 @@ const hbTeamDone = (team, wk) => HB_GAMES.some(g => g.wk === wk && (g.away === t
 const hbFrozen = (team, wk) => !!(HB.snaps && HB.snaps[hbSnap(wk, team)]) || wk < hbCur() || (wk === hbCur() && !!(HB.cfg && HB.cfg.locked)) || hbTeamDone(team, wk);
 function hbAsPlayed(team, wk) {
   const sn = HB.snaps && HB.snaps[hbSnap(wk, team)]; if (sn && sn.slots && sn.slots.length) return { slots: Array.from(sn.slots), pos: Object.assign({}, sn.pos || {}), stars: sn.stars || [], bad: sn.bad || [], saved: true, from: wk, src: 'locked' };
+  const ax = hbFromAuto(team, wk); if (ax) return ax;
   for (let w = wk; w >= 0; w--) { const d = hbDoc(team, w); if (d && d.slots && d.slots.length) return { slots: Array.from(d.slots), pos: Object.assign({}, d.pos || {}), stars: w === wk ? (d.stars || []) : [], bad: [], saved: true, from: w, src: w === wk ? 'saved' : 'carried over from week ' + w }; }
   const a = hbAuto(team); return a ? Object.assign(a, { stars: [], bad: [], saved: false, from: null, src: 'automatic' }) : null;
+}
+function hbFromAuto(team, wk) {
+  const g = HB_GAMES.find(x => x.wk === wk && (x.away === team || x.home === team)), ex = g && HB.snaps && HB.snaps['auto_' + g.gid]; if (!ex) return null;
+  const side = [ex.away, ex.home].find(x => x && (x.key === team || x.team === team)); if (!side || !side.players || !side.players.length) return null;
+  const ids = Object.keys(P), find = n => { const k = hbK(n); const own = hbRoster(team).find(i => P[i] && hbK(P[i].name) === k); return own != null ? own : ids.map(Number).find(i => P[i] && hbK(P[i].name) === k); };
+  const slots = [], pos = {}, stars = []; for (const p of side.players.slice().sort((a, b) => a.bat - b.bat)) { const id = find(p.name); if (id == null) return null; slots.push(id); if (p.pos) pos[id] = p.pos; if (p.star) stars.push(id); }
+  return { slots, pos, stars, bad: [], saved: true, from: wk, src: 'as sent to AutoTeam' };
 }
 // what gets locked: the team's own saved lineup exactly as saved (players no longer on the roster are kept and flagged), else the usual fallback
 function hbLockLu(team, wk) {
@@ -5682,6 +5690,7 @@ function hbCommishView() {
     <label class="hb-f">Exact close time<input type="datetime-local" id="hbDeadlineAt" value="${(() => { const at = hbDeadlineAt(); if (!at) return ''; const d = new Date(at - new Date(at).getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); })()}"></label>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="${HB.cfg && HB.cfg.locked ? '' : 'primary'}" data-hb="lock">${HB.cfg && HB.cfg.locked ? 'Unlock lineups' : 'Lock lineups for week ' + w}</button><button data-hb="closetrades">${HB.cfg && HB.cfg.tradesClosed ? 'Reopen trades' : 'Close trades now'}</button></div>
     ${(() => { const bad = TEAMS.map(t => { const sn = HB.snaps[hbSnap(w, t)]; return sn && sn.bad && sn.bad.length ? `<li><b>${esc(t)}</b>: ${sn.bad.map(id => esc(P[id] ? P[id].name : String(id))).join(', ')}</li>` : ''; }).join(''); return bad ? `<div class="hb-lockflag"><b>⚠ Week ${w} lineups locked with players no longer on the team</b><ul>${bad}</ul><span class="note">They were locked exactly as the coach saved them. To change one: Unlock lineups, fix it in My Lineup as that team, and lock again.</span></div>` : ''; })()}
+    <div class="note">Locked copies saved: ${HB_WEEKS.filter(x => x <= w + 1).map(x => { const n = TEAMS.filter(t => HB.snaps[hbSnap(x, t)]).length; return n ? `week ${x}: <b>${n}/${TEAMS.length}</b>` : ''; }).filter(Boolean).join(' · ') || 'none yet'}</div>
     <b>Auto-lock</b><div class="hb-autolock">${HB_WEEKS.filter(x => x >= w).map(x => { const at = hbAutoAt(x), dn = HB.cfg && HB.cfg.autoDone && HB.cfg.autoDone[x]; return `<label>Week ${x}<input type="datetime-local" data-autolock="${x}" value="${at ? new Date(at - new Date(at).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}">${dn ? '<span class="chip g">locked</span>' : ''}</label>`; }).join('')}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button data-hb="autofill">Fill the empty weeks (+7 days each)</button></div>
     <div class="note">At each time, lineups stop saving for everyone, that week becomes the current week, every lineup is locked, it's posted to Discord, and DSA AutoTeam gets the lineups. The lock and post happen as soon as anyone has the site open at or after that time (editing is blocked either way, and AutoTeam already has the latest lineups). Clear a box to turn it off. Unlocking by hand after an auto-lock keeps it unlocked.</div>
@@ -5868,7 +5877,7 @@ const hbImport = txt => hbBotImport(txt, 'cm');
 document.addEventListener('change', e => { if (e.target && e.target.id === 'bxFile' && e.target.files[0]) { const f = e.target.files[0]; f.text().then(t => hbBotImport(t, 'statbot')); } });
 async function hbLock() {
   const w = hbCur(), cfg = Object.assign({ week: w }, HB.cfg || {});
-  const flags = []; if (!cfg.locked) { for (const t of TEAMS) { const l = hbLockLu(t, w); if (l) { if (l.bad.length) flags.push(t + ' (' + l.bad.map(id => P[id] ? P[id].name : id).join(', ') + ')'); await hbPut('ssnap/' + hbSnap(w, t), { wk: w, team: t, slots: l.slots, pos: l.pos, stars: l.stars, bad: l.bad, t: Date.now() }); } } cfg.locked = true; } else cfg.locked = false;
+  const flags = []; if (!cfg.locked) { for (const t of TEAMS) { const l = hbLockLu(t, w); if (l) { if (l.bad.length) flags.push(t + ' (' + l.bad.map(id => P[id] ? P[id].name : id).join(', ') + ')'); if (!(await hbPut('ssnap/' + hbSnap(w, t), { wk: w, team: t, slots: l.slots, pos: l.pos, stars: l.stars, bad: l.bad, t: Date.now() }))) flags.push(t + ' (could not save the locked copy, try again)'); } } cfg.locked = true; } else cfg.locked = false;
   if (flags.length) setTimeout(() => toast('Locked as saved, but these lineups have players no longer on the team: ' + flags.join('; ') + '. Fix them in the Commish tab if needed.', 'bad'), 2500);
   if (await hbPut('season/config', cfg)) { toast(cfg.locked ? 'Lineups locked.' : 'Lineups unlocked.', 'good'); if (cfg.locked && typeof atPublish === 'function') setTimeout(() => atPublish(w, true), 1500); }
 }
@@ -6116,7 +6125,7 @@ document.addEventListener('change', e => {
   else if (t.id === 'hbDeadlineAt') { const at = t.value ? new Date(t.value).getTime() : 0; hbPut('season/config', Object.assign({}, HB.cfg || {}, { deadlineAt: at })).then(ok => ok && toast(at ? 'Trades close ' + new Date(at).toLocaleString() + '.' : 'Exact close time cleared.', 'good')); }
   else if (t.dataset && t.dataset.autolock) { const w = +t.dataset.autolock, at = t.value ? new Date(t.value).getTime() : 0, al = Object.assign({}, (HB.cfg || {}).autoLock || {}), dn = Object.assign({}, (HB.cfg || {}).autoDone || {}); if (at) al[w] = at; else delete al[w]; delete dn[w];
     hbPut('season/config', Object.assign({}, HB.cfg || {}, { autoLock: al, autoDone: dn })).then(ok => ok && toast(at ? `Week ${w} lineups lock ${hbAutoFmt(at)}.` : `Week ${w} auto-lock turned off.`, 'good')); }
-  else if (t.id === 'hbWeek') { hbPut('season/config', Object.assign({}, HB.cfg || {}, { week: +t.value })).then(ok => ok && toast('Week ' + t.value + ' is now current.', 'good')); }
+  else if (t.id === 'hbWeek') { const nw = +t.value; hbPut('season/config', Object.assign({}, HB.cfg || {}, { week: nw, locked: TEAMS.some(x => HB.snaps[hbSnap(nw, x)]) })).then(ok => ok && toast('Week ' + t.value + ' is now current.', 'good')); }
 });
 
 /* ---- tab layout: before the draft ends the draft tabs stay; after it the season tabs replace them ---- */
@@ -7934,7 +7943,7 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-atcopy]')) { const t = AT_DISCORD(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copied. Paste it in Discord.', 'good')).catch(() => { prompt('Copy this message:', t); }); }
 });
 /* ---- locked lineups on the game page and the matchup cards (shown once that team's lineup is locked or the game is played) ---- */
-const gmLuSrc = l => l.src === 'locked' ? 'locked' : l.src === 'saved' ? 'as saved (week not locked)' : l.src === 'automatic' ? 'automatic, no lineup was saved' : l.src;
+const gmLuSrc = l => l.src === 'locked' ? 'locked' : l.src === 'as sent to AutoTeam' ? 'as sent to AutoTeam for this game' : l.src === 'saved' ? 'as saved (week not locked)' : l.src === 'automatic' ? 'automatic, no lineup was saved' : l.src;
 function gmLuTeam(g, t, full) {
   if (!hbFrozen(t, g.wk)) { const at = hbAutoAt(g.wk); return `<div class="gm-lu"><h3>${hbLogo(t)}${esc(t)}</h3><div class="note">Shows here when lineups lock${at && Date.now() < at ? ' (' + hbAutoFmt(at) + ')' : ''}.</div></div>`; }
   const l = hbAsPlayed(t, g.wk); if (!l) return `<div class="gm-lu"><h3>${hbLogo(t)}${esc(t)}</h3><div class="note">No lineup.</div></div>`;
