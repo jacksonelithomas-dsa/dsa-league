@@ -44,6 +44,10 @@ select,input[type=text],input[type=number]{background:var(--surface);border:1px 
 .cell .v{font-family:var(--f-display);font-weight:800;font-size:24px;color:var(--bulb);line-height:1.05;text-shadow:0 0 10px rgba(242,169,0,.35)}
 .cell.team .v{font-size:20px}
 .cell.me .v{color:#fff}
+.gm-lus{margin:12px 0}.gm-lus-in{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px;padding:12px 16px}
+.gm-lu h3{display:flex;gap:8px;align-items:center;margin:0 0 6px;font-size:15px;flex-wrap:wrap}.gm-lu table{width:100%}.gm-lu td{padding:4px 6px;font-size:13.5px}
+.gm-lu.sm ol{margin:4px 0 0;padding-left:20px;font-size:12.5px;line-height:1.5}.hb-lus{margin:6px 0;font-size:13px}.hb-lus summary{cursor:pointer;font-weight:600}.hb-lus .gm-lus-in{padding:6px 0;gap:10px;grid-template-columns:1fr 1fr}
+.chip.bad{background:#f4a3a3;color:#5c0a0a}.hb-lockflag{padding:10px 12px;border-radius:8px;border-left:4px solid var(--bad,#c33);background:color-mix(in srgb,var(--bad,#c33) 8%,transparent);font-size:13px}.hb-lockflag ul{margin:6px 0;padding-left:18px}
 .hb-autolock{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 12px}.hb-autolock label{display:flex;gap:8px;align-items:center;font-size:13px;white-space:nowrap}.hb-autolock input{flex:1;min-width:0}
 .gm-botsheet{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:8px 2px 0;font-size:13px}.btn-file{display:inline-block;padding:7px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-weight:600;font-size:13.5px;background:var(--surface2,transparent)}.btn-file:hover{border-color:var(--accent)}
 .at-cta .pad{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
@@ -5187,14 +5191,27 @@ function hbAuto(team) {
   const rest = ['C', '1B', '2B', '3B', 'SS']; lu.forEach(p => { if (!used.has(p.id)) { const q = rest.shift(); if (q) setp(p, q); } });
   return { slots: lu.map(p => p.id), pos };
 }
+const hbTeamDone = (team, wk) => HB_GAMES.some(g => g.wk === wk && (g.away === team || g.home === team) && typeof gmFin === 'function' && gmFin(HB.scores[g.gid]));
+const hbFrozen = (team, wk) => !!(HB.snaps && HB.snaps[hbSnap(wk, team)]) || wk < hbCur() || (wk === hbCur() && !!(HB.cfg && HB.cfg.locked)) || hbTeamDone(team, wk);
+function hbAsPlayed(team, wk) {
+  const sn = HB.snaps && HB.snaps[hbSnap(wk, team)]; if (sn && sn.slots && sn.slots.length) return { slots: Array.from(sn.slots), pos: Object.assign({}, sn.pos || {}), stars: sn.stars || [], bad: sn.bad || [], saved: true, from: wk, src: 'locked' };
+  for (let w = wk; w >= 0; w--) { const d = hbDoc(team, w); if (d && d.slots && d.slots.length) return { slots: Array.from(d.slots), pos: Object.assign({}, d.pos || {}), stars: w === wk ? (d.stars || []) : [], bad: [], saved: true, from: w, src: w === wk ? 'saved' : 'carried over from week ' + w }; }
+  const a = hbAuto(team); return a ? Object.assign(a, { stars: [], bad: [], saved: false, from: null, src: 'automatic' }) : null;
+}
+// what gets locked: the team's own saved lineup exactly as saved (players no longer on the roster are kept and flagged), else the usual fallback
+function hbLockLu(team, wk) {
+  const own = hbDoc(team, wk), ros = new Set(hbRoster(team));
+  if (own && own.slots && own.slots.length) return { slots: Array.from(own.slots), pos: Object.assign({}, own.pos || {}), stars: own.stars || [], bad: own.slots.filter(id => !ros.has(id)) };
+  const l = hbLineup(team, wk); return l ? { slots: l.slots, pos: l.pos, stars: l.stars || [], bad: (l.slots || []).filter(id => !ros.has(id)) } : null;
+}
 // the lineup used in a week: that week's saved lineup, else the most recent earlier one (stars never carry over), else the automatic best nine
 function hbLineup(team, wk) {
-  wk = wk || hbCur(); const own = hbDoc(team, wk);
+  wk = wk || hbCur(); if (hbFrozen(team, wk)) { const x = hbAsPlayed(team, wk); if (x) return x; } const own = hbDoc(team, wk);
   if (hbValidDoc(own, team)) return { slots: Array.from(own.slots), pos: Object.assign({}, own.pos), stars: (own.stars || []).filter(id => hbRoster(team).includes(id)), saved: true, from: wk };
   for (let w = wk - 1; w >= 0; w--) { const d = hbDoc(team, w); if (hbValidDoc(d, team)) return { slots: Array.from(d.slots), pos: Object.assign({}, d.pos), stars: [], saved: true, from: w }; }
   const a = hbAuto(team); return a ? Object.assign(a, { stars: [], saved: false, from: null }) : null;
 }
-function hbBuilt(team, lu, wk) { const r = hbProfs(hbRoster(team)); if (!r.length) return null; lu = lu || hbLineup(team, wk); return Core.buildTeam(r, lu ? { slots: lu.slots, pos: lu.pos } : undefined); }
+function hbBuilt(team, lu, wk) { lu = lu || hbLineup(team, wk); const r = hbProfs([...new Set(hbRoster(team).concat(lu && lu.slots || []))]); if (!r.length) return null; lu = lu || hbLineup(team, wk); return Core.buildTeam(r, lu ? { slots: lu.slots, pos: lu.pos } : undefined); }
 
 
 /* ---- playoff picture: clinch / elimination / magic numbers / projected seeds and Season 7 pick order ----
@@ -5400,7 +5417,7 @@ function hbCard(g) {
   const k = st === 'final' ? null : hbProj(g);
   return `<article class="hb-game"><div class="hb-head" data-gm="open" data-g="${g.gid}" role="button" tabindex="0" title="Open the game page"><span>Week ${g.wk} · Game ${g.gid.slice(g.gid.indexOf('g') + 1)}</span>${pill}</div>${hbPlayedOrder(g, s).map(k => hbSide(g, k, s)).join('')}
    ${st === 'final' || st === 'live' ? '' : `<div class="hb-proj" data-hbproj="${g.gid}">${k ? hbProjHtml(g, k) : '<span class="note">Set both lineups to see a projection.</span>'}</div>`}
-   ${hbStad(g, s)}<div class="hb-st" style="display:flex;gap:6px;flex-wrap:wrap"><button class="hb-mini primary" data-gm="open" data-g="${g.gid}">Game page</button><button class="hb-mini" data-hb="lineups" data-g="${g.gid}">Lineups</button>${s && (s.box || s.line) ? `<button class="hb-mini" data-hb="box" data-g="${g.gid}">Box score</button>` : ''}${s && st === 'final' && hbAdmin() ? `<button class="hb-mini" data-hbflip="${g.gid}" title="Commissioner: flip which team is shown as batting first, if this game was imported the wrong way round">⇅ Batting order</button>` : ''}</div></article>`;
+   ${hbStad(g, s)}${hbCardLus(g, s)}<div class="hb-st" style="display:flex;gap:6px;flex-wrap:wrap"><button class="hb-mini primary" data-gm="open" data-g="${g.gid}">Game page</button><button class="hb-mini" data-hb="lineups" data-g="${g.gid}">Lineups</button>${s && (s.box || s.line) ? `<button class="hb-mini" data-hb="box" data-g="${g.gid}">Box score</button>` : ''}${s && st === 'final' && hbAdmin() ? `<button class="hb-mini" data-hbflip="${g.gid}" title="Commissioner: flip which team is shown as batting first, if this game was imported the wrong way round">⇅ Batting order</button>` : ''}</div></article>`;
 }
 function hbWeekBar(key, cur) { return `<div class="hb-weeks">${HB_WEEKS.map(x => `<button data-hbweek="${x}" data-hbkey="${key}" aria-pressed="${x === cur}" class="${x === hbCur() ? 'cur' : ''}">${x}</button>`).join('')}</div>`; }
 function hbMatchups() {
@@ -5488,7 +5505,7 @@ function hbStandingsView() {
 /* ---- my lineup: field, dugout, batting order, stars ---- */
 const HE = { team: null, wk: null, pos: {}, order: [], stars: new Set(), dirty: false, sel: null };
 function hbLoad(team, wk) { const l = hbLineup(team, wk); HE.team = team; HE.wk = wk; HE.pos = l ? Object.assign({}, l.pos) : {}; HE.order = l ? l.slots.slice() : []; HE.stars = new Set(l ? l.stars : []); HE.dirty = false; HE.sel = null; }
-const hbEditable = (team, wk) => hbCanAct(team) && !hbAutoHeld(wk) && (wk > hbCur() || (wk === hbCur() && !(HB.cfg && HB.cfg.locked)));
+const hbEditable = (team, wk) => hbCanAct(team) && !hbAutoHeld(wk) && !hbTeamDone(team, wk) && (wk > hbCur() || (wk === hbCur() && !(HB.cfg && HB.cfg.locked)));
 function hbStarBlock(team, wk, id) {
   // why a player cannot be starred this week, or '' when they can
   if (HE.stars.has(id)) return '';
@@ -5664,6 +5681,7 @@ function hbCommishView() {
     <label class="hb-f">Trade deadline<select id="hbDeadline">${HB_WEEKS.slice(1).concat([99]).map(x => `<option value="${x}" ${x === hbDeadline() ? 'selected' : ''}>${x === 99 ? 'No deadline week' : 'Week ' + x + ' (11:59 PM the day before its games)'}</option>`).join('')}</select></label>
     <label class="hb-f">Exact close time<input type="datetime-local" id="hbDeadlineAt" value="${(() => { const at = hbDeadlineAt(); if (!at) return ''; const d = new Date(at - new Date(at).getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); })()}"></label>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="${HB.cfg && HB.cfg.locked ? '' : 'primary'}" data-hb="lock">${HB.cfg && HB.cfg.locked ? 'Unlock lineups' : 'Lock lineups for week ' + w}</button><button data-hb="closetrades">${HB.cfg && HB.cfg.tradesClosed ? 'Reopen trades' : 'Close trades now'}</button></div>
+    ${(() => { const bad = TEAMS.map(t => { const sn = HB.snaps[hbSnap(w, t)]; return sn && sn.bad && sn.bad.length ? `<li><b>${esc(t)}</b>: ${sn.bad.map(id => esc(P[id] ? P[id].name : String(id))).join(', ')}</li>` : ''; }).join(''); return bad ? `<div class="hb-lockflag"><b>⚠ Week ${w} lineups locked with players no longer on the team</b><ul>${bad}</ul><span class="note">They were locked exactly as the coach saved them. To change one: Unlock lineups, fix it in My Lineup as that team, and lock again.</span></div>` : ''; })()}
     <b>Auto-lock</b><div class="hb-autolock">${HB_WEEKS.filter(x => x >= w).map(x => { const at = hbAutoAt(x), dn = HB.cfg && HB.cfg.autoDone && HB.cfg.autoDone[x]; return `<label>Week ${x}<input type="datetime-local" data-autolock="${x}" value="${at ? new Date(at - new Date(at).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}">${dn ? '<span class="chip g">locked</span>' : ''}</label>`; }).join('')}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button data-hb="autofill">Fill the empty weeks (+7 days each)</button></div>
     <div class="note">At each time, lineups stop saving for everyone, that week becomes the current week, every lineup is locked, it's posted to Discord, and DSA AutoTeam gets the lineups. The lock and post happen as soon as anyone has the site open at or after that time (editing is blocked either way, and AutoTeam already has the latest lineups). Clear a box to turn it off. Unlocking by hand after an auto-lock keeps it unlocked.</div>
@@ -5850,7 +5868,8 @@ const hbImport = txt => hbBotImport(txt, 'cm');
 document.addEventListener('change', e => { if (e.target && e.target.id === 'bxFile' && e.target.files[0]) { const f = e.target.files[0]; f.text().then(t => hbBotImport(t, 'statbot')); } });
 async function hbLock() {
   const w = hbCur(), cfg = Object.assign({ week: w }, HB.cfg || {});
-  if (!cfg.locked) { for (const t of TEAMS) { const l = hbLineup(t, w); if (l) await hbPut('ssnap/' + hbSnap(w, t), { wk: w, team: t, slots: l.slots, pos: l.pos, stars: l.stars || [], t: Date.now() }); } cfg.locked = true; } else cfg.locked = false;
+  const flags = []; if (!cfg.locked) { for (const t of TEAMS) { const l = hbLockLu(t, w); if (l) { if (l.bad.length) flags.push(t + ' (' + l.bad.map(id => P[id] ? P[id].name : id).join(', ') + ')'); await hbPut('ssnap/' + hbSnap(w, t), { wk: w, team: t, slots: l.slots, pos: l.pos, stars: l.stars, bad: l.bad, t: Date.now() }); } } cfg.locked = true; } else cfg.locked = false;
+  if (flags.length) setTimeout(() => toast('Locked as saved, but these lineups have players no longer on the team: ' + flags.join('; ') + '. Fix them in the Commish tab if needed.', 'bad'), 2500);
   if (await hbPut('season/config', cfg)) { toast(cfg.locked ? 'Lineups locked.' : 'Lineups unlocked.', 'good'); if (cfg.locked && typeof atPublish === 'function') setTimeout(() => atPublish(w, true), 1500); }
 }
 function hbDrawLottery() {
@@ -7914,6 +7933,17 @@ document.addEventListener('click', e => {
   const j = e.target.closest('[data-atjump]'); if (j) { const el = document.getElementById(j.dataset.atjump); if (el) el.scrollIntoView({ behavior: 'smooth' }); return; }
   if (e.target.closest('[data-atcopy]')) { const t = AT_DISCORD(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copied. Paste it in Discord.', 'good')).catch(() => { prompt('Copy this message:', t); }); }
 });
+/* ---- locked lineups on the game page and the matchup cards (shown once that team's lineup is locked or the game is played) ---- */
+const gmLuSrc = l => l.src === 'locked' ? 'locked' : l.src === 'saved' ? 'as saved (week not locked)' : l.src === 'automatic' ? 'automatic, no lineup was saved' : l.src;
+function gmLuTeam(g, t, full) {
+  if (!hbFrozen(t, g.wk)) { const at = hbAutoAt(g.wk); return `<div class="gm-lu"><h3>${hbLogo(t)}${esc(t)}</h3><div class="note">Shows here when lineups lock${at && Date.now() < at ? ' (' + hbAutoFmt(at) + ')' : ''}.</div></div>`; }
+  const l = hbAsPlayed(t, g.wk); if (!l) return `<div class="gm-lu"><h3>${hbLogo(t)}${esc(t)}</h3><div class="note">No lineup.</div></div>`;
+  const bad = new Set(l.bad || []), ros = new Set(hbRoster(t));
+  if (!full) return `<div class="gm-lu sm"><b>${esc(t)}</b><ol>${l.slots.map(id => `<li>${esc(hbSn(id))}${(l.pos || {})[id] ? ' <span class="note">' + esc(l.pos[id]) + '</span>' : ''}${(l.stars || []).includes(id) ? ' <b class="hb-s">★</b>' : ''}${bad.has(id) ? ' ⚠' : ''}</li>`).join('')}</ol></div>`;
+  return `<div class="gm-lu"><h3>${hbLogo(t)}${esc(t)} <span class="note">${esc(gmLuSrc(l))}</span></h3><table><tbody>${l.slots.map((id, i) => `<tr><td class="l">${i + 1}. ${ico(P[id], 20)}<span class="pclick" data-pid="${id}">${esc(hbSn(id))}</span> ${P[id] && P[id].cap ? '<span class="chip cap">C</span>' : ''}${(l.stars || []).includes(id) ? ' <b class="hb-s">★</b>' : ''}${bad.has(id) ? ' <span class="chip bad" title="Not on the team when lineups locked">⚠ not on roster at lock</span>' : !ros.has(id) ? ' <span class="note">(traded since)</span>' : ''}</td><td>${esc((l.pos || {})[id] || '')}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function gmLus(g, s) { const o = hbPlayedOrder(g, s); return `<div class="panel gm-lus"><h2>Lineups <span>Week ${g.wk} · as locked or played</span></h2><div class="gm-lus-in">${gmLuTeam(g, g[o[0]], true)}${gmLuTeam(g, g[o[1]], true)}</div></div>`; }
+function hbCardLus(g, s) { if (!hbFrozen(g.away, g.wk) && !hbFrozen(g.home, g.wk)) return ''; const o = hbPlayedOrder(g, s); return `<details class="hb-lus"><summary>Locked lineups</summary><div class="gm-lus-in">${gmLuTeam(g, g[o[0]], false)}${gmLuTeam(g, g[o[1]], false)}</div></details>`; }
 /* ---- blank score sheet for the stats bot (it watches the video and fills in the stats) ---- */
 function gmBotSheet(g) {
   const s = HB.scores[g.gid] || {}, pl = s.played && s.played.away ? s.played : { away: g.away, home: g.home };
@@ -7935,7 +7965,7 @@ async function hbAutoTick() {
     if (!hbAutoSeen[wk]) { hbAutoSeen[wk] = 1; renderHub(); }
     await new Promise(r => setTimeout(r, 1500 + Math.random() * 8000)); // so two open browsers don't both lock at once
     if (!hbAutoHeld(wk) || hbCur() > wk) return;
-    for (const t of TEAMS) { const l = hbLineup(t, wk); if (l) await hbPut('ssnap/' + hbSnap(wk, t), { wk, team: t, slots: l.slots, pos: l.pos, stars: l.stars || [], t: Date.now() }); }
+    for (const t of TEAMS) { const l = hbLockLu(t, wk); if (l) await hbPut('ssnap/' + hbSnap(wk, t), { wk, team: t, slots: l.slots, pos: l.pos, stars: l.stars, bad: l.bad, t: Date.now() }); }
     const cfg = Object.assign({}, HB.cfg, { week: wk, locked: true, autoDone: Object.assign({}, HB.cfg.autoDone || {}, { [wk]: Date.now() }) });
     if (await hbPut('season/config', cfg)) { if (hbAdmin && hbAdmin()) toast(`Week ${wk} lineups auto-locked.`, 'good'); if (typeof atPublish === 'function') setTimeout(() => atPublish(wk, true), 1500); }
   } finally { hbAutoBusy = false; }
@@ -8678,6 +8708,7 @@ function gmPage() {
   const status = fin ? `<b>${esc(hbFinTxt(s).toUpperCase())}</b>` : live ? `<b class="live">LIVE${s.inn ? ' · ' + esc(s.inn) : ''}</b>` : `<b>WEEK ${g.wk}</b><span>Upcoming</span>`;
   return `<div class="gm"><div class="gm-top"><button class="hb-mini" data-gm="back">← Scoreboard</button><span class="note">Week ${g.wk} · Game ${g.gid.slice(g.gid.indexOf('g') + 1)}</span></div>
    <div class="gm-hd">${tm(ord[0], 'away')}<div class="gm-mid">${status}<span>${esc(gmVenue(g, s))}</span></div>${tm(ord[1], 'home')}</div>
+   ${gmLus(g, s)}
    <div class="gm-botsheet"><button class="linkb" data-botsheet="${esc(g.gid)}">📋 Copy blank sheet for the stats bot</button><span class="note">Both lineups, with the week in the title so the bot's file goes into the right game.</span></div>
    ${!fin && !live ? `<div class="at-cta at-game"><span>🎮 <b>Hosting this game?</b> DSA AutoTeam sets both teams, the stadium and the rules in Dolphin for you.</span><span><a class="linkb" href="${AT_DL}" target="_blank" rel="noopener">Download</a> · <button class="linkb" data-atgo="1">How to use it</button></span></div>` : ''}
    ${fin ? gmPosted(g, s) : `<div style="margin-bottom:14px">${hbStad(g, s)}</div>${gmUpcoming(g, s)}`}</div>`;
