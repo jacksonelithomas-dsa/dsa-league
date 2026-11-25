@@ -55,6 +55,7 @@ select,input[type=text],input[type=number]{background:var(--surface);border:1px 
 .wi-pl{display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:8px}.wi-nm{flex:1;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:14px}.wi-nm .note{font-size:12px}
 .wi-new{background:color-mix(in srgb,#2a9d4b 12%,transparent)}.wi-out{opacity:.8}.wi-up{color:var(--good,#2a9d4b)}.wi-down{color:var(--bad,#c33)}
 .wi-partner{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;padding:6px 8px;border-radius:8px;background:color-mix(in srgb,var(--fg,#000) 4%,transparent)}
+.hb-cmedit{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 12px;border-radius:8px;border-left:4px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent);font-size:13.5px}
 .hb-force{margin:4px 0 2px;font-size:12.5px}.hb-force summary{cursor:pointer;color:var(--muted,#777);font-weight:600}.hb-force-in{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px}
 .hb-autolock{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 12px}.hb-autolock label{display:flex;gap:8px;align-items:center;font-size:13px;white-space:nowrap}.hb-autolock input{flex:1;min-width:0}
 .gm-botsheet{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:8px 2px 0;font-size:13px}.btn-file{display:inline-block;padding:7px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-weight:600;font-size:13.5px;background:var(--surface2,transparent)}.btn-file:hover{border-color:var(--accent)}
@@ -5213,7 +5214,7 @@ function hbAuto(team) {
 const hbTeamDone = (team, wk) => HB_GAMES.some(g => g.wk === wk && (g.away === team || g.home === team) && typeof gmFin === 'function' && gmFin(HB.scores[g.gid]));
 const hbFrozen = (team, wk) => !!(HB.snaps && HB.snaps[hbSnap(wk, team)]) || wk < hbCur() || (wk === hbCur() && !!(HB.cfg && HB.cfg.locked)) || hbTeamDone(team, wk);
 function hbAsPlayed(team, wk) {
-  const sn = HB.snaps && HB.snaps[hbSnap(wk, team)]; if (sn && sn.slots && sn.slots.length) return { slots: Array.from(sn.slots), pos: Object.assign({}, sn.pos || {}), stars: sn.stars || [], bad: sn.bad || [], saved: true, from: wk, src: sn.fix === 'box' ? 'set from the box score' : sn.fix === 'site' ? 'checked against the box score' : 'locked' };
+  const sn = HB.snaps && HB.snaps[hbSnap(wk, team)]; if (sn && sn.slots && sn.slots.length) return { slots: Array.from(sn.slots), pos: Object.assign({}, sn.pos || {}), stars: sn.stars || [], bad: sn.bad || [], saved: true, from: wk, src: sn.fix === 'box' ? 'set from the box score' : sn.fix === 'site' ? 'checked against the box score' : sn.fix === 'cm' ? 'set by the commissioner' : 'locked' };
   const ax = hbFromAuto(team, wk); if (ax) return ax;
   for (let w = wk; w >= 0; w--) { const d = hbDoc(team, w); if (d && d.slots && d.slots.length) return { slots: Array.from(d.slots), pos: Object.assign({}, d.pos || {}), stars: w === wk ? (d.stars || []) : [], bad: [], saved: true, from: w, src: w === wk ? 'saved' : 'carried over from week ' + w }; }
   const a = hbAuto(team); return a ? Object.assign(a, { stars: [], bad: [], saved: false, from: null, src: 'automatic' }) : null;
@@ -5443,6 +5444,7 @@ async function hbForceStad(gid) {
   const name = box('forcest').value, tod = HB_NO_TOD.has(name) ? null : box('forcetod').value, m = HB.maps[gid] || {};
   if (await hbPut('smaps/' + gid, { gid, wk: g.wk, away: g.away, home: g.home, ban: m.ban || null, banned: m.banned || (m.ban ? [m.ban] : []), pick: name, tod, forced: true, pickBy: LV.uid || '', t: m.t || Date.now(), t2: Date.now() })) toast(`${g.away} at ${g.home}: playing at ${hbStName(name, tod)}.`, 'good');
 }
+document.addEventListener('change', e => { if (e.target && e.target.dataset && e.target.dataset.cmteam) { HB.cmTeam = e.target.value; HE.team = null; renderHub(); } });
 document.addEventListener('change', e => { const s = e.target; if (!s || !s.dataset || !s.dataset.forcest) return; const t = s.parentElement.querySelector('[data-forcetod]'); if (!t) return; const fx = HB_FIXED_TOD[s.value]; t.disabled = !!fx; if (fx) t.value = fx; });
 document.addEventListener('click', e => { const f = e.target.closest('[data-forcego]'); if (f) { hbForceStad(f.dataset.forcego); return; }
   const c = e.target.closest('[data-forceclr]'); if (c && hbAdmin() && confirm('Clear the stadium for this game? The away team can ban again and the home team can pick.')) LV.db.doc('smaps/' + c.dataset.forceclr).delete().then(() => toast('Stadium cleared.', 'good')).catch(dbErr); });
@@ -5555,7 +5557,7 @@ function hbStandingsView() {
 /* ---- my lineup: field, dugout, batting order, stars ---- */
 const HE = { team: null, wk: null, pos: {}, order: [], stars: new Set(), dirty: false, sel: null };
 function hbLoad(team, wk) { if (wk === 'wi') return wiLoadHE(team); const l = hbLineup(team, wk); HE.team = team; HE.wk = wk; HE.pos = l ? Object.assign({}, l.pos) : {}; HE.order = l ? l.slots.slice() : []; HE.stars = new Set(l ? l.stars : []); HE.dirty = false; HE.sel = null; }
-const hbEditable = (team, wk) => wk === 'wi' || hbCanAct(team) && !hbAutoHeld(wk) && !hbTeamDone(team, wk) && (wk > hbCur() || (wk === hbCur() && !(HB.cfg && HB.cfg.locked)));
+const hbEditable = (team, wk) => wk === 'wi' || (hbAdmin() && TEAMS.includes(team)) || hbCanAct(team) && !hbAutoHeld(wk) && !hbTeamDone(team, wk) && (wk > hbCur() || (wk === hbCur() && !(HB.cfg && HB.cfg.locked)));
 function hbStarBlock(team, wk, id) {
   // why a player cannot be starred this week, or '' when they can
   if (HE.stars.has(id)) return '';
@@ -5581,6 +5583,7 @@ function hbCard2(id, team, wk, ed, i) {
 function hbLineupView() {
   const mine = hbMe(), W = !!HB.wimode; let team = HB.lteam || mine;
   if (mine) team = mine; if (W && !mine) team = HB.wteam || team || TEAMS[0];
+  const CM = hbAdmin() && !W; if (CM) team = HB.cmTeam || team || TEAMS[0];
   if (!team) return '<div class="panel"><div class="pad note">Join a team with your code to set a lineup.</div></div><div class="hb-wilink"><button class="linkb" data-wimode="1">Try a what-if roster ›</button></div>';
   const wk = W ? 'wi' : (HB.lweek || hbCur()); if (!W) HB.lweek = wk;
   if (HE.team !== team || HE.wk !== wk) hbLoad(team, wk);
@@ -5594,7 +5597,7 @@ function hbLineupView() {
      <span class="hb-mv"><button data-hbo="up" data-i="${i}" aria-label="Move up" ${!ed || !i ? 'disabled' : ''}>↑</button><button data-hbo="dn" data-i="${i}" aria-label="Move down" ${!ed || i === HE.order.length - 1 ? 'disabled' : ''}>↓</button></span></div>`).join('');
   if (W) return wiPage(team, r, tm, strength, spots, order, bench, msgs, ed);
   return `${wk >= hbCur() ? hbSugHtml(team, wk) : ''}<div class="panel"><h2>${hbLogo(team, true)}${esc(team)} <span>Week ${wk}${wk < hbCur() ? ' (played, view only)' : wk === hbCur() && HB.cfg && HB.cfg.locked || hbAutoHeld(wk) ? ' (locked)' : (wk === hbCur() ? ' (current)' : ' (upcoming)') + (hbAutoAt(wk) && Date.now() < hbAutoAt(wk) ? ' · locks ' + hbAutoFmt(hbAutoAt(wk)) : '')}</span></h2>
-   <div class="pad" style="display:grid;gap:10px">${hbWeekBar('lweek', wk)}
+   <div class="pad" style="display:grid;gap:10px">${CM ? `<div class="hb-cmedit"><b>Commish mode:</b> <label>edit any team <select data-cmteam="1">${TEAMS.map(t => `<option ${t === team ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label><span class="note">You can change any week's lineup and stars, even locked or played weeks. Saving a locked week also updates its locked copy (used by game pages, the stats check and AutoTeam).</span></div>` : ''}${hbWeekBar('lweek', wk)}
    <div class="note">Drag players onto positions, or tap a player and then a position. Drag back to the dugout to bench. Star up to ${HB_MAX_STARS} players a week, a player cannot be starred two weeks in a row, and Miis cannot be starred${prevStars.length ? ` (starred last week: ${prevStars.map(hbSn).join(', ')})` : ''}. A week with no saved lineup uses your most recent one.</div></div></div>
   <div class="hb-two" style="margin-top:14px"><div class="panel"><h2>Field <span>${HE.stars.size}/${HB_MAX_STARS} stars</span></h2><div class="pad"><div class="hb-field" id="hbField"><svg viewBox="0 0 100 92" preserveAspectRatio="none" aria-hidden="true"><path d="M50 84 L95 40 A52 52 0 0 0 5 40 Z" class="hb-grass"/><path d="M50 80 L80 58 L50 36 L20 58 Z" class="hb-dirt"/><path d="M50 74 L72 58 L50 42 L28 58 Z" class="hb-inf"/></svg>${spots}</div>
     <div class="hb-dugout" data-hbdrop="bench"><div class="hb-dtitle">Dugout <span class="note">${bench.length} on the bench</span></div><div class="hb-bench">${bench.map(p => hbCard2(p.id, team, wk, ed, null)).join('') || '<span class="note">Everyone is on the field.</span>'}</div></div></div></div>
@@ -5620,7 +5623,9 @@ function hbLE(k, i) {
   if (k === 'up' || k === 'dn') { const j = k === 'up' ? i - 1 : i + 1; if (j >= 0 && j < HE.order.length) { [HE.order[i], HE.order[j]] = [HE.order[j], HE.order[i]]; HE.dirty = true; } }
   else if (k === 'auto') { const a = HE.wk === 'wi' ? wiAuto(wiIds(team)) : hbAuto(team); if (a) { HE.order = a.slots.slice(); HE.pos = Object.assign({}, a.pos); HE.dirty = true; } }
   else if (k === 'save') { for (const id of [...HE.stars]) { HE.stars.delete(id); const why = hbStarBlock(HE.team, HE.wk, id); if (why) { toast(why, 'bad'); HE.dirty = true; renderHub(); return; } HE.stars.add(id); } const pos = {}; HE.order.forEach(id => { if (HE.pos[id]) pos[id] = HE.pos[id]; });
-    hbPut('slineups/' + hbTK(team) + '_w' + HE.wk, { team, wk: HE.wk, slots: HE.order.slice(), pos, stars: [...HE.stars], t: Date.now(), by: LV.uid || '' }).then(ok => { if (ok) { HE.dirty = false; toast('Week ' + HE.wk + ' lineup saved.', 'good'); renderHub(); } }); return; }
+    const cmFix = hbAdmin() && hbFrozen(team, HE.wk), wk0 = HE.wk, ros = new Set(hbRoster(team));
+    (cmFix ? hbPut('ssnap/' + hbSnap(wk0, team), { wk: wk0, team, slots: HE.order.slice(), pos, stars: [...HE.stars], bad: HE.order.filter(i => !ros.has(i) && !hbTeamDone(team, wk0)), fix: 'cm', t: Date.now(), by: LV.uid || '' }) : Promise.resolve(true))
+    .then(() => hbPut('slineups/' + hbTK(team) + '_w' + HE.wk, { team, wk: HE.wk, slots: HE.order.slice(), pos, stars: [...HE.stars], t: Date.now(), by: LV.uid || '', ...(hbAdmin() && !hbCanAct(team) ? { cm: true } : {}) })).then(ok => { if (ok) { HE.dirty = false; toast('Week ' + HE.wk + ' lineup saved.', 'good'); renderHub(); } }); return; }
   renderHub();
 }
 function hbStar(id) {
@@ -7991,7 +7996,7 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-atcopy]')) { const t = AT_DISCORD(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copied. Paste it in Discord.', 'good')).catch(() => { prompt('Copy this message:', t); }); }
 });
 /* ---- locked lineups on the game page and the matchup cards (shown once that team's lineup is locked or the game is played) ---- */
-const gmLuSrc = l => /box score/.test(l.src) ? l.src : l.src === 'locked' ? 'locked' : l.src === 'as sent to AutoTeam' ? 'as sent to AutoTeam for this game' : l.src === 'saved' ? 'as saved (week not locked)' : l.src === 'automatic' ? 'automatic, no lineup was saved' : l.src;
+const gmLuSrc = l => /box score|commissioner/.test(l.src) ? l.src : l.src === 'locked' ? 'locked' : l.src === 'as sent to AutoTeam' ? 'as sent to AutoTeam for this game' : l.src === 'saved' ? 'as saved (week not locked)' : l.src === 'automatic' ? 'automatic, no lineup was saved' : l.src;
 function gmLuTeam(g, t, full) {
   if (!hbFrozen(t, g.wk)) { const at = hbAutoAt(g.wk); return `<div class="gm-lu"><h3>${hbLogo(t)}${esc(t)}</h3><div class="note">Shows here when lineups lock${at && Date.now() < at ? ' (' + hbAutoFmt(at) + ')' : ''}.</div></div>`; }
   const l = hbAsPlayed(t, g.wk); if (!l) return `<div class="gm-lu"><h3>${hbLogo(t)}${esc(t)}</h3><div class="note">No lineup.</div></div>`;
