@@ -55,6 +55,7 @@ select,input[type=text],input[type=number]{background:var(--surface);border:1px 
 .wi-pl{display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:8px}.wi-nm{flex:1;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:14px}.wi-nm .note{font-size:12px}
 .wi-new{background:color-mix(in srgb,#2a9d4b 12%,transparent)}.wi-out{opacity:.8}.wi-up{color:var(--good,#2a9d4b)}.wi-down{color:var(--bad,#c33)}
 .wi-partner{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;padding:6px 8px;border-radius:8px;background:color-mix(in srgb,var(--fg,#000) 4%,transparent)}
+.hb-force{margin:4px 0 2px;font-size:12.5px}.hb-force summary{cursor:pointer;color:var(--muted,#777);font-weight:600}.hb-force-in{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px}
 .hb-autolock{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 12px}.hb-autolock label{display:flex;gap:8px;align-items:center;font-size:13px;white-space:nowrap}.hb-autolock input{flex:1;min-width:0}
 .gm-botsheet{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:8px 2px 0;font-size:13px}.btn-file{display:inline-block;padding:7px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-weight:600;font-size:13.5px;background:var(--surface2,transparent)}.btn-file:hover{border-color:var(--accent)}
 .at-cta .pad{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
@@ -5395,7 +5396,7 @@ document.addEventListener('change', e => { if (e.target && e.target.id === 'hbSu
 
 /* ---- stadium ban / pick (only the away team bans; the home team picks) ---- */
 async function hbBan(g, name) {
-  if (!hbCanAct(g.away)) return; if (HB.maps[g.gid] && HB.maps[g.gid].ban) { toast('The away team already used its one ban.', 'bad'); return; }
+  if (!hbCanAct(g.away)) return; if (HB.maps[g.gid] && HB.maps[g.gid].forced) { toast('The commissioner already set the stadium for this game.', 'bad'); return; } if (HB.maps[g.gid] && HB.maps[g.gid].ban) { toast('The away team already used its one ban.', 'bad'); return; }
   const banned = [name].concat(HB_LINK[name] ? [HB_LINK[name]] : []);
   if (await hbPut('smaps/' + g.gid, { gid: g.gid, wk: g.wk, away: g.away, home: g.home, ban: name, banned, banBy: LV.uid || '', t: Date.now() })) toast(banned.join(' and ') + ' banned.', 'good');
 }
@@ -5408,8 +5409,8 @@ const HB_NO_TOD = new Set(['Bowser Castle', 'Bowser Jr. Playroom']); // these tw
 const hbTodOf = gid => (HB.tod && HB.tod[gid]) || (HB.maps[gid] && HB.maps[gid].tod) || 'Day';
 const hbStName = (n, tod) => n && !HB_NO_TOD.has(n) && tod ? n + ' (' + tod + ')' : n;
 const hbTodBar = (g, m) => { const cur = hbTodOf(g.gid); return `<span class="hb-tod" style="display:inline-flex;gap:4px;align-items:center"><span class="note">Time of day</span><button class="hb-chip ${cur === 'Day' ? 'on' : ''}" data-hb="tod" data-g="${g.gid}" data-t="Day">Day</button><button class="hb-chip ${cur === 'Night' ? 'on' : ''}" data-hb="tod" data-g="${g.gid}" data-t="Night">Night</button><span class="note">(Bowser Castle and Bowser Jr. Playroom have their own)</span></span>`; };
-async function hbPick(g, name) { if (!hbCanAct(g.home)) return; const m = HB.maps[g.gid]; const sc = HB.scores && HB.scores[g.gid]; const tod = HB_NO_TOD.has(name) ? null : hbTodOf(g.gid); if (!m || !m.ban || hbBanned(m).includes(name) || (m.pick === name && (m.tod || null) === tod) || (sc && sc.status === 'final')) return; if (await hbPut('smaps/' + g.gid, { pick: name, tod, pickBy: LV.uid || '', t2: Date.now() }, true)) toast('Playing at ' + hbStName(name, tod) + '.', 'good'); }
-async function hbSetTod(g, t) { HB.tod = HB.tod || {}; HB.tod[g.gid] = t; const m = HB.maps[g.gid], sc = HB.scores && HB.scores[g.gid]; if (m && m.pick && !HB_NO_TOD.has(m.pick) && hbCanAct(g.home) && !(sc && sc.status === 'final')) { if (await hbPut('smaps/' + g.gid, { tod: t, t2: Date.now() }, true)) toast('Playing at ' + hbStName(m.pick, t) + '.', 'good'); } else renderHub(); }
+async function hbPick(g, name) { if (!hbCanAct(g.home)) return; const m = HB.maps[g.gid]; if (m && m.forced) { toast('The commissioner set the stadium for this game.', 'bad'); return; } const sc = HB.scores && HB.scores[g.gid]; const tod = HB_NO_TOD.has(name) ? null : hbTodOf(g.gid); if (!m || !m.ban || hbBanned(m).includes(name) || (m.pick === name && (m.tod || null) === tod) || (sc && sc.status === 'final')) return; if (await hbPut('smaps/' + g.gid, { pick: name, tod, pickBy: LV.uid || '', t2: Date.now() }, true)) toast('Playing at ' + hbStName(name, tod) + '.', 'good'); }
+async function hbSetTod(g, t) { if (HB.maps[g.gid] && HB.maps[g.gid].forced) return; HB.tod = HB.tod || {}; HB.tod[g.gid] = t; const m = HB.maps[g.gid], sc = HB.scores && HB.scores[g.gid]; if (m && m.pick && !HB_NO_TOD.has(m.pick) && hbCanAct(g.home) && !(sc && sc.status === 'final')) { if (await hbPut('smaps/' + g.gid, { tod: t, t2: Date.now() }, true)) toast('Playing at ' + hbStName(m.pick, t) + '.', 'good'); } else renderHub(); }
 
 /* ---- matchups ---- */
 function hbProjHtml(g, k) { const ap = Math.round((1 - k.hw) * 100), hp = 100 - ap;
@@ -5423,6 +5424,27 @@ function hbSide(g, side, s) {
   return `<div class="hb-side ${hbMe() === t ? 'me' : ''}" data-gm="open" data-g="${g.gid}" title="Open the game page">${hbLogo(t, true)}<div class="hb-tn"><b>${esc(t)}</b><span>${hbRec(t)} · ${hbRoleTxt(g, s, side)}</span></div><div class="hb-sc ${lose ? 'lose' : ''}">${sc == null ? '–' : sc}</div></div>`;
 }
 function hbStad(g, s) {
+  const m = HB.maps[g.gid], fin = s && s.status === 'final';
+  const out = m && m.forced && m.pick && !fin ? `<div class="hb-st"><span class="note">Playing at</span> <b>${esc(hbStName(m.pick, m.tod))}</b> <span class="note">· set by the commissioner</span></div>` : hbStad0(g, s);
+  return out + (!fin && hbAdmin() ? hbForceHtml(g, m) : '');
+}
+function hbForceHtml(g, m) {
+  const cur = m && m.pick, tod = (m && m.tod) || 'Day';
+  return `<details class="hb-force"${m && m.forced ? '' : ''}><summary>Commish: ${cur ? 'change the stadium' : 'set the stadium'}</summary><div class="hb-force-in">
+   <select data-forcest="${g.gid}">${HB_STADS.map(n => `<option ${n === cur ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
+   <select data-forcetod="${g.gid}"><option ${tod === 'Day' ? 'selected' : ''}>Day</option><option ${tod === 'Night' ? 'selected' : ''}>Night</option></select>
+   <button class="hb-mini primary" data-forcego="${g.gid}">Set stadium</button>${m && (m.pick || m.ban) ? `<button class="hb-mini" data-forceclr="${g.gid}">Clear stadium</button>` : ''}
+   <span class="note">Overrides the ban and pick. Coaches can't change it after.${m && m.ban ? ' The away team banned ' + esc(hbBanned(m).join(' and ')) + '.' : ''}</span></div></details>`;
+}
+async function hbForceStad(gid) {
+  if (!hbAdmin()) return; const g = HB_GAMES.find(x => x.gid === gid); if (!g) return; const sc = HB.scores[gid]; if (sc && sc.status === 'final') { toast('That game is already final.', 'bad'); return; }
+  const box = e => [...document.querySelectorAll(`[data-${e}="${gid}"]`)].find(x => x.offsetParent) || document.querySelector(`[data-${e}="${gid}"]`);
+  const name = box('forcest').value, tod = HB_NO_TOD.has(name) ? null : box('forcetod').value, m = HB.maps[gid] || {};
+  if (await hbPut('smaps/' + gid, { gid, wk: g.wk, away: g.away, home: g.home, ban: m.ban || null, banned: m.banned || (m.ban ? [m.ban] : []), pick: name, tod, forced: true, pickBy: LV.uid || '', t: m.t || Date.now(), t2: Date.now() })) toast(`${g.away} at ${g.home}: playing at ${hbStName(name, tod)}.`, 'good');
+}
+document.addEventListener('click', e => { const f = e.target.closest('[data-forcego]'); if (f) { hbForceStad(f.dataset.forcego); return; }
+  const c = e.target.closest('[data-forceclr]'); if (c && hbAdmin() && confirm('Clear the stadium for this game? The away team can ban again and the home team can pick.')) LV.db.doc('smaps/' + c.dataset.forceclr).delete().then(() => toast('Stadium cleared.', 'good')).catch(dbErr); });
+function hbStad0(g, s) {
   const m = HB.maps[g.gid], fin = s && s.status === 'final';
   if (fin) return `<div class="hb-st"><span class="note">Stadium</span> <b>${esc(s.stadium || (m && m.pick) ? (s.stadium ? s.stadium + (s.time ? ' · ' + s.time : (m && m.pick === s.stadium && m.tod && !HB_NO_TOD.has(s.stadium) ? ' (' + m.tod + ')' : '')) : hbStName(m.pick, m.tod)) : '—')}</b></div>`;
   if (!m || !m.ban) {
