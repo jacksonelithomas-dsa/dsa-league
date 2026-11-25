@@ -5405,10 +5405,11 @@ async function hbUnban(g) {
   const m0 = HB.maps[g.gid]; if (m0 && m0.pick) { toast('The home team already picked a stadium, so the ban is final.', 'bad'); return; }
   if (await hbPut('smaps/' + g.gid, { gid: g.gid, wk: g.wk, away: g.away, home: g.home, t: Date.now() })) toast('Ban removed. Choose again.', 'good');
 }
-const HB_NO_TOD = new Set(['Bowser Castle', 'Bowser Jr. Playroom']); // these two are their own day and night
+const HB_FIXED_TOD = { 'Luigi Mansion': 'Night', 'Bowser Castle': 'Night', 'Bowser Jr. Playroom': 'Day' }; // these stadiums only come in one time of day
+const HB_NO_TOD = new Set(Object.keys(HB_FIXED_TOD));
 const hbTodOf = gid => (HB.tod && HB.tod[gid]) || (HB.maps[gid] && HB.maps[gid].tod) || 'Day';
-const hbStName = (n, tod) => n && !HB_NO_TOD.has(n) && tod ? n + ' (' + tod + ')' : n;
-const hbTodBar = (g, m) => { const cur = hbTodOf(g.gid); return `<span class="hb-tod" style="display:inline-flex;gap:4px;align-items:center"><span class="note">Time of day</span><button class="hb-chip ${cur === 'Day' ? 'on' : ''}" data-hb="tod" data-g="${g.gid}" data-t="Day">Day</button><button class="hb-chip ${cur === 'Night' ? 'on' : ''}" data-hb="tod" data-g="${g.gid}" data-t="Night">Night</button><span class="note">(Bowser Castle and Bowser Jr. Playroom have their own)</span></span>`; };
+const hbStName = (n, tod) => n && HB_FIXED_TOD[n] ? n + ' (' + HB_FIXED_TOD[n] + ')' : n && tod ? n + ' (' + tod + ')' : n;
+const hbTodBar = (g, m) => { if (m && HB_FIXED_TOD[m.pick]) return `<span class="note">${esc(m.pick)} is always played at ${HB_FIXED_TOD[m.pick].toLowerCase()}.</span>`; const cur = hbTodOf(g.gid); return `<span class="hb-tod" style="display:inline-flex;gap:4px;align-items:center"><span class="note">Time of day</span><button class="hb-chip ${cur === 'Day' ? 'on' : ''}" data-hb="tod" data-g="${g.gid}" data-t="Day">Day</button><button class="hb-chip ${cur === 'Night' ? 'on' : ''}" data-hb="tod" data-g="${g.gid}" data-t="Night">Night</button><span class="note">(Bowser Castle and Bowser Jr. Playroom have their own)</span></span>`; };
 async function hbPick(g, name) { if (!hbCanAct(g.home)) return; const m = HB.maps[g.gid]; if (m && m.forced) { toast('The commissioner set the stadium for this game.', 'bad'); return; } const sc = HB.scores && HB.scores[g.gid]; const tod = HB_NO_TOD.has(name) ? null : hbTodOf(g.gid); if (!m || !m.ban || hbBanned(m).includes(name) || (m.pick === name && (m.tod || null) === tod) || (sc && sc.status === 'final')) return; if (await hbPut('smaps/' + g.gid, { pick: name, tod, pickBy: LV.uid || '', t2: Date.now() }, true)) toast('Playing at ' + hbStName(name, tod) + '.', 'good'); }
 async function hbSetTod(g, t) { if (HB.maps[g.gid] && HB.maps[g.gid].forced) return; HB.tod = HB.tod || {}; HB.tod[g.gid] = t; const m = HB.maps[g.gid], sc = HB.scores && HB.scores[g.gid]; if (m && m.pick && !HB_NO_TOD.has(m.pick) && hbCanAct(g.home) && !(sc && sc.status === 'final')) { if (await hbPut('smaps/' + g.gid, { tod: t, t2: Date.now() }, true)) toast('Playing at ' + hbStName(m.pick, t) + '.', 'good'); } else renderHub(); }
 
@@ -5432,7 +5433,7 @@ function hbForceHtml(g, m) {
   const cur = m && m.pick, tod = (m && m.tod) || 'Day';
   return `<details class="hb-force"${m && m.forced ? '' : ''}><summary>Commish: ${cur ? 'change the stadium' : 'set the stadium'}</summary><div class="hb-force-in">
    <select data-forcest="${g.gid}">${HB_STADS.map(n => `<option ${n === cur ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
-   <select data-forcetod="${g.gid}"><option ${tod === 'Day' ? 'selected' : ''}>Day</option><option ${tod === 'Night' ? 'selected' : ''}>Night</option></select>
+   <select data-forcetod="${g.gid}" ${HB_FIXED_TOD[cur || HB_STADS[0]] ? 'disabled' : ''}>${['Day', 'Night'].map(t => `<option ${(HB_FIXED_TOD[cur || HB_STADS[0]] || tod) === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
    <button class="hb-mini primary" data-forcego="${g.gid}">Set stadium</button>${m && (m.pick || m.ban) ? `<button class="hb-mini" data-forceclr="${g.gid}">Clear stadium</button>` : ''}
    <span class="note">Overrides the ban and pick. Coaches can't change it after.${m && m.ban ? ' The away team banned ' + esc(hbBanned(m).join(' and ')) + '.' : ''}</span></div></details>`;
 }
@@ -5442,6 +5443,7 @@ async function hbForceStad(gid) {
   const name = box('forcest').value, tod = HB_NO_TOD.has(name) ? null : box('forcetod').value, m = HB.maps[gid] || {};
   if (await hbPut('smaps/' + gid, { gid, wk: g.wk, away: g.away, home: g.home, ban: m.ban || null, banned: m.banned || (m.ban ? [m.ban] : []), pick: name, tod, forced: true, pickBy: LV.uid || '', t: m.t || Date.now(), t2: Date.now() })) toast(`${g.away} at ${g.home}: playing at ${hbStName(name, tod)}.`, 'good');
 }
+document.addEventListener('change', e => { const s = e.target; if (!s || !s.dataset || !s.dataset.forcest) return; const t = s.parentElement.querySelector('[data-forcetod]'); if (!t) return; const fx = HB_FIXED_TOD[s.value]; t.disabled = !!fx; if (fx) t.value = fx; });
 document.addEventListener('click', e => { const f = e.target.closest('[data-forcego]'); if (f) { hbForceStad(f.dataset.forcego); return; }
   const c = e.target.closest('[data-forceclr]'); if (c && hbAdmin() && confirm('Clear the stadium for this game? The away team can ban again and the home team can pick.')) LV.db.doc('smaps/' + c.dataset.forceclr).delete().then(() => toast('Stadium cleared.', 'good')).catch(dbErr); });
 function hbStad0(g, s) {
