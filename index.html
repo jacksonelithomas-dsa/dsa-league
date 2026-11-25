@@ -49,10 +49,12 @@ select,input[type=text],input[type=number]{background:var(--surface);border:1px 
 .gm-lu.sm ol{margin:4px 0 0;padding-left:20px;font-size:12.5px;line-height:1.5}.hb-lus{margin:6px 0;font-size:13px}.hb-lus summary{cursor:pointer;font-weight:600}.hb-lus .gm-lus-in{padding:6px 0;gap:10px;grid-template-columns:1fr 1fr}
 .chip.bad{background:#f4a3a3;color:#5c0a0a}.hb-lockflag{padding:10px 12px;border-radius:8px;border-left:4px solid var(--bad,#c33);background:color-mix(in srgb,var(--bad,#c33) 8%,transparent);font-size:13px}.hb-lockflag ul{margin:6px 0;padding-left:18px}
 .lu-diff{background:#f7e58a;color:#4a3d00;border-radius:4px;padding:0 4px;font-weight:700}.gm-lu ol{margin:0;padding-left:22px;font-size:13.5px;line-height:1.6}
-.hb-subtabs{display:flex;gap:6px;margin:0 0 12px}.hb-subtabs button{padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:none;font-weight:700;cursor:pointer;color:inherit}.hb-subtabs button[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink,#fff)}
-.wi-list{display:grid;gap:4px}.wi-res{max-height:420px;overflow:auto}.wi-pl{display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:8px}.wi-pl:hover{background:color-mix(in srgb,var(--fg,#000) 4%,transparent)}
-.wi-nm{flex:1;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:14px}.wi-nm .note{font-size:12px}.wi-new{background:color-mix(in srgb,#2a9d4b 12%,transparent)!important}.wi-out{opacity:.75}
-.wi-big{font:800 30px/1 var(--f-display,inherit)}.wi-big span{display:block;font-size:12px;font-weight:500;line-height:1.4;font-family:inherit;opacity:.65;margin-top:2px;text-transform:none;letter-spacing:0}.wi-d{font-weight:800;margin:6px 0 2px}.wi-d.up{color:var(--good,#2a9d4b)}.wi-d.down{color:var(--bad,#c33)}.wi-sum{display:grid;gap:4px}
+.hb-wilink{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:18px 2px 4px;font-size:13px;opacity:.9}
+.wi-banner .pad{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;border-left:4px solid var(--accent)}
+.wi-ad{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:18px}.wi-list{display:grid;gap:4px}.wi-res{max-height:340px;overflow:auto}
+.wi-pl{display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:8px}.wi-nm{flex:1;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:14px}.wi-nm .note{font-size:12px}
+.wi-new{background:color-mix(in srgb,#2a9d4b 12%,transparent)}.wi-out{opacity:.8}.wi-up{color:var(--good,#2a9d4b)}.wi-down{color:var(--bad,#c33)}
+.wi-partner{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;padding:6px 8px;border-radius:8px;background:color-mix(in srgb,var(--fg,#000) 4%,transparent)}
 .hb-autolock{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 12px}.hb-autolock label{display:flex;gap:8px;align-items:center;font-size:13px;white-space:nowrap}.hb-autolock input{flex:1;min-width:0}
 .gm-botsheet{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:8px 2px 0;font-size:13px}.btn-file{display:inline-block;padding:7px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-weight:600;font-size:13.5px;background:var(--surface2,transparent)}.btn-file:hover{border-color:var(--accent)}
 .at-cta .pad{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
@@ -5528,8 +5530,8 @@ function hbStandingsView() {
 
 /* ---- my lineup: field, dugout, batting order, stars ---- */
 const HE = { team: null, wk: null, pos: {}, order: [], stars: new Set(), dirty: false, sel: null };
-function hbLoad(team, wk) { const l = hbLineup(team, wk); HE.team = team; HE.wk = wk; HE.pos = l ? Object.assign({}, l.pos) : {}; HE.order = l ? l.slots.slice() : []; HE.stars = new Set(l ? l.stars : []); HE.dirty = false; HE.sel = null; }
-const hbEditable = (team, wk) => hbCanAct(team) && !hbAutoHeld(wk) && !hbTeamDone(team, wk) && (wk > hbCur() || (wk === hbCur() && !(HB.cfg && HB.cfg.locked)));
+function hbLoad(team, wk) { if (wk === 'wi') return wiLoadHE(team); const l = hbLineup(team, wk); HE.team = team; HE.wk = wk; HE.pos = l ? Object.assign({}, l.pos) : {}; HE.order = l ? l.slots.slice() : []; HE.stars = new Set(l ? l.stars : []); HE.dirty = false; HE.sel = null; }
+const hbEditable = (team, wk) => wk === 'wi' || hbCanAct(team) && !hbAutoHeld(wk) && !hbTeamDone(team, wk) && (wk > hbCur() || (wk === hbCur() && !(HB.cfg && HB.cfg.locked)));
 function hbStarBlock(team, wk, id) {
   // why a player cannot be starred this week, or '' when they can
   if (HE.stars.has(id)) return '';
@@ -5541,7 +5543,7 @@ function hbStarBlock(team, wk, id) {
   return '';
 }
 function hbChecks(team) {
-  const r = hbProfs(hbRoster(team)), m = [], lu = HE.order.map(i => P[i]).filter(Boolean), at = q => lu.find(p => HE.pos[p.id] === q);
+  const r = hbProfs(hbRosterE(team)), m = [], lu = HE.order.map(i => P[i]).filter(Boolean), at = q => lu.find(p => HE.pos[p.id] === q);
   if (lu.length < 9) m.push(`${lu.length} of 9 starters on the field.`);
   if (r.some(p => p.cap) && lu.length && !lu.some(p => p.cap)) m.push('A captain has to start.');
   const l = at('LF'), c = at('CF'), rr = at('RF'); if (l && c && rr && !(Core.chem(c, l) > 0 && Core.chem(c, rr) > 0)) m.push('The center fielder needs chemistry with both corner outfielders.');
@@ -5553,23 +5555,20 @@ function hbCard2(id, team, wk, ed, i) {
    <button class="hb-star${star ? ' on' : ''}" data-hbstar="${id}" aria-label="${star ? 'Remove star from' : 'Star'} ${esc(hbSn(id))}" ${ed && !p.mii ? '' : 'disabled'} ${p.mii ? 'title="Miis cannot be starred"' : ''}>★</button><span class="pclick hb-info" data-pid="${id}" title="Stats">ⓘ</span>${p.cap ? '<span class="hb-cap">C</span>' : ''}</div>`;
 }
 function hbLineupView() {
-  const sub = HB.lsub === 'whatif' ? 'whatif' : 'lineup';
-  const bar = `<div class="hb-subtabs" role="tablist"><button role="tab" data-lsub="lineup" aria-selected="${sub === 'lineup'}">My lineup</button><button role="tab" data-lsub="whatif" aria-selected="${sub === 'whatif'}">What-if roster</button></div>`;
-  return bar + (sub === 'whatif' ? hbWhatIf() : hbLineupView0());
-}
-function hbLineupView0() {
-  const mine = hbMe(); let team = HB.lteam || mine;
-  if (mine) team = mine;
-  if (!team) return '<div class="panel"><div class="pad note">Join a team with your code to set a lineup.</div></div>';
-  const wk = HB.lweek || hbCur(); HB.lweek = wk;
+  const mine = hbMe(), W = !!HB.wimode; let team = HB.lteam || mine;
+  if (mine) team = mine; if (W && !mine) team = HB.wteam || team || TEAMS[0];
+  if (!team) return '<div class="panel"><div class="pad note">Join a team with your code to set a lineup.</div></div><div class="hb-wilink"><button class="linkb" data-wimode="1">Try a what-if roster ›</button></div>';
+  const wk = W ? 'wi' : (HB.lweek || hbCur()); if (!W) HB.lweek = wk;
   if (HE.team !== team || HE.wk !== wk) hbLoad(team, wk);
-  const ed = hbEditable(team, wk), r = hbProfs(hbRoster(team)), bench = r.filter(p => !HE.order.includes(p.id)), msgs = hbChecks(team);
+  if (W) { WI.lu = { order: HE.order.slice(), pos: Object.assign({}, HE.pos), stars: [...HE.stars] }; wiSave(); }
+  const ed = hbEditable(team, wk), r = hbProfs(hbRosterE(team)), bench = r.filter(p => !HE.order.includes(p.id)), msgs = hbChecks(team);
   const cust = HE.order.length ? { slots: HE.order, pos: HE.pos } : null, tm = r.length && cust ? Core.buildTeam(r, cust) : null, strength = tm ? Core.teamScore(r, cust) : null;
   const occ = {}; HE.order.forEach((id, i) => occ[HE.pos[id]] = [id, i]);
   const spots = HB_POS.map(q => { const [x, y] = HB_XY[q], o = occ[q]; return `<div class="hb-spot${o ? '' : ' empty'}" data-hbdrop="${q}" style="left:${x}%;top:${y}%">${o ? hbCard2(o[0], team, wk, ed, o[1]) : `<span class="hb-pn">${q}</span>`}<span class="hb-pl2">${q}</span></div>`; }).join('');
-  const prevStars = ((hbDoc(team, wk - 1) || {}).stars || []);
+  const prevStars = W ? [] : ((hbDoc(team, wk - 1) || {}).stars || []);
   const order = HE.order.map((id, i) => `<div class="hb-row"><span class="hb-n">${i + 1}</span>${ico(P[id], 22)}<span class="hb-rn">${pcl(id)} ${P[id].cap ? '<span class="chip cap">C</span>' : ''}${HE.stars.has(id) ? ' <b class="hb-s">★</b>' : ''}</span><span class="hb-pp">${esc(HE.pos[id] || '')}</span>
      <span class="hb-mv"><button data-hbo="up" data-i="${i}" aria-label="Move up" ${!ed || !i ? 'disabled' : ''}>↑</button><button data-hbo="dn" data-i="${i}" aria-label="Move down" ${!ed || i === HE.order.length - 1 ? 'disabled' : ''}>↓</button></span></div>`).join('');
+  if (W) return wiPage(team, r, tm, strength, spots, order, bench, msgs, ed);
   return `${wk >= hbCur() ? hbSugHtml(team, wk) : ''}<div class="panel"><h2>${hbLogo(team, true)}${esc(team)} <span>Week ${wk}${wk < hbCur() ? ' (played, view only)' : wk === hbCur() && HB.cfg && HB.cfg.locked || hbAutoHeld(wk) ? ' (locked)' : (wk === hbCur() ? ' (current)' : ' (upcoming)') + (hbAutoAt(wk) && Date.now() < hbAutoAt(wk) ? ' · locks ' + hbAutoFmt(hbAutoAt(wk)) : '')}</span></h2>
    <div class="pad" style="display:grid;gap:10px">${hbWeekBar('lweek', wk)}
    <div class="note">Drag players onto positions, or tap a player and then a position. Drag back to the dugout to bench. Star up to ${HB_MAX_STARS} players a week, a player cannot be starred two weeks in a row, and Miis cannot be starred${prevStars.length ? ` (starred last week: ${prevStars.map(hbSn).join(', ')})` : ''}. A week with no saved lineup uses your most recent one.</div></div></div>
@@ -5578,7 +5577,8 @@ function hbLineupView0() {
    <div class="panel"><h2>Batting order <span>${ed ? 'editable' : 'view only'}</span></h2>${order || '<div class="pad note">Nobody in the lineup yet. Use Auto-fill best, or drag players onto the field.</div>'}
     <div class="pad" style="display:grid;gap:8px"><div style="display:flex;gap:8px;flex-wrap:wrap"><button data-hbo="auto" ${ed ? '' : 'disabled'}>Auto-fill best</button><button class="primary" data-hbo="save" ${ed && HE.dirty ? '' : 'disabled'}>${HE.dirty ? 'Save week ' + wk : (hbDoc(team, wk) ? 'Saved' : 'Not saved yet')}</button></div>
     ${msgs.length ? `<div class="banner warn" style="margin:0">${msgs.map(esc).join('<br>')}</div>` : (HE.order.length ? '<div class="banner info" style="margin:0;color:var(--good)">Lineup is valid.</div>' : '')}
-    ${strength != null ? `<div class="note">Team strength <b class="num">${strength.toFixed(2)}</b> runs/game vs average · Chem <b class="num">${tm.chem.good}</b> good, <b class="num">${tm.chem.bad}</b> bad</div>` : ''}</div></div></div>`;
+    ${strength != null ? `<div class="note">Team strength <b class="num">${strength.toFixed(2)}</b> runs/game vs average · Chem <b class="num">${tm.chem.good}</b> good, <b class="num">${tm.chem.bad}</b> bad</div>` : ''}</div></div></div>
+  <div class="hb-wilink"><button class="linkb" data-wimode="1">Try a what-if roster for a trade ›</button><span class="note">Add or drop any player and set a lineup with them, without changing your real team.</span></div>`;
 }
 function hbMove(id, dest) {
   const cur = HE.pos[id];
@@ -5594,7 +5594,7 @@ function hbMove(id, dest) {
 function hbLE(k, i) {
   const team = HE.team; if (!team || !hbEditable(team, HE.wk)) return;
   if (k === 'up' || k === 'dn') { const j = k === 'up' ? i - 1 : i + 1; if (j >= 0 && j < HE.order.length) { [HE.order[i], HE.order[j]] = [HE.order[j], HE.order[i]]; HE.dirty = true; } }
-  else if (k === 'auto') { const a = hbAuto(team); if (a) { HE.order = a.slots.slice(); HE.pos = Object.assign({}, a.pos); HE.dirty = true; } }
+  else if (k === 'auto') { const a = HE.wk === 'wi' ? wiAuto(wiIds(team)) : hbAuto(team); if (a) { HE.order = a.slots.slice(); HE.pos = Object.assign({}, a.pos); HE.dirty = true; } }
   else if (k === 'save') { for (const id of [...HE.stars]) { HE.stars.delete(id); const why = hbStarBlock(HE.team, HE.wk, id); if (why) { toast(why, 'bad'); HE.dirty = true; renderHub(); return; } HE.stars.add(id); } const pos = {}; HE.order.forEach(id => { if (HE.pos[id]) pos[id] = HE.pos[id]; });
     hbPut('slineups/' + hbTK(team) + '_w' + HE.wk, { team, wk: HE.wk, slots: HE.order.slice(), pos, stars: [...HE.stars], t: Date.now(), by: LV.uid || '' }).then(ok => { if (ok) { HE.dirty = false; toast('Week ' + HE.wk + ' lineup saved.', 'good'); renderHub(); } }); return; }
   renderHub();
@@ -8041,78 +8041,73 @@ function hbCoachFile() {
 }
 function hbCoachDl() { try { const d = hbCoachFile(), a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 1)], { type: 'application/json' })); a.download = 'dsa-coach-week' + d.currentWeek + (d.exportedBy ? '-' + d.exportedBy.replace(/\W+/g, '') : '') + '.json'; document.body.appendChild(a); a.click(); a.remove(); toast('Coach file downloaded. Give it to Claude with your question.', 'good'); } catch (e) { console.error(e); toast('Could not build the coach file.', 'bad'); } }
 document.addEventListener('click', e => { if (e.target.closest('[data-coachdl]')) hbCoachDl(); });
-/* ---- what-if roster: start from a team's real roster, add or drop anyone, see the best lineup and strength vs now (saved in this browser only) ---- */
-const WI = { team: null, add: [], drop: [], to: {}, q: '', f: '' };
-function wiLoad(team) { if (WI.team === team) return; Object.assign(WI, { team, add: [], drop: [], to: {}, q: '', f: '' }); try { const s = JSON.parse(localStorage.getItem('dsa_whatif_' + team) || 'null'); if (s) Object.assign(WI, { add: s.add || [], drop: s.drop || [], to: s.to || {} }); } catch (e) {} }
-function wiSave() { try { localStorage.setItem('dsa_whatif_' + WI.team, JSON.stringify({ add: WI.add, drop: WI.drop, to: WI.to })); } catch (e) {} }
+/* ---- what-if roster: the My Lineup page on a pretend roster (add or drop anyone); kept in this browser only ---- */
+const WI = { team: null, add: [], drop: [], to: {}, q: '', f: '', lu: null };
+function wiState(team) { if (WI.team === team) return; Object.assign(WI, { team, add: [], drop: [], to: {}, q: '', f: '', lu: null }); try { const s = JSON.parse(localStorage.getItem('dsa_whatif_' + team) || 'null'); if (s) Object.assign(WI, { add: s.add || [], drop: s.drop || [], to: s.to || {}, lu: s.lu || null }); } catch (e) {} }
+function wiSave() { try { localStorage.setItem('dsa_whatif_' + WI.team, JSON.stringify({ add: WI.add, drop: WI.drop, to: WI.to, lu: WI.lu })); } catch (e) {} }
+function wiIds(team) { wiState(team); const real = hbRoster(team); return real.filter(i => !WI.drop.includes(i)).concat(WI.add.filter(i => !real.includes(i))); }
+const hbRosterE = team => HE.wk === 'wi' && HE.team === team ? wiIds(team) : hbRoster(team);
+function wiLoadHE(team) {
+  wiState(team); const ids = new Set(wiIds(team)); let o, p, s;
+  if (WI.lu && WI.lu.order) { o = WI.lu.order; p = WI.lu.pos || {}; s = WI.lu.stars || []; } else { const l = hbLineup(team, hbCur()) || { slots: [], pos: {}, stars: [] }; o = l.slots; p = l.pos || {}; s = []; }
+  o = o.filter(i => ids.has(i)); const pos = {}; o.forEach(i => { if (p[i]) pos[i] = p[i]; });
+  Object.assign(HE, { team, wk: 'wi', order: o.slice(), pos, stars: new Set(s.filter(i => ids.has(i))), dirty: false, sel: null });
+}
 function wiOwner() { const o = {}; TEAMS.forEach(t => hbRoster(t).forEach(i => o[i] = t)); return o; }
 function wiAuto(ids) {
   const r = hbProfs(ids); if (!r.length) return null; const t = Core.buildTeam(r), lu = t.batOrder.slice(0, 9), pos = {}, used = new Set();
   const setp = (p, q) => { if (p && !used.has(p.id) && q) { pos[p.id] = q; used.add(p.id); } };
   setp(t.staff[0] && t.staff[0].p, 'P'); if (t.of && t.of.of.length === 3) { setp(t.of.of[0], 'LF'); setp(t.of.of[1], 'CF'); setp(t.of.of[2], 'RF'); }
   const rest = ['C', '1B', '2B', '3B', 'SS']; lu.forEach(p => { if (!used.has(p.id)) { const q = rest.shift(); if (q) setp(p, q); } });
-  const slots = lu.map(p => p.id), score = r.length >= 9 ? Core.teamScore(r) : null;
-  return { slots, pos, score, chem: t.chem, items: t.items, bench: ids.filter(i => !slots.includes(i)) };
-}
-function wiSummary(label, ids, base) {
-  const a = wiAuto(ids), caps = ids.filter(i => P[i] && P[i].cap), warn = [];
-  if (ids.length < 9) warn.push(`Only ${ids.length} players (needs 9).`); if (!caps.length) warn.push('No captain.');
-  const d = a && base && a.score != null && base.score != null ? a.score - base.score : null;
-  return { a, html: `<div class="wi-sum"><div class="wi-big">${a && a.score != null ? (a.score >= 0 ? '+' : '') + a.score.toFixed(2) : '—'}<span>runs/game vs average</span></div>
-    ${d != null ? `<div class="wi-d ${d > 0.005 ? 'up' : d < -0.005 ? 'down' : ''}">${d > 0.005 ? '▲' : d < -0.005 ? '▼' : '='} ${(d >= 0 ? '+' : '') + d.toFixed(2)} vs ${esc(label)}</div>` : ''}
-    <div class="note">${ids.length} players · Chem ${a ? a.chem.good : 0} good, ${a ? a.chem.bad : 0} bad${a && a.items && a.slots.length >= 3 ? ' · items ' + a.items.items + ' of ' + a.items.n : ''}${caps.length ? ' · captain ' + caps.map(hbSn).map(esc).join(', ') : ''}</div>
-    ${warn.length ? `<div class="banner warn" style="margin:4px 0 0">${warn.join(' ')}</div>` : ''}</div>` };
-}
-function wiLineupHtml(a, ids, mark) {
-  if (!a) return '<div class="pad note">No players.</div>';
-  return `<div class="tbl-wrap"><table><thead><tr><th class="l">Best lineup</th><th>Pos</th><th title="Site batting rating, higher is better">Bat</th><th title="Site runs-allowed rating as a pitcher, lower is better">RA</th></tr></thead><tbody>${a.slots.map((id, i) => `<tr${mark.has(id) ? ' class="wi-new"' : ''}><td class="l"><span class="muted">${i + 1}</span> ${ico(P[id], 20)}<span class="pclick" data-pid="${id}">${esc(hbSn(id))}</span> ${P[id].cap ? '<span class="chip cap">C</span>' : ''}</td><td>${esc(a.pos[id] || '')}</td><td class="num">${P[id].bat.toFixed(2)}</td><td class="num">${P[id].ra.toFixed(1)}</td></tr>`).join('')}</tbody></table></div>
-   ${a.bench.length ? `<div class="pad"><span class="note">Dugout:</span> ${a.bench.map(i => `<span class="chip${mark.has(i) ? ' g' : ''}">${esc(hbSn(i))}</span>`).join(' ')}</div>` : ''}`;
+  return { slots: lu.map(p => p.id), pos, score: r.length >= 9 ? Core.teamScore(r) : null, chem: t.chem };
 }
 function wiResults() {
-  const own = wiOwner(), have = new Set(hbRoster(WI.team).filter(i => !WI.drop.includes(i)).concat(WI.add)), k = hbNk(WI.q || '');
-  const list = P.map((p, i) => i).filter(i => P[i] && !have.has(i) && (!WI.f || (own[i] || 'unsigned') === WI.f) && (!k || hbNk(P[i].name).includes(k) || hbNk(hbSn(i)).includes(k)))
-    .sort((a, b) => (P[b].bat - P[a].bat)).slice(0, 40);
-  return list.map(i => `<div class="wi-pl">${ico(P[i], 20)}<span class="wi-nm"><span class="pclick" data-pid="${i}">${esc(hbSn(i))}</span> ${P[i].cap ? '<span class="chip cap">C</span>' : ''}<span class="note">${esc(own[i] || 'unsigned')} · bat ${P[i].bat.toFixed(2)} · RA ${P[i].ra.toFixed(1)}</span></span><button class="hb-mini" data-wi="add" data-id="${i}">+ Add</button></div>`).join('') || '<div class="note">No players match.</div>';
+  const own = wiOwner(), have = new Set(wiIds(WI.team)), k = hbNk(WI.q || '');
+  const list = P.map((p, i) => i).filter(i => P[i] && !have.has(i) && (!WI.f || (own[i] || 'unsigned') === WI.f) && (!k || hbNk(P[i].name).includes(k) || hbNk(hbSn(i)).includes(k))).sort((a, b) => P[b].bat - P[a].bat).slice(0, 40);
+  return list.map(i => `<div class="wi-pl">${ico(P[i], 20)}<span class="wi-nm"><span class="pclick" data-pid="${i}">${esc(hbSn(i))}</span> ${P[i].cap ? '<span class="chip cap">C</span>' : ''}<span class="note">${esc(own[i] || 'unsigned')}</span></span><button class="hb-mini" data-wi="add" data-id="${i}">+ Add</button></div>`).join('') || '<div class="note">No players match.</div>';
 }
-function hbWhatIf() {
-  const mine = hbMe(), team = (WI.team && (!mine || WI.team === mine) ? WI.team : null) || mine || HB.wteam || TEAMS[0]; wiLoad(team);
-  const real = hbRoster(team), own = wiOwner(), ids = real.filter(i => !WI.drop.includes(i)).concat(WI.add.filter(i => !real.includes(i)));
-  const added = new Set(WI.add), base = wiAuto(real), now = wiSummary('now', real, null), wi = wiSummary('your real roster', ids, base);
-  // trade partners: teams you take players from; your dropped players go where you send them
-  const partners = [...new Set(WI.add.map(i => own[i]).filter(t => t && t !== team))];
+function wiPage(team, r, tm, strength, spots, order, bench, msgs, ed) {
+  const own = wiOwner(), real = hbRoster(team), ids = wiIds(team), added = WI.add.filter(i => !real.includes(i)), base = wiAuto(real);
+  const d = strength != null && base && base.score != null ? strength - base.score : null;
+  const partners = [...new Set(added.map(i => own[i]).filter(t => t && t !== team))];
   WI.drop.forEach(i => { if (WI.to[i] == null && partners.length === 1) WI.to[i] = partners[0]; });
-  const pHtml = partners.map(t => { const before = hbRoster(t), after = before.filter(i => !WI.add.includes(i)).concat(WI.drop.filter(i => WI.to[i] === t)), b = wiAuto(before), s = wiSummary('before', after, b);
-    return `<div class="panel"><h2>${hbLogo(t)}${esc(t)} <span>after the deal</span></h2><div class="pad">${s.html}<div class="note" style="margin-top:6px">Gives: ${WI.add.filter(i => own[i] === t).map(hbSn).map(esc).join(', ') || 'nobody'} · Gets: ${WI.drop.filter(i => WI.to[i] === t).map(hbSn).map(esc).join(', ') || 'nobody (set where your dropped players go)'}</div></div></div>`; }).join('');
-  const sel = !mine ? `<label class="hb-f">Team<select data-witeam="1">${TEAMS.map(t => `<option ${t === team ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>` : '';
-  const rosterRows = ids.map(i => `<div class="wi-pl${added.has(i) ? ' wi-new' : ''}">${ico(P[i], 20)}<span class="wi-nm"><span class="pclick" data-pid="${i}">${esc(hbSn(i))}</span> ${P[i].cap ? '<span class="chip cap">C</span>' : ''}${added.has(i) ? `<span class="chip g">from ${esc(own[i] || 'unsigned')}</span>` : ''}<span class="note">bat ${P[i].bat.toFixed(2)} · RA ${P[i].ra.toFixed(1)}</span></span><button class="hb-mini" data-wi="${added.has(i) ? 'unadd' : 'drop'}" data-id="${i}" aria-label="Remove ${esc(hbSn(i))}">${added.has(i) ? 'Remove' : 'Drop'}</button></div>`).join('');
-  const dropRows = WI.drop.map(i => `<div class="wi-pl wi-out">${ico(P[i], 20)}<span class="wi-nm"><s>${esc(hbSn(i))}</s>${partners.length ? `<label class="note">to <select data-wito="${i}"><option value="">nobody</option>${partners.concat(TEAMS.filter(t => t !== team && !partners.includes(t))).map(t => `<option ${WI.to[i] === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>` : ''}</span><button class="hb-mini" data-wi="undrop" data-id="${i}">Undo</button></div>`).join('');
-  return `<div class="panel"><h2>${hbLogo(team, true)}What-if roster <span>${esc(team)} · just for you, nothing is saved to the league</span></h2><div class="pad" style="display:grid;gap:8px">${sel}
-    <div class="note">Start from your real roster, add anyone in the league, drop anyone of yours, and see the best lineup the site would build. Use it to check a trade before you offer it. ${WI.add.length || WI.drop.length ? '<button class="linkb" data-wi="reset">Reset to my real roster</button>' : ''}</div></div></div>
-   <div class="hb-two wi-grid" style="margin-top:14px">
-    <div style="display:grid;gap:14px;align-content:start">
-     <div class="panel"><h2>Roster <span>${ids.length} players${WI.add.length ? ' · +' + WI.add.length : ''}${WI.drop.length ? ' · −' + WI.drop.length : ''}</span></h2><div class="pad wi-list">${rosterRows}${dropRows ? '<div class="note" style="margin-top:6px">Dropped</div>' + dropRows : ''}</div></div>
-     <div class="panel"><h2>Add a player</h2><div class="pad" style="display:grid;gap:8px"><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="wiQ" type="search" placeholder="Search any player" value="${esc(WI.q)}" style="flex:1;min-width:150px"><select data-wif="1"><option value="">All teams</option>${TEAMS.filter(t => t !== team).map(t => `<option ${WI.f === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}<option value="unsigned" ${WI.f === 'unsigned' ? 'selected' : ''}>Unsigned</option></select></div><div id="wiRes" class="wi-list wi-res">${wiResults()}</div></div></div>
-    </div>
-    <div style="display:grid;gap:14px;align-content:start">
-     <div class="panel"><h2>What-if result</h2><div class="pad">${wi.html}</div>${wiLineupHtml(wi.a, ids, added)}</div>
-     ${pHtml}
-     <div class="panel"><h2>Your real roster now</h2><div class="pad">${now.html}</div><details class="pad" style="padding-top:0"><summary class="note" style="cursor:pointer">Show its best lineup</summary>${wiLineupHtml(base, real, new Set())}</details></div>
-    </div></div>
-   <div class="note" style="margin-top:8px">Best lineups and strength come from the same model as Auto-fill best and the Season Sim. They're estimates, so trust them more for big differences than small ones.</div>`;
+  const pHtml = partners.map(t => { const before = hbRoster(t), after = before.filter(i => !added.includes(i)).concat(WI.drop.filter(i => WI.to[i] === t)), b = wiAuto(before), a = wiAuto(after), dd = a && b && a.score != null && b.score != null ? a.score - b.score : null;
+    return `<div class="wi-partner">${hbLogo(t)}<b>${esc(t)}</b> <span class="note">gives ${added.filter(i => own[i] === t).map(hbSn).map(esc).join(', ') || 'nobody'} · gets ${WI.drop.filter(i => WI.to[i] === t).map(hbSn).map(esc).join(', ') || 'nobody yet'}</span>${dd != null ? ` <b class="${dd > 0.005 ? 'wi-up' : dd < -0.005 ? 'wi-down' : ''}">${dd >= 0 ? '+' : ''}${dd.toFixed(2)} runs/game for them</b>` : ''}</div>`; }).join('');
+  const sel = !hbMe() ? `<label class="note">Team <select data-witeam="1">${TEAMS.map(t => `<option ${t === team ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>` : '';
+  const chg = added.map(i => `<div class="wi-pl wi-new">${ico(P[i], 20)}<span class="wi-nm">${esc(hbSn(i))} <span class="note">from ${esc(own[i] || 'unsigned')}</span></span><button class="hb-mini" data-wi="unadd" data-id="${i}">Remove</button></div>`).join('')
+    + WI.drop.map(i => `<div class="wi-pl wi-out">${ico(P[i], 20)}<span class="wi-nm"><s>${esc(hbSn(i))}</s> <label class="note">to <select data-wito="${i}"><option value="">nobody</option>${TEAMS.filter(t => t !== team).map(t => `<option ${WI.to[i] === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label></span><button class="hb-mini" data-wi="undrop" data-id="${i}">Undo</button></div>`).join('');
+  return `<div class="panel wi-banner"><div class="pad"><div><b>🔀 What-if roster</b> <span class="note">Only in your browser. Nothing here changes your real team or lineup.</span></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${sel}<button data-wimode="0">← Back to my lineup</button></div></div></div>
+  <div class="panel" style="margin-top:14px"><h2>${hbLogo(team, true)}${esc(team)} <span>What-if · ${ids.length} players${added.length ? ' · +' + added.length : ''}${WI.drop.length ? ' · −' + WI.drop.length : ''}</span></h2>
+   <div class="pad"><div class="note">Drag players onto positions, or tap a player and then a position. Drag back to the dugout to bench. Add or drop players at the bottom of the page.</div></div></div>
+  <div class="hb-two" style="margin-top:14px"><div class="panel"><h2>Field <span>${HE.stars.size}/${HB_MAX_STARS} stars</span></h2><div class="pad"><div class="hb-field" id="hbField"><svg viewBox="0 0 100 92" preserveAspectRatio="none" aria-hidden="true"><path d="M50 84 L95 40 A52 52 0 0 0 5 40 Z" class="hb-grass"/><path d="M50 80 L80 58 L50 36 L20 58 Z" class="hb-dirt"/><path d="M50 74 L72 58 L50 42 L28 58 Z" class="hb-inf"/></svg>${spots}</div>
+    <div class="hb-dugout" data-hbdrop="bench"><div class="hb-dtitle">Dugout <span class="note">${bench.length} on the bench</span></div><div class="hb-bench">${bench.map(p => hbCard2(p.id, team, 'wi', ed, null)).join('') || '<span class="note">Everyone is on the field.</span>'}</div></div></div></div>
+   <div class="panel"><h2>Batting order <span>what-if</span></h2>${order || '<div class="pad note">Nobody in the lineup yet. Use Auto-fill best, or drag players onto the field.</div>'}
+    <div class="pad" style="display:grid;gap:8px"><div style="display:flex;gap:8px;flex-wrap:wrap"><button data-hbo="auto">Auto-fill best</button><button data-wi="reset" ${added.length || WI.drop.length ? '' : 'disabled'}>Reset to my real roster</button></div>
+    ${msgs.length ? `<div class="banner warn" style="margin:0">${msgs.map(esc).join('<br>')}</div>` : (HE.order.length ? '<div class="banner info" style="margin:0;color:var(--good)">Lineup is valid.</div>' : '')}
+    ${strength != null ? `<div class="note">Team strength <b class="num">${strength.toFixed(2)}</b> runs/game vs average · Chem <b class="num">${tm.chem.good}</b> good, <b class="num">${tm.chem.bad}</b> bad</div>` : ''}
+    ${d != null ? `<div class="note">vs your real roster's best lineup (${base.score.toFixed(2)}): <b class="${d > 0.005 ? 'wi-up' : d < -0.005 ? 'wi-down' : ''}">${d >= 0 ? '+' : ''}${d.toFixed(2)} runs/game</b></div>` : ''}
+    ${pHtml ? `<div style="display:grid;gap:6px">${pHtml}</div>` : ''}</div></div></div>
+  <div class="panel" style="margin-top:14px"><h2>Add or drop players</h2><div class="pad wi-ad">
+    <div style="display:grid;gap:8px;align-content:start"><b>Add anyone in the league</b><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="wiQ" type="search" placeholder="Search players" value="${esc(WI.q)}" style="flex:1;min-width:150px"><select data-wif="1"><option value="">All teams</option>${TEAMS.filter(t => t !== team).map(t => `<option ${WI.f === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}<option value="unsigned" ${WI.f === 'unsigned' ? 'selected' : ''}>Unsigned</option></select></div><div id="wiRes" class="wi-list wi-res">${wiResults()}</div></div>
+    <div style="display:grid;gap:8px;align-content:start"><b>Drop one of yours</b><div style="display:flex;gap:8px"><select id="wiDropSel" style="flex:1"><option value="">Pick a player…</option>${real.filter(i => !WI.drop.includes(i)).map(i => `<option value="${i}">${esc(hbSn(i))}</option>`).join('')}</select><button data-wi="dropsel">Drop</button></div>
+     <b style="margin-top:6px">Changes</b><div class="wi-list">${chg || '<span class="note">No changes yet. This is your real roster.</span>'}</div></div></div></div>
+  <div class="hb-wilink"><button class="linkb" data-wimode="0">← Back to my lineup</button></div>`;
 }
 document.addEventListener('click', e => {
-  const s = e.target.closest('[data-lsub]'); if (s) { HB.lsub = s.dataset.lsub; renderHub(); return; }
-  const b = e.target.closest('[data-wi]'); if (!b) return; const id = +b.dataset.id, a = b.dataset.wi;
-  if (a === 'add') { if (!WI.add.includes(id)) WI.add.push(id); } else if (a === 'unadd') WI.add = WI.add.filter(x => x !== id);
-  else if (a === 'drop') { if (!WI.drop.includes(id)) WI.drop.push(id); } else if (a === 'undrop') { WI.drop = WI.drop.filter(x => x !== id); delete WI.to[id]; }
-  else if (a === 'reset') { WI.add = []; WI.drop = []; WI.to = {}; }
+  const m = e.target.closest('[data-wimode]'); if (m) { HB.wimode = m.dataset.wimode === '1'; HE.team = null; renderHub(); try { window.scrollTo({ top: 0 }); } catch (x) {} return; }
+  const b = e.target.closest('[data-wi]'); if (!b) return; let id = +b.dataset.id; const a = b.dataset.wi;
+  if (a === 'dropsel') { id = +($('#wiDropSel') || {}).value; if (!($('#wiDropSel') || {}).value) return; }
+  const out = x => { HE.order = HE.order.filter(y => y !== x); delete HE.pos[x]; HE.stars.delete(x); };
+  if (a === 'add') { if (!WI.add.includes(id)) WI.add.push(id); } else if (a === 'unadd') { WI.add = WI.add.filter(x => x !== id); out(id); }
+  else if (a === 'drop' || a === 'dropsel') { if (!WI.drop.includes(id)) WI.drop.push(id); out(id); } else if (a === 'undrop') { WI.drop = WI.drop.filter(x => x !== id); delete WI.to[id]; }
+  else if (a === 'reset') { WI.add = []; WI.drop = []; WI.to = {}; WI.lu = null; HE.team = null; }
   wiSave(); renderHub();
 });
 document.addEventListener('input', e => { if (e.target && e.target.id === 'wiQ') { WI.q = e.target.value; const r = $('#wiRes'); if (r) r.innerHTML = wiResults(); } });
 document.addEventListener('change', e => { const t = e.target; if (!t || !t.dataset) return;
   if (t.dataset.wif) { WI.f = t.value; const r = $('#wiRes'); if (r) r.innerHTML = wiResults(); }
   else if (t.dataset.wito) { WI.to[+t.dataset.wito] = t.value || null; wiSave(); renderHub(); }
-  else if (t.dataset.witeam) { HB.wteam = t.value; WI.team = null; renderHub(); } });
+  else if (t.dataset.witeam) { HB.wteam = t.value; HE.team = null; renderHub(); } });
 /* ---- blank score sheet for the stats bot (it watches the video and fills in the stats) ---- */
 function gmBotSheet(g) {
   const s = HB.scores[g.gid] || {}, pl = s.played && s.played.away ? s.played : { away: g.away, home: g.home };
