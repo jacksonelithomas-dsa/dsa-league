@@ -5229,14 +5229,21 @@ function hbFromAuto(team, wk) {
 // what gets locked: the team's own saved lineup exactly as saved (players no longer on the roster are kept and flagged), else the usual fallback
 function hbLockLu(team, wk) {
   const own = hbDoc(team, wk), ros = new Set(hbRoster(team));
-  if (own && own.slots && own.slots.length) return { slots: Array.from(own.slots), pos: Object.assign({}, own.pos || {}), stars: own.stars || [], bad: own.slots.filter(id => !ros.has(id)) };
+  if (own && own.slots && own.slots.length) { const t = hbTrim(own, team); return { slots: t.slots, pos: t.pos, stars: t.stars, bad: t.gone }; }
   const l = hbLineup(team, wk); return l ? { slots: l.slots, pos: l.pos, stars: l.stars || [], bad: (l.slots || []).filter(id => !ros.has(id)) } : null;
 }
 // the lineup used in a week: that week's saved lineup, else the most recent earlier one (stars never carry over), else the automatic best nine
+// a saved lineup with players no longer on the team: their spots are left empty, everything else (order, positions, stars) stays as saved
+function hbTrim(d, team) {
+  const ros = new Set(hbRoster(team)), seen = new Set(), slots = [], gone = [];
+  (d.slots || []).forEach(id => { if (seen.has(id)) return; seen.add(id); if (ros.has(id)) slots.push(id); else gone.push(id); });
+  const pos = {}; slots.forEach(id => { if ((d.pos || {})[id]) pos[id] = d.pos[id]; });
+  return { slots, pos, stars: (d.stars || []).filter(id => ros.has(id)), gone, emptyPos: gone.map(id => (d.pos || {})[id]).filter(Boolean) };
+}
 function hbLineup(team, wk) {
   wk = wk || hbCur(); if (hbFrozen(team, wk)) { const x = hbAsPlayed(team, wk); if (x) return x; } const own = hbDoc(team, wk);
-  if (hbValidDoc(own, team)) return { slots: Array.from(own.slots), pos: Object.assign({}, own.pos), stars: (own.stars || []).filter(id => hbRoster(team).includes(id)), saved: true, from: wk };
-  for (let w = wk - 1; w >= 0; w--) { const d = hbDoc(team, w); if (hbValidDoc(d, team)) return { slots: Array.from(d.slots), pos: Object.assign({}, d.pos), stars: [], saved: true, from: w }; }
+  if (own && own.slots && own.slots.length) { const t = hbTrim(own, team); if (t.slots.length) return Object.assign(t, { saved: true, from: wk }); }
+  for (let w = wk - 1; w >= 0; w--) { const d = hbDoc(team, w); if (d && d.slots && d.slots.length) { const t = hbTrim(d, team); if (t.slots.length) return Object.assign(t, { stars: [], saved: true, from: w }); } }
   const a = hbAuto(team); return a ? Object.assign(a, { stars: [], saved: false, from: null }) : null;
 }
 function hbBuilt(team, lu, wk) { lu = lu || hbLineup(team, wk); const r = hbProfs([...new Set(hbRoster(team).concat(lu && lu.slots || []))]); if (!r.length) return null; lu = lu || hbLineup(team, wk); return Core.buildTeam(r, lu ? { slots: lu.slots, pos: lu.pos } : undefined); }
@@ -5569,7 +5576,8 @@ function hbStarBlock(team, wk, id) {
   return '';
 }
 function hbChecks(team) {
-  const r = hbProfs(hbRosterE(team)), m = [], lu = HE.order.map(i => P[i]).filter(Boolean), at = q => lu.find(p => HE.pos[p.id] === q);
+  const gl = typeof HE.wk === 'number' && !hbFrozen(team, HE.wk) ? (hbLineup(team, HE.wk) || {}).gone || [] : [], gone = gl.filter(i => !HE.order.includes(i));
+  const r = hbProfs(hbRosterE(team)), m = gone.length && HE.order.length < 9 ? [`${gone.map(hbSn).join(' and ')} ${gone.length === 1 ? 'is' : 'are'} no longer on the team, so ${gone.length === 1 ? 'that spot is' : 'those spots are'} empty. Fill ${gone.length === 1 ? 'it' : 'them'} and save.`] : [], lu = HE.order.map(i => P[i]).filter(Boolean), at = q => lu.find(p => HE.pos[p.id] === q);
   if (lu.length < 9) m.push(`${lu.length} of 9 starters on the field.`);
   if (r.some(p => p.cap) && lu.length && !lu.some(p => p.cap)) m.push('A captain has to start.');
   const l = at('LF'), c = at('CF'), rr = at('RF'); if (l && c && rr && !(Core.chem(c, l) > 0 && Core.chem(c, rr) > 0)) m.push('The center fielder needs chemistry with both corner outfielders.');
@@ -5740,7 +5748,7 @@ function hbCommishView() {
     <label class="hb-f">Trade deadline<select id="hbDeadline">${HB_WEEKS.slice(1).concat([99]).map(x => `<option value="${x}" ${x === hbDeadline() ? 'selected' : ''}>${x === 99 ? 'No deadline week' : 'Week ' + x + ' (11:59 PM the day before its games)'}</option>`).join('')}</select></label>
     <label class="hb-f">Exact close time<input type="datetime-local" id="hbDeadlineAt" value="${(() => { const at = hbDeadlineAt(); if (!at) return ''; const d = new Date(at - new Date(at).getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); })()}"></label>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="${HB.cfg && HB.cfg.locked ? '' : 'primary'}" data-hb="lock">${HB.cfg && HB.cfg.locked ? 'Unlock lineups' : 'Lock lineups for week ' + w}</button><button data-hb="closetrades">${HB.cfg && HB.cfg.tradesClosed ? 'Reopen trades' : 'Close trades now'}</button></div>
-    ${(() => { const bad = TEAMS.map(t => { const sn = HB.snaps[hbSnap(w, t)]; return sn && sn.bad && sn.bad.length ? `<li><b>${esc(t)}</b>: ${sn.bad.map(id => esc(P[id] ? P[id].name : String(id))).join(', ')}</li>` : ''; }).join(''); return bad ? `<div class="hb-lockflag"><b>⚠ Week ${w} lineups locked with players no longer on the team</b><ul>${bad}</ul><span class="note">They were locked exactly as the coach saved them. To change one: Unlock lineups, fix it in My Lineup as that team, and lock again.</span></div>` : ''; })()}
+    ${(() => { const bad = TEAMS.map(t => { const sn = HB.snaps[hbSnap(w, t)]; return sn && sn.bad && sn.bad.length ? `<li><b>${esc(t)}</b>: ${sn.bad.map(id => esc(P[id] ? P[id].name : String(id))).join(', ')}</li>` : ''; }).join(''); return bad ? `<div class="hb-lockflag"><b>⚠ Week ${w} lineups locked with an empty spot (player traded away)</b><ul>${bad}</ul><span class="note">The rest of each lineup was locked as the coach saved it. To fill a spot: My Lineup in Commish mode, pick the team, fill it and save.</span></div>` : ''; })()}
     <div><button data-luall="1">Check every game's lineup against its box score</button></div>
     <div class="note">Locked copies saved: ${HB_WEEKS.filter(x => x <= w + 1).map(x => { const n = TEAMS.filter(t => HB.snaps[hbSnap(x, t)]).length; return n ? `week ${x}: <b>${n}/${TEAMS.length}</b>` : ''; }).filter(Boolean).join(' · ') || 'none yet'}</div>
     <b>Auto-lock</b><div class="hb-autolock">${HB_WEEKS.filter(x => x >= w).map(x => { const at = hbAutoAt(x), dn = HB.cfg && HB.cfg.autoDone && HB.cfg.autoDone[x]; return `<label>Week ${x}<input type="datetime-local" data-autolock="${x}" value="${at ? new Date(at - new Date(at).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}">${dn ? '<span class="chip g">locked</span>' : ''}</label>`; }).join('')}</div>
@@ -5931,7 +5939,7 @@ document.addEventListener('change', e => { if (e.target && e.target.id === 'bxFi
 async function hbLock() {
   const w = hbCur(), cfg = Object.assign({ week: w }, HB.cfg || {});
   const flags = []; if (!cfg.locked) { for (const t of TEAMS) { const l = hbLockLu(t, w); if (l) { if (l.bad.length) flags.push(t + ' (' + l.bad.map(id => P[id] ? P[id].name : id).join(', ') + ')'); if (!(await hbPut('ssnap/' + hbSnap(w, t), { wk: w, team: t, slots: l.slots, pos: l.pos, stars: l.stars, bad: l.bad, t: Date.now() }))) flags.push(t + ' (could not save the locked copy, try again)'); } } cfg.locked = true; } else cfg.locked = false;
-  if (flags.length) setTimeout(() => toast('Locked as saved, but these lineups have players no longer on the team: ' + flags.join('; ') + '. Fix them in the Commish tab if needed.', 'bad'), 2500);
+  if (flags.length) setTimeout(() => toast('Locked with empty spots, because these players are no longer on the team: ' + flags.join('; ') + '. Fill them in My Lineup (Commish mode) if needed.', 'bad'), 2500);
   if (await hbPut('season/config', cfg)) { toast(cfg.locked ? 'Lineups locked.' : 'Lineups unlocked.', 'good'); if (cfg.locked && typeof atPublish === 'function') setTimeout(() => atPublish(w, true), 1500); }
 }
 function hbDrawLottery() {
@@ -7908,8 +7916,8 @@ function atChar(pid) {
 /* the lineup a team will use that week: the lock copy, else the saved lineup, else last saved, else the automatic best nine */
 function atLineup(t, wk) {
   const sn = HB.snaps[hbSnap(wk, t)]; if (sn && sn.slots) return { slots: sn.slots, pos: sn.pos || {}, stars: sn.stars || [], src: 'locked' };
-  const own = hbDoc(t, wk); if (own && own.slots) return { slots: own.slots, pos: own.pos || {}, stars: own.stars || [], src: 'saved' };
-  for (let w = wk - 1; w >= 0; w--) { const d = hbDoc(t, w); if (d && d.slots) return { slots: d.slots, pos: d.pos || {}, stars: [], src: 'carried over from week ' + w }; }
+  const own = hbDoc(t, wk); if (own && own.slots && own.slots.length) { const x = hbTrim(own, t); if (x.slots.length) return { slots: x.slots, pos: x.pos, stars: x.stars, src: 'saved' + (x.gone.length ? ' (empty spot: ' + x.gone.map(hbSn).join(', ') + ' traded)' : '') }; }
+  for (let w = wk - 1; w >= 0; w--) { const d = hbDoc(t, w); if (d && d.slots && d.slots.length) { const x = hbTrim(d, t); if (x.slots.length) return { slots: x.slots, pos: x.pos, stars: [], src: 'carried over from week ' + w }; } }
   const a = hbLineup(t, wk); return a ? { slots: a.slots, pos: a.pos || {}, stars: a.stars || [], src: 'automatic' } : null;
 }
 function atTeam(t, wk) {
