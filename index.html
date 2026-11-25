@@ -5611,6 +5611,7 @@ function hbRostersView() {
      <div class="tbl-wrap"><table><thead><tr><th class="l">Lineup</th><th>Pos</th><th>Bat</th><th>RA</th></tr></thead><tbody>${starters.map((id, i) => row(id, i)).join('') || '<tr><td class="l muted" colspan="4">No roster yet.</td></tr>'}</tbody></table></div>
      ${bench.length ? `<div class="pad"><div class="note" style="margin-bottom:4px">Dugout</div><div class="chips">${bench.map(p => `<span class="chip">${ico(p, 16)}<span class="pclick" data-pid="${p.id}">${esc(hbSn(p.id))}</span>${stars.includes(p.id) ? ' <b class="hb-s">★</b>' : ''}</span>`).join('')}</div></div>` : ''}</div>`; }).join('');
   return `<div class="panel"><h2>Rosters <span>Most recent saved lineup for each team, with this week's stars</span></h2><div class="pad" style="display:grid;gap:10px">${hbWeekBar('rweek', wk)}
+   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button data-coachdl="1">🧠 Download coach file for Claude</button><span class="note">Every roster, lineup, star, stat, the schedule and chemistry in one file. Upload it to your Claude coach chat and ask for advice.</span></div>
    <div class="note">Each team can star ${HB_MAX_STARS} players a week. A player cannot be starred two weeks in a row, and Miis cannot be starred. Tap a name for stats.</div></div></div><div class="hb-lbs" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))">${cards}</div>`;
 }
 
@@ -8004,6 +8005,33 @@ async function hbLuFix(gid, sd, which) {
     setTimeout(() => { const left = HB_GAMES.filter(g => g.wk === x.g.wk).map(g => g.gid).filter(id => hbLuDiffs(id).length); if (left.length) hbLuReview(left); else { const m = $('#hbModal'); if (m) m.hidden = true; } renderHub(); }, 900); }
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-luall]')) { const ids = HB_GAMES.map(g => g.gid).filter(id => hbLuDiffs(id).length); if (ids.length) hbLuReview(ids); else toast('Every box score matches its lineup.', 'good'); return; } const f = e.target.closest('[data-lufix]'); if (f) { hbLuFix(f.dataset.g, f.dataset.sd, f.dataset.lufix); return; } const c = e.target.closest('[data-luchk]'); if (c) hbLuReview([c.dataset.luchk]); });
+/* ---- coach file: everything a coach needs for advice, in one JSON file to give to Claude (the DSA coach skill reads it) ---- */
+function hbCoachFile() {
+  const cur = hbCur(), locked = !!(HB.cfg && HB.cfg.locked), me = hbMe() || null, nm = i => P[i] ? P[i].name : String(i), r2 = v => v == null || isNaN(v) ? null : Math.round(v * 1000) / 1000;
+  const owner = {}; TEAMS.forEach(t => hbRoster(t).forEach(i => owner[i] = t));
+  const rows = stSeasonRows(), sMax = Math.max(...rows.map(r => r.s || 0)), season = {};
+  rows.filter(r => r.s === sMax && r.pid >= 0).forEach(r => { season[r.pid] = { G: r.G, AB: r.AB, H: r.H, '2B': r.b2, '3B': r.b3, HR: r.HR, RBI: r.RBI, SO: r.SO, AVG: r2(r.AVG), SLG: r2(r.SLG), OPS: r2(r.OPS), sexyPlays: r.SP, buddyCatches: r.BC, buddyTosses: r.BT, errors: r.E, outs: r.OUT, pitchApps: r.App, IP: r2(r.IP), W: r.W, L: r.L, SV: r.SV, K: r.K, hitsAllowed: r.HA, ER: r.ER, ERA: r2(r.ERA), MVP: r.MVP }; });
+  const lu = (t, w) => { if (w > (HB_WEEKS[HB_WEEKS.length - 1] || 99)) return null; const l = hbLineup(t, w); if (!l) return null; const b = hbBuilt(t, l, w);
+    return { week: w, source: hbFrozen(t, w) ? gmLuSrc(hbAsPlayed(t, w) || l) : hbDoc(t, w) ? 'saved by coach' : l.saved ? 'carried over from week ' + l.from : 'automatic (not saved)', battingOrder: l.slots.map((i, k) => ({ bats: k + 1, name: nm(i), pos: (l.pos || {})[i] || null, star: (l.stars || []).includes(i) })),
+      goodChemPairs: b ? b.chem.good : null, badChemPairs: b ? b.chem.bad : null, items: b && b.items ? b.items.items + ' of ' + b.items.n : null }; };
+  const game = (t, w) => { const g = HB_GAMES.find(x => x.wk === w && (x.away === t || x.home === t)); if (!g) return null; const s = HB.scores[g.gid] || {}; return { week: w, opponent: g.away === t ? g.home : g.away, home: g.home === t, stadium: (typeof gmVenue === 'function' ? gmVenue(g, s) : '') || null, final: s.status === 'final' ? { us: g.home === t ? s.hs : s.as, them: g.home === t ? s.as : s.hs } : null }; };
+  const teams = TEAMS.map(t => { const ros = hbRoster(t), st = hbStandings().find(x => x.t === t) || {}, lastStars = ((hbAsPlayed(t, locked ? cur : cur - 1) || {}).stars || []).map(nm);
+    return { team: t, record: (st.w || 0) + '-' + (st.l || 0), runsFor: st.rs, runsAgainst: st.ra, captain: ros.filter(i => P[i] && P[i].cap).map(nm), roster: ros.map(nm),
+      thisWeek: lu(t, cur), nextWeek: locked ? lu(t, cur + 1) : null, starredLastLockedWeek: lastStars, schedule: HB_WEEKS.map(w => game(t, w)).filter(Boolean) }; });
+  const ROLE = typeof ROLE_NAME !== 'undefined' ? ROLE_NAME : {};
+  const players = P.map((p, i) => p ? { name: p.name, team: owner[i] || 'unsigned', role: ROLE[p.role] || p.role || null, captain: !!p.cap, mii: !!p.mii, siteBatRating: r2(p.bat), siteRunsAllowedRating: r2(p.ra), speed: p.spd, stamina: p.stam, sexyPlaysPerGame: r2(p.spg),
+      career: { G: p.G, AB: p.AB, AVG: p.AVG, HR: p.HR, OPS: p.OPS, IP: p.IP, ERA: p.ERA }, season6: season[i] || null,
+      goodChem: P.filter((q, j) => q && j !== i && Core.chem(p, q) > 0).map(q => q.name), badChem: P.filter((q, j) => q && j !== i && Core.chem(p, q) < 0).map(q => q.name) } : null).filter(Boolean);
+  const trades = (HB.tlog || []).slice().sort((a, b) => (a.t || 0) - (b.t || 0)).map(l => ({ date: l.t ? new Date(l.t).toISOString().slice(0, 10) : null, moves: (l.legs || []).map(x => (x.pid != null ? nm(x.pid) : x.what || 'pick') + ': ' + x.from + ' → ' + x.to) }));
+  return { format: 'dsa-coach/1', league: 'DSA (Darkhorse Slugging Association), Mario Super Sluggers', exported: new Date().toISOString(), exportedBy: me, currentWeek: cur, currentWeekLocked: locked,
+    nextLock: (() => { const w = locked ? cur + 1 : cur, at = hbAutoAt(w); return at ? { week: w, at: new Date(at).toISOString(), local: hbAutoFmt(at) } : null; })(),
+    rules: { starsPerWeek: HB_MAX_STARS, starRule: 'A player cannot be starred two weeks in a row, and Miis cannot be starred.', lineupSize: 9, tradeDeadline: hbDeadlineAt() ? new Date(hbDeadlineAt()).toISOString() : 'before week ' + hbDeadline() + ' games', tradesOpen: hbTradeOpen() },
+    standings: hbStandings().map((x, k) => ({ rank: k + 1, team: x.t, w: x.w, l: x.l, runsFor: x.rs, runsAgainst: x.ra })), teams, players, seasonTrades: trades,
+    pastSeasonInsights: typeof BOXINS !== 'undefined' ? BOXINS : null,
+    notes: 'siteBatRating and siteRunsAllowedRating are the site model ratings (higher bat = better hitter, lower RA = better pitcher). season6 is this season from entered box scores; career is past seasons. goodChem/badChem already apply Mii color rules.' };
+}
+function hbCoachDl() { try { const d = hbCoachFile(), a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 1)], { type: 'application/json' })); a.download = 'dsa-coach-week' + d.currentWeek + (d.exportedBy ? '-' + d.exportedBy.replace(/\W+/g, '') : '') + '.json'; document.body.appendChild(a); a.click(); a.remove(); toast('Coach file downloaded. Give it to Claude with your question.', 'good'); } catch (e) { console.error(e); toast('Could not build the coach file.', 'bad'); } }
+document.addEventListener('click', e => { if (e.target.closest('[data-coachdl]')) hbCoachDl(); });
 /* ---- blank score sheet for the stats bot (it watches the video and fills in the stats) ---- */
 function gmBotSheet(g) {
   const s = HB.scores[g.gid] || {}, pl = s.played && s.played.away ? s.played : { away: g.away, home: g.home };
